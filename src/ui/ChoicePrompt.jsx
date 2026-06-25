@@ -79,6 +79,15 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
       onRespond({ stackIndex: parseInt(selected[0]) })
     } else if (type === 'optional') {
       onRespond({ accept: true })
+    } else if (type === 'putHandCardOnDeckTop') {
+      onRespond({ cardId: selected[0] })
+    } else if (type === 'additionalCost') {
+      // payload shape depends on the underlying cost type (see resolveChoice)
+      if (choice.cost?.type === 'putHandCardOnDeckTop') {
+        onRespond({ cardId: selected[0] })
+      } else {
+        onRespond({ cardIds: selected })
+      }
     }
     setSelected([])
   }

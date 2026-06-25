@@ -253,8 +253,11 @@ function handleMessage(ws, room, playerId, msg) {
     return;
   }
 
-  // After any action, check if new choices were queued
-  if (!state.pendingChoice && events.some(e => e.type === 'CHOICE_REQUIRED')) {
+  // After any action, surface the next queued choice if one isn't already
+  // pending. This covers every choice-producing trigger (CHOICE_REQUIRED,
+  // ADDITIONAL_COST_REQUIRED, …); advancePendingChoices is a no-op when the
+  // queue has no choice triggers.
+  if (!state.pendingChoice) {
     advancePendingChoices(state);
   }
 

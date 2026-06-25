@@ -1,6 +1,7 @@
 import { describe, test, expect } from './helpers.js';
 import { createGameState, drawCards, opponent, initDeck } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
+import { resolveChoice } from '../src/engine/choices.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -499,5 +500,40 @@ describe('Stack-targeting choices', () => {
     const trigger = state.pendingTriggers.find(t => t.type === 'trashFromStackChoice');
     expect(trigger).not.toBe(undefined);
     expect(trigger.player).toBe('p2');
+  });
+});
+
+// ─── Additional costs ───────────────────────────────────────────────────────────
+
+describe('Additional costs', () => {
+  // Mirrors how the server surfaces a queued trigger as the pending choice.
+  function surfaceChoice(state, triggerType) {
+    const t = state.pendingTriggers.find(x => x.type === triggerType);
+    if (!t) return null;
+    state.pendingChoice = { ...t, type: 'additionalCost' };
+    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
+    return state.pendingChoice;
+  }
+
+  test('Sneak (08): additional cost is required and resolves a card onto the deck', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '08'); // Sneak: point, additionalCost putHandCardOnDeckTop
+    giveCard(state, 'p1', '53'); // spare card to pay the cost
+    setEnergy(state, 'p1', 9);
+
+    const events = playCard(state, 'p1', '08');
+    expect(eventTypes(events)).toContain('ADDITIONAL_COST_REQUIRED');
+
+    // The trigger must tag the paying player so the server can route it.
+    const choice = surfaceChoice(state, 'additionalCost');
+    expect(choice).not.toBe(null);
+    expect(choice.player).toBe('p1');
+    expect(choice.cost.type).toBe('putHandCardOnDeckTop');
+
+    const { error } = resolveChoice(state, 'p1', { cardId: '53' });
+    expect(error).toBe(null);
+    expect(state.players.p1.hand).not.toContain('53');
+    expect(state.zones.deck[0]).toBe('53');
+    expect(state.pendingChoice).toBe(null);
   });
 });
