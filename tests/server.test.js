@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeAll, afterAll } from './helpers.js';
 import { WebSocket } from 'ws';
 import { createServer } from '../src/server.js';
 
@@ -52,11 +53,19 @@ function createPlayer(roomId) {
 
 async function startTestGame() {
   const roomId = `RM${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-  const [p1, p2] = await Promise.all([
+  const [a, b] = await Promise.all([
     createPlayer(roomId),
     createPlayer(roomId),
   ]);
-  const [p1State, p2State] = await Promise.all([p1.nextState(), p2.nextState()]);
+  const [aState, bState] = await Promise.all([a.nextState(), b.nextState()]);
+  // Connection arrival order is non-deterministic, so the server may assign
+  // slot 'p1' to either socket. Route by the authoritative `you` field rather
+  // than by array order so the test's p1/p2 always match the server's slots.
+  const aIsP1 = aState.you === 'p1';
+  const p1 = aIsP1 ? a : b;
+  const p2 = aIsP1 ? b : a;
+  const p1State = aIsP1 ? aState : bState;
+  const p2State = aIsP1 ? bState : aState;
   return { p1, p2, p1State, p2State };
 }
 
@@ -64,7 +73,13 @@ async function startTestGame() {
 
 let server;
 beforeAll(() => { server = createServer(TEST_PORT); });
-afterAll(() => { server.close(); });
+afterAll(() => {
+  // wss.close() stops accepting connections but leaves open client sockets
+  // alive, which keeps the test process's event loop running forever. Terminate
+  // every connected socket first so `node --test` actually exits.
+  for (const client of server.clients) client.terminate();
+  server.close();
+});
 
 // ─── Connection Tests ─────────────────────────────────────────────────────────
 
@@ -211,7 +226,9 @@ describe('Choice flow', () => {
     const setup = await setupSortChoice();
     if (!setup) return;
     const { p2 } = setup;
-    const p2View = await p2.nextState();
+    // p2's buffer holds earlier states (e.g. just after p1 played the card)
+    // with no pendingChoice yet; wait for the broadcast that carries the choice.
+    const p2View = await p2.waitFor(m => m.type === 'GAME_STATE' && m.state.pendingChoice);
     expect(p2View.state.pendingChoice.waitingFor).toBe('opponent');
   });
 

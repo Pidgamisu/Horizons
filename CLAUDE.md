@@ -55,8 +55,9 @@ glue.
 
 ## Commands
 
-There is **no `start` or `test` script** in `package.json` — run these directly. The `.js`
-files use ESM `import` syntax and run under Node's automatic ESM detection.
+There is **no `start` script** in `package.json` — run the server directly. There **is** a
+`test` script (`npm test`). The `.js` files use ESM `import` syntax and run under Node's
+automatic ESM detection.
 
 ```bash
 # Client dev server (Vite) → http://localhost:5173
@@ -68,14 +69,17 @@ npm run build
 # Game server (WebSocket) → ws://localhost:8080
 node src/index.js          # override port with: PORT=9000 node src/index.js
 
-# Tests (Node's built-in runner)
+# Tests (Node's built-in runner) — 66 tests, all passing
+npm test
+# equivalently:
 node --test tests/game.test.js tests/server.test.js
 ```
 
-> ⚠️ The test files use `describe`/`test` but don't import them from `node:test`, so they
-> currently fail with `describe is not defined` on Node 24. They need
-> `import { describe, test } from 'node:test'` (and `assert` from `node:assert`) added before
-> they'll run. Treat fixing this as separate, known tech debt.
+> The test bodies are written in **Jest style** (`expect().toBe()`, `toHaveLength`,
+> `beforeAll`, …), which `node:test` doesn't provide. `tests/helpers.js` shims `expect` over
+> `node:assert/strict` and re-exports `describe`/`test`/`beforeAll`/`afterAll`; both test files
+> import from it. When adding tests, import from `./helpers.js` and extend the shim if you need a
+> matcher it doesn't have yet.
 
 To play: start the server, run the client, open `http://localhost:5173` in two tabs, create a
 game in one and join via the shared room URL in the other.

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "node --test tests/game.test.js tests/server.test.js"
   },
   "dependencies": {
     "react": "^18.3.1",
