@@ -165,10 +165,6 @@ export function endTurn(state) {
   const otherPlayer = opponent(currentPlayer);
   const isFirstTurn = state.turnNumber === 1;
 
-  // 1. Flush pending end-of-turn triggers (draws from Prepare 50, Debilitate 56, etc.)
-  const triggerEvents = flushEndOfTurnTriggers(state, currentPlayer);
-  events.push(...triggerEvents);
-
   // 2. Wipe energy for both players
   state.players.p1.energy = 0;
   state.players.p2.energy = 0;
@@ -196,6 +192,12 @@ export function endTurn(state) {
       events.push({ type: 'CARDS_DRAWN', player: otherPlayer, cards: drawn });
     }
   }
+
+  // 5b. Flush deferred "draw at start of next turn" triggers (Prepare 50,
+  //     Foresee 95, etc.) AFTER the refill so they add cards on top of the
+  //     5-card hand instead of being absorbed by draw-up-to-5.
+  const triggerEvents = flushEndOfTurnTriggers(state);
+  events.push(...triggerEvents);
 
   // 6. Reset per-turn state
   state.cardsPlayedThisTurn = [];
@@ -332,10 +334,13 @@ function executeStaticTriggerEffect(state, effect, contextPlayer, thatPlayer) {
   return events;
 }
 
-function flushEndOfTurnTriggers(state, currentPlayer) {
+function flushEndOfTurnTriggers(state) {
   const events = [];
-  const toProcess = state.pendingTriggers.filter(t => t.type === 'draw' && t.player === currentPlayer);
-  state.pendingTriggers = state.pendingTriggers.filter(t => !(t.type === 'draw' && t.player === currentPlayer));
+  // Fire every queued "start of next turn" draw for whichever player owns it.
+  // (Each turn boundary is the start of someone's next turn; the trigger is
+  // removed once fired so it only happens once.)
+  const toProcess = state.pendingTriggers.filter(t => t.type === 'draw');
+  state.pendingTriggers = state.pendingTriggers.filter(t => t.type !== 'draw');
 
   for (const trigger of toProcess) {
     const drawn = drawCards(state, trigger.player, trigger.count);

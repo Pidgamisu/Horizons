@@ -537,3 +537,33 @@ describe('Additional costs', () => {
     expect(state.pendingChoice).toBe(null);
   });
 });
+
+// ─── Deferred (start-of-next-turn) draws ────────────────────────────────────────
+
+describe('Deferred draws', () => {
+  // Regression: Prepare's "draw a card at the start of the next turn" must add
+  // a card on top of the 5-card refill, not get absorbed by draw-up-to-5.
+  test('Prepare (50) yields a net extra card despite the refill', () => {
+    const baseline = (() => {
+      const { state } = freshGame();
+      // void 3 cards so the hand is below 5 at end of turn (the absorbing case)
+      const toVoid = state.players.p1.hand.slice(0, 3);
+      for (const c of toVoid) voidCard(state, 'p1', c);
+      passPriority(state, 'p1');
+      passPriority(state, 'p2');
+      return state.players.p1.hand.length;
+    })();
+
+    const { state } = freshGame();
+    giveCard(state, 'p1', '50'); // Prepare: action, draw 1 at start of next turn
+    const toVoid = state.players.p1.hand.filter(c => c !== '50').slice(0, 3);
+    for (const c of toVoid) voidCard(state, 'p1', c);
+    playCard(state, 'p1', '50');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // Prepare resolves → deferred draw
+    passPriority(state, 'p1');
+    passPriority(state, 'p2'); // p1 turn ends
+
+    expect(state.players.p1.hand.length).toBe(baseline + 1);
+  });
+});
