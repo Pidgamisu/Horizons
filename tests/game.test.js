@@ -478,3 +478,26 @@ describe('Special card interactions', () => {
     expect(state.zones.stack.map(e => e.cardId)).not.toContain('37');
   });
 });
+
+// ─── Stack-targeting choices ────────────────────────────────────────────────────
+
+describe('Stack-targeting choices', () => {
+  // Regression: stack-choice triggers must tag the chooser via `player`, not
+  // `chooser`. With the wrong field the choice has no `player`, so the server
+  // shows "waiting for opponent" to both players and no one can select a card.
+  test('trashFromStack tags the choosing player on the trigger', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '53'); // Sort: action cost 0
+    giveCard(state, 'p2', '44'); // Stop: action, trashFromStack any
+    setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '53'); // stack: [53], p2 has priority
+    playCard(state, 'p2', '44'); // p2 responds: stack [44, 53]
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');   // Stop resolves → trashFromStack choice for p2
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromStackChoice');
+    expect(trigger).not.toBe(undefined);
+    expect(trigger.player).toBe('p2');
+  });
+});

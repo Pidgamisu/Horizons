@@ -117,7 +117,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       // Here: mark as pending choice
       state.pendingTriggers.push({
         type: 'trashFromStackChoice',
-        chooser: controller,
+        player: controller,
         filter: effect.filter,
         thenGrant: effect.thenGrant ?? null,
       });
@@ -166,14 +166,14 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'returnToControllerHand': {
-      state.pendingTriggers.push({ type: 'returnStackCardToHandChoice', chooser: controller, filter: effect.filter });
+      state.pendingTriggers.push({ type: 'returnStackCardToHandChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'returnToControllerHand', filter: effect.filter });
       break;
     }
 
     case 'moveFromStackToHand': {
       // Steal Intensity (86) — puts a point card on stack into your own hand
-      state.pendingTriggers.push({ type: 'stealFromStackChoice', chooser: controller, filter: effect.filter });
+      state.pendingTriggers.push({ type: 'stealFromStackChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'stealFromStack', filter: effect.filter });
       break;
     }
@@ -206,7 +206,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
     case 'gainControl': {
       state.pendingTriggers.push({
         type: 'gainControlChoice',
-        chooser: controller,
+        player: controller,
         filter: effect.filter,
         onResolve: effect.onResolve ?? null,
       });
