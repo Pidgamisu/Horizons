@@ -10,10 +10,11 @@ import { ActionBar } from './ui/ActionBar.jsx'
 import { ChoicePrompt } from './ui/ChoicePrompt.jsx'
 import { GameOver, Lobby, Toast } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
+import { ZoneViewer } from './ui/ZoneViewer.jsx'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
 
-function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover }) {
+function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover, onZoneClick }) {
   const editor = useEditor()
   const boardRef = useRef(null)
 
@@ -59,17 +60,23 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
       const shape = editor.getShapeAtPoint(point, {
         hitInside: true,
         hitLocked: true,
-        filter: (s) => s.type === 'horizons-card' && !!s.props.cardId,
+        filter: (s) =>
+          (s.type === 'horizons-card' && !!s.props.cardId) ||
+          (s.type === 'horizons-zone' && s.props.zoneType === 'trash'),
       })
       if (!shape) return
+      // Clicking anywhere on the trash pile (a trashed card or the zone itself)
+      // opens the full-pile viewer, since the canvas only shows the top cards.
+      if (shape.type === 'horizons-zone') { onZoneClick('trash'); return }
       const { cardId, zone } = shape.props
-      if (zone === 'hand') onCardClick(cardId)
+      if (zone === 'trash') onZoneClick('trash')
+      else if (zone === 'hand') onCardClick(cardId)
       else if (zone === 'stack') onStackCardClick(cardId, editor)
     }
 
     container.addEventListener('click', handleClick)
     return () => container.removeEventListener('click', handleClick)
-  }, [editor, onCardClick, onStackCardClick])
+  }, [editor, onCardClick, onStackCardClick, onZoneClick])
 
   return null
 }
@@ -82,6 +89,7 @@ export default function App() {
   const [toasts, setToasts] = useState([])
   const [roomId, setRoomId] = useState(null)
   const [hoveredCard, setHoveredCard] = useState(null)
+  const [viewingZone, setViewingZone] = useState(null)
 
   const connect = useCallback((id) => {
     gameClient.connect(id)
@@ -167,6 +175,10 @@ export default function App() {
     setHoveredCard(cardId ? { cardId, point } : null)
   }, [])
 
+  const handleZoneClick = useCallback((zoneType) => {
+    setViewingZone(zoneType)
+  }, [])
+
   const handlePlay = useCallback(() => {
     if (!selectedCard) return
     gameClient.playCard(selectedCard)
@@ -216,6 +228,7 @@ export default function App() {
             onCardClick={handleCardClick}
             onStackCardClick={handleStackCardClick}
             onCardHover={handleCardHover}
+            onZoneClick={handleZoneClick}
           />
         </Tldraw>
       </div>
@@ -254,6 +267,14 @@ export default function App() {
 
       {hoveredCard && (
         <CardTooltip cardId={hoveredCard.cardId} point={hoveredCard.point} />
+      )}
+
+      {viewingZone === 'trash' && (
+        <ZoneViewer
+          title="Trash"
+          cardIds={[...(gameState?.zones?.trash ?? [])].reverse()}
+          onClose={() => setViewingZone(null)}
+        />
       )}
 
       {screen === 'ended' && gameState && (
