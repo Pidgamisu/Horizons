@@ -567,3 +567,49 @@ describe('Deferred draws', () => {
     expect(state.players.p1.hand.length).toBe(baseline + 1);
   });
 });
+
+// ─── Stack-target effects with no legal target ──────────────────────────────────
+
+describe('Stack-target effects without a legal target', () => {
+  // Regression: a stack-targeting effect with no legal target must be skipped,
+  // not create an impossible choice that hardlocks the game.
+  test('Deny Hostility (69) with no valid target is skipped, not stuck', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '69'); // Deny Hostility: trashFromStack actionPlayedInResponseToPoint
+    setEnergy(state, 'p1', 3);
+
+    playCard(state, 'p1', '69'); // alone on the stack
+    passPriority(state, 'p2');
+    const events = passPriority(state, 'p1'); // resolves with nothing else on the stack
+
+    expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
+    expect(state.pendingTriggers.find(t => t.type === 'trashFromStackChoice')).toBe(undefined);
+  });
+
+  test('Deny Hostility (69) trashes an action played in response to a point', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '04'); // Snatch: point
+    giveCard(state, 'p2', '53'); // Sort: action
+    giveCard(state, 'p1', '69'); // Deny Hostility
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+
+    playCard(state, 'p1', '04'); // point on stack
+    playCard(state, 'p2', '53'); // action in response to the point
+    playCard(state, 'p1', '69'); // Deny Hostility in response
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // Deny Hostility resolves → choice for p1
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromStackChoice');
+    expect(trigger).not.toBe(undefined);
+
+    // Mirror the server surfacing the trigger, then resolve it.
+    state.pendingChoice = { ...trigger, type: 'trashFromStack' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const idx = state.zones.stack.findIndex(e => e.cardId === '53');
+    const { error } = resolveChoice(state, 'p1', { stackIndex: idx });
+
+    expect(error).toBe(null);
+    expect(state.zones.trash).toContain('53');
+  });
+});

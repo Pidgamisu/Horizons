@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
   drawCards, trashCardFromHand, sendToTrash, trashFromStack,
-  removeFromStack, opponent, controllerOf,
+  removeFromStack, opponent, controllerOf, stackEntryMatchesFilter,
 } from '../engine/state.js';
 
 /**
@@ -45,15 +45,8 @@ export function resolveChoice(state, playerId, payload) {
       const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      const card = getCard(entry.cardId);
-      if (choice.filter !== 'any' && card.type !== choice.filter) {
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
-      }
-      // Special filter: actionPlayedInResponseToPoint
-      if (choice.filter === 'actionPlayedInResponseToPoint') {
-        if (card.type !== 'action' || entry.respondedToCardType !== 'point') {
-          error = 'Must choose an action card played in response to a point card.'; break;
-        }
       }
       const trashed = trashFromStack(state, stackIndex);
       events.push({ type: 'CARD_TRASHED_FROM_STACK', cardId: trashed.cardId });
@@ -83,8 +76,7 @@ export function resolveChoice(state, playerId, payload) {
       const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      const card = getCard(entry.cardId);
-      if (choice.filter !== 'any' && card.type !== choice.filter) {
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       const removed = removeFromStack(state, stackIndex);
@@ -99,8 +91,7 @@ export function resolveChoice(state, playerId, payload) {
       const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      const card = getCard(entry.cardId);
-      if (choice.filter !== 'any' && card.type !== choice.filter) {
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       const removed = removeFromStack(state, stackIndex);
@@ -144,8 +135,7 @@ export function resolveChoice(state, playerId, payload) {
       const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      const card = getCard(entry.cardId);
-      if (choice.filter !== 'any' && card.type !== choice.filter) {
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       entry.controlledBy = playerId;

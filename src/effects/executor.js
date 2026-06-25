@@ -2,6 +2,7 @@ import { getCard } from '../data/cardDb.js';
 import {
   drawCards, trashCardFromHand, trashHand, trashFromStack,
   sendToTrash, removeFromStack, shuffle, opponent, controllerOf,
+  stackHasTarget,
 } from '../engine/state.js';
 
 /**
@@ -113,8 +114,12 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'trashFromStack': {
-      // In real server: prompt chooser to pick a stack card matching filter
-      // Here: mark as pending choice
+      // No legal target on the (remaining) stack → skip instead of prompting an
+      // impossible choice that would hardlock the game.
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashFromStack', filter: effect.filter });
+        break;
+      }
       state.pendingTriggers.push({
         type: 'trashFromStackChoice',
         player: controller,
@@ -166,6 +171,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'returnToControllerHand': {
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'returnToControllerHand', filter: effect.filter });
+        break;
+      }
       state.pendingTriggers.push({ type: 'returnStackCardToHandChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'returnToControllerHand', filter: effect.filter });
       break;
@@ -173,6 +182,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
     case 'moveFromStackToHand': {
       // Steal Intensity (86) — puts a point card on stack into your own hand
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromStackToHand', filter: effect.filter });
+        break;
+      }
       state.pendingTriggers.push({ type: 'stealFromStackChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'stealFromStack', filter: effect.filter });
       break;
@@ -204,6 +217,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'gainControl': {
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'gainControl', filter: effect.filter });
+        break;
+      }
       state.pendingTriggers.push({
         type: 'gainControlChoice',
         player: controller,

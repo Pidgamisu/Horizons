@@ -219,6 +219,26 @@ function getStackEntryCard(entry) {
   return getCard(entry.cardId);
 }
 
+/**
+ * Does a stack entry satisfy a stack-targeting filter
+ * ('any' | 'action' | 'point' | 'actionPlayedInResponseToPoint')?
+ * Shared by the executor (to decide whether a choice has any legal target)
+ * and resolveChoice (to validate the player's pick).
+ */
+export function stackEntryMatchesFilter(entry, filter) {
+  if (!filter || filter === 'any') return true;
+  const card = getCard(entry.cardId);
+  if (filter === 'actionPlayedInResponseToPoint') {
+    return card.type === 'action' && entry.respondedToCardType === 'point';
+  }
+  return card.type === filter; // 'action' | 'point'
+}
+
+/** Is there at least one legal target on the stack for a given filter? */
+export function stackHasTarget(state, filter) {
+  return state.zones.stack.some(e => stackEntryMatchesFilter(e, filter));
+}
+
 export function computeActualCost(state, cardId, playerId, context = {}) {
   const card = getCard(cardId);
   let cost = card.energyCost;
