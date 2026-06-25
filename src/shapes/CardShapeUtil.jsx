@@ -1,4 +1,4 @@
-import { BaseBoxShapeUtil } from '@tldraw/editor'
+import { BaseBoxShapeUtil } from 'tldraw'
 
 const CW = 120
 const CH = 168
@@ -35,13 +35,11 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       : onStack ? '0 4px 16px rgba(0,0,0,0.5)'
       : 'none'
 
+    // Clicks are resolved by the editor (see App.jsx via editor.getShapeAtPoint),
+    // so the card content is presentational and lets pointer events fall through
+    // to tldraw's own input handling.
     return (
       <div
-        onClick={() => {
-  console.log('card div clicked', cardId, zone)
-  if (zone === 'hand') window.__onCardClick?.(cardId)
-  if (zone === 'stack') window.__onStackCardClick?.(cardId)
-}}
         style={{
         width: w,
         height: h,
@@ -52,7 +50,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
         overflow: 'hidden',
         background: '#12122a',
         transition: 'box-shadow 0.15s, opacity 0.15s',
-        pointerEvents: 'all',
+        pointerEvents: 'none',
         position: 'relative',
       }}>
         {faceUp && cardId ? (

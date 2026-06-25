@@ -21,10 +21,8 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     if (!editor) return
     editor.setCurrentTool('select')
     boardRef.current = new BoardManager(editor)
-    window.__editor = editor
     // Re-sync game state now that editor is ready
     if (gameState && myPlayerId) {
-      console.log('editor ready, syncing state')
       boardRef.current.syncState(gameState, myPlayerId)
     }
     setTimeout(() => boardRef.current?.fitBoard(), 100)
@@ -33,21 +31,19 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
 
   useEffect(() => {
     if (!editor || !boardRef.current || !gameState || !myPlayerId) return
-    console.log('syncing state, hand:', gameState.players?.[myPlayerId]?.hand)
     boardRef.current.syncState(gameState, myPlayerId)
   }, [editor, gameState, myPlayerId])
 
   useEffect(() => {
     if (!editor || !boardRef.current) return
     boardRef.current.selectedCardId = selectedCard
-    editor.getCurrentPageShapes()
+    const updates = editor.getCurrentPageShapes()
       .filter(s => s.type === 'horizons-card' && s.props.zone === 'hand')
-      .forEach(s => {
-        const isSelected = s.props.cardId === selectedCard
-        if (s.props.selected !== isSelected) {
-          editor.updateShape({ id: s.id, type: 'horizons-card', props: { selected: isSelected } })
-        }
-      })
+      .filter(s => s.props.selected !== (s.props.cardId === selectedCard))
+      .map(s => ({ id: s.id, type: 'horizons-card', props: { selected: s.props.cardId === selectedCard } }))
+    if (updates.length) {
+      editor.run(() => editor.updateShapes(updates), { history: 'ignore', ignoreShapeLock: true })
+    }
   }, [editor, selectedCard])
 
   useEffect(() => {
@@ -56,28 +52,19 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     const container = editor.getContainer()
 
     const handleClick = (e) => {
-      const shapes = editor.getCurrentPageShapes()
-        .filter(s => s.type === 'horizons-card')
-
-      for (const shape of shapes) {
-        const bounds = editor.getShapePageBounds(shape)
-        if (!bounds) continue
-        const camera = editor.getCamera()
-        const screenX = (bounds.x + camera.x) * camera.z
-        const screenY = (bounds.y + camera.y) * camera.z
-        const screenW = bounds.w * camera.z
-        const screenH = bounds.h * camera.z
-
-        if (e.clientX >= screenX && e.clientX <= screenX + screenW &&
-            e.clientY >= screenY && e.clientY <= screenY + screenH) {
-          const { cardId, zone } = shape.props
-          if (!cardId) continue
-          console.log('card hit:', cardId, zone)
-          if (zone === 'hand') onCardClick(cardId)
-          if (zone === 'stack') onStackCardClick(cardId, editor)
-          break
-        }
-      }
+      // Resolve which card was clicked using the editor's own hit-testing.
+      // Cards are locked, so hitLocked is required; hitInside catches clicks
+      // anywhere within the filled card, not just its edge.
+      const point = editor.screenToPage({ x: e.clientX, y: e.clientY })
+      const shape = editor.getShapeAtPoint(point, {
+        hitInside: true,
+        hitLocked: true,
+        filter: (s) => s.type === 'horizons-card' && !!s.props.cardId,
+      })
+      if (!shape) return
+      const { cardId, zone } = shape.props
+      if (zone === 'hand') onCardClick(cardId)
+      else if (zone === 'stack') onStackCardClick(cardId, editor)
     }
 
     container.addEventListener('click', handleClick)
@@ -108,7 +95,6 @@ export default function App() {
       setRoomId(detail.roomId)
     }
     const onStateUpdate = ({ detail }) => {
-      console.log('stateUpdate received, you:', detail.you, 'phase:', detail.state.phase)
       setMyPlayerId(detail.you)
       setGameState(detail.state)
       if (detail.state.phase === 'active') setScreen('game')
@@ -158,7 +144,6 @@ export default function App() {
   }, [screen])
 
   const handleCardClick = useCallback((cardCode) => {
-    console.log('handleCardClick called:', cardCode)
     setSelectedCard(prev => prev === cardCode ? null : cardCode)
   }, [])
 

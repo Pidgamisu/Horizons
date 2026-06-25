@@ -1,4 +1,4 @@
-import { BaseBoxShapeUtil } from '@tldraw/editor'
+import { BaseBoxShapeUtil } from 'tldraw'
 
 export class ZoneShapeUtil extends BaseBoxShapeUtil {
   static type = 'horizons-zone'

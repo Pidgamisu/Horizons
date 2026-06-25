@@ -68,9 +68,14 @@ npm run build
 # Game server (WebSocket) → ws://localhost:8080
 node src/index.js          # override port with: PORT=9000 node src/index.js
 
-# Tests (Node's built-in runner; tests use describe/test globals)
-node --test tests/
+# Tests (Node's built-in runner)
+node --test tests/game.test.js tests/server.test.js
 ```
+
+> ⚠️ The test files use `describe`/`test` but don't import them from `node:test`, so they
+> currently fail with `describe is not defined` on Node 24. They need
+> `import { describe, test } from 'node:test'` (and `assert` from `node:assert`) added before
+> they'll run. Treat fixing this as separate, known tech debt.
 
 To play: start the server, run the client, open `http://localhost:5173` in two tabs, create a
 game in one and join via the shared room URL in the other.
