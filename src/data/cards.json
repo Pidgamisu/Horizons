@@ -1,0 +1,1247 @@
+[
+  {
+    "id": "00",
+    "name": "Unstoppable",
+    "type": "point",
+    "energyCost": 7,
+    "effectText": "While this is on the stack, players can't play cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "lockStack", "scope": "allPlayers" }
+    ]
+  },
+  {
+    "id": "01",
+    "name": "Sprint",
+    "type": "point",
+    "energyCost": 7,
+    "effectText": "When this takes effect, gain an additional point.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainPoints", "amount": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "02",
+    "name": "Momentum",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, gain 4 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainEnergy", "amount": 4, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "03",
+    "name": "Delve",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "This costs 1 energy less for each card in the trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountPerCard", "zone": "trash", "filter": "any", "amount": 1 }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "04",
+    "name": "Snatch",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "05",
+    "name": "Entwine",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "If you played a point and action card this turn, this costs 4 energy less.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountIfCondition", "condition": "playedBothTypesThisTurn", "amount": 4 }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "06",
+    "name": "Strafe",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "You can play this in response to actions. You cannot play this during your turn.",
+    "playRestrictions": [
+      { "type": "responseOnly", "filter": "action" }
+    ],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "07",
+    "name": "Synergy",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, you may trash a card from your hand. If you do, draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "optional", "effects": [
+        { "type": "trashFromHand", "count": 1, "chooser": "self" },
+        { "type": "draw", "count": 1, "player": "self" }
+      ]}
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "08",
+    "name": "Sneak",
+    "type": "point",
+    "energyCost": 2,
+    "effectText": "As an additional cost, put a card from your hand on top of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [
+      { "type": "putHandCardOnDeckTop", "count": 1, "chooser": "self" }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "09",
+    "name": "Ambition",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, put this on top of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "moveSelf", "to": "deckTop" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "10",
+    "name": "Again and Again",
+    "type": "point",
+    "energyCost": 3,
+    "effectText": "When this takes effect, put this in an opponent's hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "moveSelf", "to": "opponentHand" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "11",
+    "name": "Erase Reason",
+    "type": "point",
+    "energyCost": 0,
+    "effectText": "You can only play this if it's the first card you've played this turn. When you play this, you can't play cards this turn.",
+    "playRestrictions": [
+      { "type": "mustBeFirstCardThisTurn" }
+    ],
+    "additionalCosts": [],
+    "onPlayEffects": [
+      { "type": "lockSelfFromPlaying", "duration": "restOfTurn" }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "12",
+    "name": "Mulled Over",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, each player trashes a card in their hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "13",
+    "name": "Initiative",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, each player trashes a card in their hand, then draws a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" },
+      { "type": "draw", "count": 1, "player": "both" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "14",
+    "name": "At Long Last",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "This costs 3 energy less if a player is a point away from winning.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountIfCondition", "condition": "anyPlayerAtFourPoints", "amount": 3 }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "15",
+    "name": "Efficiency",
+    "type": "point",
+    "energyCost": 4,
+    "effectText": "While this is on the stack, cards your opponents play cost 1 energy less.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "modifyPlayCost", "target": "opponent", "amount": -1 }
+    ]
+  },
+  {
+    "id": "16",
+    "name": "Inquisition",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, reveal a player's hand, then trash an action card from it.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "revealHand", "target": "chosenPlayer", "chooser": "self" },
+      { "type": "trashFromRevealedHand", "filter": "action", "count": 1, "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "17",
+    "name": "Overwhelm",
+    "type": "point",
+    "energyCost": 7,
+    "effectText": "This costs 1 energy less for each card on the stack. You can only play this in response to actions.",
+    "playRestrictions": [
+      { "type": "responseOnly", "filter": "action" }
+    ],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountPerCard", "zone": "stack", "filter": "any", "amount": 1 }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "18",
+    "name": "Insanity",
+    "type": "point",
+    "energyCost": 3,
+    "effectText": "When you play this, trash your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "onPlayEffects": [
+      { "type": "trashHand", "player": "self" }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "19",
+    "name": "Glacial Pace",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "While this is on the stack, cards your opponents play cost 1 energy more.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "modifyPlayCost", "target": "opponent", "amount": 1 }
+    ]
+  },
+  {
+    "id": "20",
+    "name": "Angst",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, draw cards equal to the number of action cards in the trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": "countInTrash:action", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "21",
+    "name": "Endure",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "While this is on the stack, whenever an opponent plays a card, draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "trigger", "on": "opponentPlaysCard", "effect": { "type": "draw", "count": 1, "player": "controller" } }
+    ]
+  },
+  {
+    "id": "22",
+    "name": "Radiance",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, each player draws a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 1, "player": "both" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "23",
+    "name": "Paranoia",
+    "type": "point",
+    "energyCost": 4,
+    "effectText": "While this is on the stack, you can't play cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "lockStack", "scope": "controller" }
+    ]
+  },
+  {
+    "id": "24",
+    "name": "Treasure Anew",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "While this is on the stack, whenever a player plays a card, they draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "draw", "count": 1, "player": "thatPlayer" } }
+    ]
+  },
+  {
+    "id": "25",
+    "name": "Vitalize",
+    "type": "point",
+    "energyCost": 3,
+    "effectText": "As an additional cost, trash a card from your hand. When this takes effect, put a card from the trash into your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [
+      { "type": "trashFromHand", "count": 1, "chooser": "self" }
+    ],
+    "effects": [
+      { "type": "putFromTrashToHand", "count": 1, "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "26",
+    "name": "Quad",
+    "type": "point",
+    "energyCost": 4,
+    "effectText": "You can only play this if you have exactly 4 energy.",
+    "playRestrictions": [
+      { "type": "exactEnergy", "amount": 4 }
+    ],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "27",
+    "name": "Invest",
+    "type": "point",
+    "energyCost": 9,
+    "effectText": "When you play this, gain 6 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "onPlayEffects": [
+      { "type": "gainEnergy", "amount": 6, "player": "self" }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "28",
+    "name": "With the Sky",
+    "type": "point",
+    "energyCost": 3,
+    "effectText": "Opponents may play point cards in response to this.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "allowOpponentPointResponse" }
+    ]
+  },
+  {
+    "id": "29",
+    "name": "Sow",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "While this is on the stack, whenever a player plays a card, each player gains 1 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "gainEnergy", "amount": 1, "player": "both" } }
+    ]
+  },
+  {
+    "id": "30",
+    "name": "Reap",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "While this is on the stack, whenever a player plays a card, each player trashes a card from their hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" } }
+    ]
+  },
+  {
+    "id": "31",
+    "name": "Burning Flow",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "This costs 3 energy less if you drew two or more cards this turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountIfCondition", "condition": "drewTwoOrMoreThisTurn", "amount": 3 }
+    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "32",
+    "name": "Plead Insane",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, trash your hand, then draw three cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashHand", "player": "self" },
+      { "type": "draw", "count": 3, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "33",
+    "name": "Unbury Intent",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, each player reveals their hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "revealHand", "target": "both" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "34",
+    "name": "Chant",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this takes effect, if there are two or more point cards in the trash, gain an additional point.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "conditionalGainPoints", "condition": { "type": "countInTrash", "filter": "point", "minimum": 2 }, "amount": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "35",
+    "name": "Inspiration",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this takes effect, choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest into an opponent's hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "chooseCardType", "chooser": "self" },
+      { "type": "revealUntilType", "putFound": "selfHand", "putRest": "opponentHand" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "36",
+    "name": "Forever Borrow",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "You can only play this in response to point cards. When you do, gain control of that point card and its controller gains control of this.",
+    "playRestrictions": [
+      { "type": "responseOnly", "filter": "point" }
+    ],
+    "additionalCosts": [],
+    "effects": [
+      {
+        "type": "swapStackPositions",
+        "targetA": "respondedToCard",
+        "targetB": "self",
+        "note": "Cards physically swap indices in the stack array. Controllers do not change. Priority windows are unaffected — resolution continues top-down from the new ordering."
+      }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "37",
+    "name": "Trip",
+    "type": "point",
+    "energyCost": 4,
+    "effectText": "While this is on the stack, whenever a player plays the fourth card of the turn, trash this.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "trigger", "on": "nthCardPlayedThisTurn", "n": 4, "scope": "eitherPlayer", "effect": { "type": "trashSelf" } }
+    ]
+  },
+  {
+    "id": "38",
+    "name": "Consult the Past",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "While this is on the stack, you may play cards from the trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "allowPlayFromTrash", "scope": "controller" }
+    ]
+  },
+  {
+    "id": "39",
+    "name": "Dread",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "While this is on the stack, players can't draw cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": [
+      { "type": "lockDraw", "scope": "allPlayers" }
+    ]
+  },
+  {
+    "id": "40",
+    "name": "Bounce Back",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Return a point card on the stack to its controller's hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "returnToControllerHand", "zone": "stack", "filter": "point", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "41",
+    "name": "Regret",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Put a card on the stack on top of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "moveFromStackToDeckTop", "filter": "any", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "42",
+    "name": "Reverse",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Gain control of an action card on the stack. When it takes effect, return it to its initial controller's hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainControl", "zone": "stack", "filter": "action", "chooser": "self",
+        "onResolve": { "type": "returnToInitialControllerHand" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "43",
+    "name": "Delusion",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Trash a point card on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "point", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "44",
+    "name": "Stop",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Trash a card on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "45",
+    "name": "Dig for Ideas",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Put a card from the trash into your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "putFromTrashToHand", "count": 1, "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "46",
+    "name": "Kinship",
+    "type": "action",
+    "energyCost": 4,
+    "effectText": "Reveal the top four cards of the deck and choose an opponent. They put one of the cards into their hand, then the rest into your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "revealTopN", "count": 4 },
+      { "type": "opponentChoosesOne", "putChosen": "opponentHand", "putRest": "selfHand" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "47",
+    "name": "Search",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Look at the top two cards of the deck, trash one, then draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "lookAtTopN", "count": 2, "chooser": "self" },
+      { "type": "trashFromRevealed", "count": 1, "chooser": "self" },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "48",
+    "name": "Grass is Greener",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Reveal an opponent's hand. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "revealHand", "target": "opponent" },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "49",
+    "name": "Rethink",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Draw two cards, then put a card from your hand on top of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 2, "player": "self" },
+      { "type": "putHandCardOnDeckTop", "count": 1, "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "50",
+    "name": "Prepare",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "Each player gains 1 energy. Draw a card at the start of the next turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainEnergy", "amount": 1, "player": "both" },
+      { "type": "draw", "count": 1, "player": "self", "timing": "endOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "51",
+    "name": "Blinding Flash",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "You may play point cards in response to action cards this turn. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "allowSelfPointResponseToActions", "duration": "restOfTurn" },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "52",
+    "name": "Stifle Speech",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Opponents can't play any more cards this turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "lockOpponentFromPlaying", "duration": "restOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "53",
+    "name": "Sort",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "Draw two cards, then trash two cards from your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 2, "player": "self" },
+      { "type": "trashFromHand", "count": 2, "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "54",
+    "name": "Predict",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Choose a number, then reveal the top card of the deck. If its energy cost is the same as the number you chose, you may play it for 0 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "chooseNumber", "chooser": "self" },
+      { "type": "revealTopN", "count": 1 },
+      { "type": "conditionalPlay", "condition": "revealedMatchesChosenNumber", "cost": 0 }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "55",
+    "name": "Lost at Sea",
+    "type": "action",
+    "energyCost": 5,
+    "effectText": "This costs 1 energy less for each card in the trash. Draw two cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountPerCard", "zone": "trash", "filter": "any", "amount": 1 }
+    ],
+    "effects": [
+      { "type": "draw", "count": 2, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "56",
+    "name": "Debilitate",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "Trash the top card of the deck. Draw a card at the start of the next turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashTopOfDeck", "count": 1 },
+      { "type": "draw", "count": 1, "player": "self", "timing": "endOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "57",
+    "name": "Journey",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "The controller of an action card on the stack chooses to put it on the top or bottom of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "controllerMovesCardFromStack", "filter": "action", "destinations": ["deckTop", "deckBottom"], "chooser": "targetController" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "58",
+    "name": "Change of Luck",
+    "type": "action",
+    "energyCost": 7,
+    "effectText": "Gain control of a card on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainControl", "zone": "stack", "filter": "any", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "59",
+    "name": "Drown in Fog",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash a card on the stack unless its controller pays 1 energy for each card in the trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "any", "chooser": "self",
+        "ransom": { "type": "payEnergy", "amount": "countInTrash:any" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "60",
+    "name": "Capture",
+    "type": "action",
+    "energyCost": 4,
+    "effectText": "Trash a point card on the stack. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "point", "chooser": "self" },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "61",
+    "name": "Metamorphosis",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Trash a card on the stack. The controller of that card may play a point card from their hand for 0 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self",
+        "thenGrant": { "type": "mayPlayFromHand", "filter": "point", "cost": 0, "player": "trashedCardController" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "62",
+    "name": "Reimagine",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Return a card on the stack to its controller's hand. You gain 3 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "returnToControllerHand", "zone": "stack", "filter": "any", "chooser": "self" },
+      { "type": "gainEnergy", "amount": 3, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "63",
+    "name": "Anxiety",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Choose an opponent to trash two cards from their hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromHand", "count": 2, "player": "opponent", "chooser": "opponent" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "64",
+    "name": "Inspect",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest at the bottom of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "chooseCardType", "chooser": "self" },
+      { "type": "revealUntilType", "putFound": "selfHand", "putRest": "deckBottom" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "65",
+    "name": "Enlightenment",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "Trash a card from your hand. You may trash a card on the stack that shares the energy cost of the trashed card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromHand", "count": 1, "chooser": "self", "trackCost": true },
+      { "type": "optional", "effects": [
+        { "type": "trashFromStack", "filter": "matchesTrashedCost", "chooser": "self" }
+      ]}
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "66",
+    "name": "By Any Means",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "Trash a card on the stack, then trash your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self" },
+      { "type": "trashHand", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "67",
+    "name": "Injustice",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Opponents can't play action cards in response to the next action card you play this turn. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "lockOpponentActionResponse", "target": "nextActionSelf", "duration": "nextSelfActionThisTurn" },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "68",
+    "name": "Unravel",
+    "type": "action",
+    "energyCost": 5,
+    "effectText": "This costs 1 energy less for each card on the stack. Trash all cards on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "discountPerCard", "zone": "stack", "filter": "any", "amount": 1 }
+    ],
+    "effects": [
+      { "type": "trashAllFromStack" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "69",
+    "name": "Deny Hostility",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash an action card on the stack that was played in response to a point card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "actionPlayedInResponseToPoint", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "70",
+    "name": "Icarus",
+    "type": "action",
+    "energyCost": 5,
+    "effectText": "You may play this for 0 energy if an opponent played three or more cards this turn. Trash a card on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "costModifiers": [
+      { "type": "freeIfCondition", "condition": "opponentPlayedThreeOrMoreThisTurn" }
+    ],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "71",
+    "name": "Overconfidence",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Trash a card on the stack unless its controller puts a card from the trash at the bottom of the deck. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "any", "chooser": "self",
+        "ransom": { "type": "putFromTrashToDeckBottom", "count": 1, "chooser": "targetController" } },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "72",
+    "name": "Brought Back",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "You may play cards from the trash this turn. Whenever a card goes to the trash this turn, put it at the bottom of the deck instead.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "allowPlayFromTrash", "scope": "self", "duration": "restOfTurn" },
+      { "type": "redirectTrashToDeckBottom", "scope": "allCards", "duration": "restOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "73",
+    "name": "Dividends",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Draw cards equal to the number of different energy costs in the trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": "distinctEnergyCostsInTrash", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "74",
+    "name": "Chains",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash an action card on the stack unless its controller pays 1 energy for each card on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "action", "chooser": "self",
+        "ransom": { "type": "payEnergy", "amount": "countOnStack:any" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "75",
+    "name": "Share the Loot",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Whenever an opponent's card takes effect this turn, you gain 3 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "registerTrigger", "on": "opponentCardTakesEffect", "duration": "restOfTurn",
+        "effect": { "type": "gainEnergy", "amount": 3, "player": "self" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "76",
+    "name": "Last Chance",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Draw four cards. At the start of the next turn, trash four cards from your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 4, "player": "self" },
+      { "type": "trashFromHand", "count": 4, "chooser": "self", "timing": "endOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "77",
+    "name": "Reimburse",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Trash a card on the stack. Each player draws a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self" },
+      { "type": "draw", "count": 1, "player": "both" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "78",
+    "name": "Burn Out",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Trash a point on the stack. Gain energy equal to its cost.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "point", "chooser": "self", "trackCost": true },
+      { "type": "gainEnergy", "amount": "trashedCardCost", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "79",
+    "name": "Unwanted Gift",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash an action on the stack. That action's controller gains 3 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "action", "chooser": "self",
+        "thenGrant": { "type": "gainEnergy", "amount": 3, "player": "trashedCardController" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "80",
+    "name": "Abandon Hope",
+    "type": "action",
+    "energyCost": 4,
+    "effectText": "Trash all cards on the stack. Gain 1 energy for each card trashed this way.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashAllFromStack", "trackCount": true },
+      { "type": "gainEnergy", "amount": "cardsJustTrashed", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "81",
+    "name": "Cerebral Snuff",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Reveal a player's hand and choose a card from it for them to trash.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "revealHand", "target": "chosenPlayer", "chooser": "self" },
+      { "type": "chooseCardToTrashFromRevealedHand", "chooser": "self", "trashBy": "targetPlayer" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "82",
+    "name": "Drain",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Gain energy equal to the highest energy cost on the stack.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "gainEnergy", "amount": "highestCostOnStack", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "83",
+    "name": "Possess Love",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Cards cost 1 energy less this turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "modifyAllPlayCosts", "amount": -1, "player": "self", "duration": "restOfTurn" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "84",
+    "name": "Reinstate",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash an action on the stack. Its controller may play the top card of the deck for 0 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "action", "chooser": "self",
+        "thenGrant": { "type": "mayPlayTopOfDeck", "cost": 0, "player": "trashedCardController" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "85",
+    "name": "Relapse",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash a card on the stack, then its controller draws two cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashFromStack", "filter": "any", "chooser": "self",
+        "thenGrant": { "type": "draw", "count": 2, "player": "trashedCardController" } }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "86",
+    "name": "Steal Intensity",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Put a point card on the stack into your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "moveFromStackToHand", "filter": "point", "chooser": "self", "destination": "selfHand" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "87",
+    "name": "Poke",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash an action card on the stack unless its controller pays 1 energy. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "action", "chooser": "self",
+        "ransom": { "type": "payEnergy", "amount": 1 } },
+      { "type": "draw", "count": 1, "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "88",
+    "name": "Reset Memory",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Trash your hand, then draw that many cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "trashHand", "player": "self", "trackCount": true },
+      { "type": "draw", "count": "cardsJustTrashed", "player": "self" }
+    ],
+    "staticEffects": []
+  },
+  {
+    "id": "89",
+    "name": "Take Your Time",
+    "type": "action",
+    "energyCost": 2,
+    "effectText": "Draw two cards at the start of the next turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [
+      { "type": "draw", "count": 2, "player": "self", "timing": "endOfTurn" }
+    ],
+    "staticEffects": []
+  }
+]
