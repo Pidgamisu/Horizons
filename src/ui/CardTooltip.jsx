@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { cardImageSrc } from '../data/cardImages.js'
 
 const TOOLTIP_W = 180
 const TOOLTIP_H = 252
@@ -45,7 +46,7 @@ export function CardTooltip({ cardId, point }) {
       transformOrigin: point.x > vw / 2 ? 'right center' : 'left center',
     }}>
       <img
-        src={`/cards/${cardId}.png`}
+        src={cardImageSrc(cardId)}
         alt={cardId}
         style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
         draggable={false}

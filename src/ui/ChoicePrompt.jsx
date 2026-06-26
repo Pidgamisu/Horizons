@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { cardImageSrc } from '../data/cardImages.js'
 
 const CARD_IMG_SIZE = { w: 90, h: 126 }
 
@@ -26,7 +27,7 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
     >
       {cardId ? (
         <img
-          src={`/cards/${cardId}.png`}
+          src={cardImageSrc(cardId)}
           alt={cardId}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           draggable={false}

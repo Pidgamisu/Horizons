@@ -1,3 +1,5 @@
+import { cardImageSrc } from '../data/cardImages.js'
+
 const CARD_W = 110
 const CARD_H = 154
 
@@ -72,7 +74,7 @@ export function ZoneViewer({ title, cardIds, onClose }) {
                 }}
               >
                 <img
-                  src={`/cards/${cardId}.png`}
+                  src={cardImageSrc(cardId)}
                   alt={cardId}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   draggable={false}

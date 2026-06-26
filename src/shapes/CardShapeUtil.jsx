@@ -1,4 +1,5 @@
 import { BaseBoxShapeUtil } from 'tldraw'
+import { cardImageSrc } from '../data/cardImages.js'
 
 const CW = 120
 const CH = 168
@@ -55,7 +56,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       }}>
         {faceUp && cardId ? (
           <img
-            src={`/cards/${cardId}.png`}
+            src={cardImageSrc(cardId)}
             alt={cardId}
             style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
             draggable={false}
