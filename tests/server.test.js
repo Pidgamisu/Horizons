@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from './helpers.js';
 import { WebSocket } from 'ws';
 import { createServer } from '../src/server.js';
-import { getCard } from '../src/data/cardDb.js';
 
 const TEST_PORT = 8766;
 
@@ -144,14 +143,12 @@ describe('Game actions over WebSocket', () => {
   });
 
   test('played card appears on stack for both players', async () => {
-    const { p1, p2, p1State, p2State } = await startTestGame();
+    const { p1, p2, p1State } = await startTestGame();
     const zeroCost = ['53', '56', '65', '66'];
     const card = p1State.state.players.p1.hand.find(id => zeroCost.includes(id));
     if (!card) return;
-    // p2 must be able to respond, else its window is dead and the play would be
-    // auto-skipped straight to resolution. Any action card is a legal response.
-    const p2CanRespond = p2State.state.players.p2.hand.some(id => getCard(id).type === 'action');
-    if (!p2CanRespond) return;
+    // p2's window is live regardless of its hand: p1's card is on the stack for
+    // it to respond to, so priority moves to p2.
 
     p1.send({ type: 'PLAY_CARD', cardId: card });
     const [s1, s2] = await Promise.all([p1.nextState(), p2.nextState()]);

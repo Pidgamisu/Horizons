@@ -103,6 +103,20 @@ export function playCard(state, playerId, cardId, context = {}) {
 
 // ─── Priority Passing ─────────────────────────────────────────────────────────
 
+/**
+ * A player only ever holds priority in two situations:
+ *   1. Their own main phase — their turn with an empty stack.
+ *   2. There's an opponent-controlled card on top of the stack to respond to.
+ * Every other window is "dead": there's no way to act, so the player should be
+ * skipped rather than handed a pass-only prompt.
+ */
+export function isLivePriorityWindow(state, playerId) {
+  const stack = state.zones.stack;
+  if (state.turn === playerId && stack.length === 0) return true;        // own main phase
+  if (stack.length > 0 && controllerOf(stack[0]) !== playerId) return true; // opponent's card to respond to
+  return false;
+}
+
 export function passPriority(state, playerId) {
   if (state.phase !== 'active') return [{ type: 'ERROR', code: 'GAME_NOT_ACTIVE' }];
   if (state.activePlayer !== playerId) return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
