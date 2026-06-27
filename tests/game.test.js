@@ -606,6 +606,32 @@ describe('Deferred draws', () => {
   });
 });
 
+// ─── Additional cost affordability ──────────────────────────────────────────────
+
+describe('Additional cost affordability', () => {
+  test('Vitalize (25): unplayable without a card to pay its additional cost', () => {
+    const { state } = freshGame();
+    setEnergy(state, 'p1', 9);
+
+    state.players.p1.hand = ['25'];          // only Vitalize — nothing to trash
+    expect(validatePlay(state, 'p1', '25')).not.toBe(null);
+
+    state.players.p1.hand = ['25', '53'];    // a spare card to pay with
+    expect(validatePlay(state, 'p1', '25')).toBe(null);
+  });
+
+  test('Sneak (08): unplayable without a card to put on the deck', () => {
+    const { state } = freshGame();
+    setEnergy(state, 'p1', 9);
+
+    state.players.p1.hand = ['08'];          // only Sneak
+    expect(validatePlay(state, 'p1', '08')).not.toBe(null);
+
+    state.players.p1.hand = ['08', '53'];
+    expect(validatePlay(state, 'p1', '08')).toBe(null);
+  });
+});
+
 // ─── Free play ("may play a card for 0") ────────────────────────────────────────
 
 describe('Free play for 0', () => {

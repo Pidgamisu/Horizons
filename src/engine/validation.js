@@ -99,6 +99,20 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     return `Not enough energy. Need ${cost}, have ${player.energy}.`;
   }
 
+  // ── Additional costs must be payable (Sneak 08, Vitalize 25) ──────────────
+  // Treated like energy: if you can't pay, you can't put the card on the stack.
+  const handCosts = (card.additionalCosts ?? []).filter(
+    c => c.type === 'trashFromHand' || c.type === 'putHandCardOnDeckTop'
+  );
+  if (handCosts.length) {
+    const needed = handCosts.reduce((n, c) => n + (c.count ?? 1), 0);
+    // The card being played leaves the hand, so it can't pay its own cost.
+    const available = player.hand.length - (context.fromTrash ? 0 : 1);
+    if (available < needed) {
+      return `${card.name} needs ${needed} more card${needed !== 1 ? 's' : ''} in hand to pay its additional cost.`;
+    }
+  }
+
   return null; // legal
 }
 
