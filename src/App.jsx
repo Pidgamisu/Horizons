@@ -11,8 +11,19 @@ import { ChoicePrompt } from './ui/ChoicePrompt.jsx'
 import { GameOver, Lobby, Toast } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
+import { cardName } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
+
+// Events where a card is removed from the stack before resolving (= countered):
+// trashed, bounced to hand, stolen, moved to the deck, or trashed by a trigger.
+const STACK_REMOVAL_EVENTS = new Set([
+  'CARD_TRASHED_FROM_STACK',
+  'CARD_RETURNED_TO_HAND',
+  'CARD_STOLEN_TO_HAND',
+  'CARD_TO_DECK',
+  'CARD_TRASHED_BY_TRIGGER',
+])
 
 function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover, onZoneClick }) {
   const editor = useEditor()
@@ -110,7 +121,8 @@ export default function App() {
     }
     const onEvents = ({ detail }) => {
       for (const ev of detail.events) {
-        if (ev.type === 'CARD_TRASHED_FROM_STACK') addToast('Card countered!')
+        // Any effect that removes a card from the stack before it resolves = countered.
+        if (STACK_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
         if (ev.type === 'STACK_CLEARED') addToast(`Stack cleared — ${ev.cards?.length ?? 0} trashed`)
         if (ev.type === 'HAND_REVEALED') addToast('Hand revealed!')
         if (ev.type === 'CONTROL_GAINED') addToast('Gained control of a card')
@@ -261,6 +273,7 @@ export default function App() {
           myHand={myState?.hand ?? []}
           stackCards={gameState?.zones?.stack ?? []}
           trashCards={gameState?.zones?.trash ?? []}
+          myEnergy={myState?.energy ?? 0}
           onRespond={(payload) => { gameClient.choose(payload); setSelectedCard(null) }}
         />
       )}

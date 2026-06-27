@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cardImageSrc } from '../data/cardImages.js'
+import { cardImageSrc, cardName, cardType } from '../data/cardImages.js'
 
 const CARD_IMG_SIZE = { w: 90, h: 126 }
 
@@ -50,7 +50,7 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
   )
 }
 
-export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond }) {
+export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy = 0, onRespond }) {
   const [selected, setSelected] = useState([])
 
   const toggle = (id) => {
@@ -69,18 +69,22 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
   }
 
   const confirm = () => {
-    if (selected.length === 0) return
     const { type } = choice
+
+    // Binary "pay the ransom" choice — no card selection needed.
+    if (type === 'trashUnlessControllerPays') { onRespond({ pay: true }); return }
+
+    if (selected.length === 0) return
 
     if (type === 'trashFromHand') {
       onRespond({ cardIds: selected })
-    } else if (type === 'putFromTrashToHand') {
+    } else if (type === 'putFromTrashToHand' || type === 'putFromTrashToDeckBottom') {
       onRespond({ cardIds: selected })
-    } else if (['trashFromStack', 'returnToControllerHand', 'stealFromStack', 'gainControl'].includes(type)) {
+    } else if (['trashFromStack', 'returnToControllerHand', 'stealFromStack', 'gainControl', 'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget', 'controllerMovesCardFromStackTarget'].includes(type)) {
       onRespond({ stackIndex: parseInt(selected[0]) })
     } else if (type === 'optional') {
       onRespond({ accept: true })
-    } else if (type === 'putHandCardOnDeckTop') {
+    } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToTrashFromRevealedHand' || type === 'opponentChoosesOne') {
       onRespond({ cardId: selected[0] })
     } else if (type === 'additionalCost') {
       // payload shape depends on the underlying cost type (see resolveChoice)
@@ -96,6 +100,8 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
   const decline = () => {
     if (choice.type === 'optional') {
       onRespond({ accept: false })
+    } else if (choice.type === 'trashUnlessControllerPays') {
+      onRespond({ pay: false })
     }
     setSelected([])
   }
@@ -109,9 +115,105 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
   let cards = []
   let isOptional = false
   let confirmLabel = 'Confirm'
+  let declineLabel = 'No'
   let canConfirm = selected.length > 0
+  let isCardTypeChoice = false
+  let isNumberChoice = false
+  let isFreePlayChoice = false
+  let isDestinationChoice = false
 
-  if (type === 'trashFromHand') {
+  if (type === 'controllerMovesCardFromStackTarget') {
+    const filterLabel = filter === 'any' ? 'card' : `${filter} card`
+    title = `Choose a ${filterLabel} on the stack`
+    subtitle = 'Its controller will move it to the top or bottom of the deck'
+    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Choose'
+  }
+
+  else if (type === 'controllerMovesCardFromStack') {
+    isDestinationChoice = true
+    title = `Move ${cardName(choice.targetCardId)} to the deck`
+    subtitle = 'Top or bottom?'
+  }
+
+  else if (type === 'chooseNumber') {
+    isNumberChoice = true
+    title = 'Choose a number'
+    subtitle = 'Then the top card is revealed; match its energy cost to play it for 0'
+  }
+
+  else if (type === 'confirmFreePlay') {
+    isFreePlayChoice = true
+    title = `Play ${cardName(choice.cardId)} for 0 energy?`
+    subtitle = 'You guessed its cost'
+  }
+
+  else if (type === 'opponentChoosesOne') {
+    title = 'Choose a card to keep'
+    subtitle = 'You keep the one you pick; your opponent gets the rest'
+    cards = (choice.revealedCards ?? []).map(id => ({ id, label: null }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Keep'
+  }
+
+  else if (type === 'revealUntilType') {
+    isCardTypeChoice = true
+    title = 'Choose point or action'
+    subtitle = choice.putRest === 'opponentHand'
+      ? 'Reveal from the deck until that type; take it, the rest go to your opponent’s hand.'
+      : 'Reveal from the deck until that type; take it, the rest go to the bottom of the deck.'
+  }
+
+  else if (type === 'trashUnlessControllerPaysTarget') {
+    const filterLabel = filter === 'any' ? 'card' : `${filter} card`
+    title = `Choose a ${filterLabel} on the stack`
+    subtitle = 'Its controller may pay the ransom to save it'
+    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Target'
+  }
+
+  else if (type === 'trashUnlessControllerPays') {
+    const ransom = choice.ransom
+    const targetName = cardName(choice.targetCardId)
+    isOptional = true
+    declineLabel = `Let ${targetName} be trashed`
+    if (ransom?.type === 'payEnergy') {
+      const cost = choice.ransomCost ?? 0
+      title = `Pay ${cost} energy to save ${targetName}?`
+      subtitle = `Otherwise it is trashed. You have ${myEnergy} energy.`
+      confirmLabel = `Pay ${cost}`
+      canConfirm = myEnergy >= cost
+    } else {
+      title = `Save ${targetName} from being trashed?`
+      subtitle = 'Pay by putting a card from the trash on the bottom of the deck.'
+      confirmLabel = 'Pay'
+      canConfirm = true
+    }
+  }
+
+  else if (type === 'chooseCardToTrashFromRevealedHand') {
+    const filterLabel = !filter || filter === 'any' ? 'card' : `${filter} card`
+    title = `Choose a ${filterLabel} to trash from your opponent’s hand`
+    subtitle = 'Their hand is revealed'
+    const hand = choice.revealedHand ?? []
+    cards = hand
+      .filter(id => !filter || filter === 'any' || cardType(id) === filter)
+      .map(id => ({ id, label: null }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Trash'
+  }
+
+  else if (type === 'putFromTrashToDeckBottom') {
+    title = `Put ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the trash on the bottom of the deck`
+    subtitle = 'Choose from the trash to pay the ransom'
+    cards = trashCards.map(id => ({ id, label: null }))
+    canConfirm = selected.length === (count ?? 1)
+    confirmLabel = 'Put on Deck Bottom'
+  }
+
+  else if (type === 'trashFromHand') {
     title = `Trash ${count} card${count !== 1 ? 's' : ''} from your hand`
     subtitle = `Select ${count} card${count !== 1 ? 's' : ''} to trash`
     cards = myHand.map(id => ({ id, label: null }))
@@ -143,6 +245,14 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
     cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Return'
+  }
+
+  else if (type === 'moveFromStackToDeckTop') {
+    title = 'Put a card from the stack on top of the deck'
+    subtitle = 'Choose a card on the stack'
+    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Put on Deck'
   }
 
   else if (type === 'stealFromStack') {
@@ -240,18 +350,41 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, onRespond
       )}
 
       {/* Buttons */}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        {isOptional && (
-          <button onClick={decline} style={btnStyle('ghost')}>No</button>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {isDestinationChoice ? (
+          <>
+            <button onClick={() => onRespond({ destination: 'deckTop' })} style={btnStyle('primary')}>Top of Deck</button>
+            <button onClick={() => onRespond({ destination: 'deckBottom' })} style={btnStyle('primary')}>Bottom of Deck</button>
+          </>
+        ) : isNumberChoice ? (
+          [0, 1, 2, 3, 4, 5, 6, 7].map(n => (
+            <button key={n} onClick={() => onRespond({ number: n })} style={btnStyle('primary')}>{n}</button>
+          ))
+        ) : isFreePlayChoice ? (
+          <>
+            <button onClick={() => onRespond({ play: false })} style={btnStyle('ghost')}>Decline</button>
+            <button onClick={() => onRespond({ play: true })} style={btnStyle('primary')}>Play for 0</button>
+          </>
+        ) : isCardTypeChoice ? (
+          <>
+            <button onClick={() => onRespond({ cardType: 'point' })} style={btnStyle('primary')}>Point</button>
+            <button onClick={() => onRespond({ cardType: 'action' })} style={btnStyle('primary')}>Action</button>
+          </>
+        ) : (
+          <>
+            {isOptional && (
+              <button onClick={decline} style={btnStyle('ghost')}>{declineLabel}</button>
+            )}
+            <button
+              onClick={confirm}
+              disabled={!canConfirm}
+              style={btnStyle(canConfirm ? 'primary' : 'disabled')}
+            >
+              {confirmLabel}
+              {count && count > 1 && selected.length > 0 && ` (${selected.length}/${count})`}
+            </button>
+          </>
         )}
-        <button
-          onClick={confirm}
-          disabled={!canConfirm}
-          style={btnStyle(canConfirm ? 'primary' : 'disabled')}
-        >
-          {confirmLabel}
-          {count && count > 1 && selected.length > 0 && ` (${selected.length}/${count})`}
-        </button>
       </div>
     </div>
   )

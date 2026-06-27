@@ -14,3 +14,17 @@ export function cardImageSrc(cardId) {
   const slug = cardId != null ? SLUG_BY_ID[cardId] : null
   return slug ? `/cards/${slug}.png` : '/cards/back.png'
 }
+
+const NAME_BY_ID = Object.fromEntries(cards.map((c) => [c.id, c.name]))
+
+/** Display name for a card id; falls back to "A card" for unknown/hidden cards. */
+export function cardName(cardId) {
+  return (cardId != null && NAME_BY_ID[cardId]) || 'A card'
+}
+
+const TYPE_BY_ID = Object.fromEntries(cards.map((c) => [c.id, c.type]))
+
+/** Card type ('point' | 'action') for a card id, or null if unknown. */
+export function cardType(cardId) {
+  return (cardId != null && TYPE_BY_ID[cardId]) || null
+}

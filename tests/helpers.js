@@ -17,6 +17,12 @@ function buildMatchers(actual, negate) {
       check(Object.is(actual, expected),
         `expected ${JSON.stringify(actual)} ${negate ? 'not ' : ''}to be ${JSON.stringify(expected)}`);
     },
+    toEqual(expected) {
+      let equal = true;
+      try { assert.deepStrictEqual(actual, expected); } catch { equal = false; }
+      check(equal,
+        `expected ${JSON.stringify(actual)} ${negate ? 'not ' : ''}to deep-equal ${JSON.stringify(expected)}`);
+    },
     toHaveLength(length) {
       const actualLength = actual == null ? undefined : actual.length;
       check(actualLength === length,

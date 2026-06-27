@@ -227,7 +227,7 @@
     "additionalCosts": [],
     "effects": [
       { "type": "revealHand", "target": "chosenPlayer", "chooser": "self" },
-      { "type": "trashFromRevealedHand", "filter": "action", "count": 1, "chooser": "self" }
+      { "type": "chooseCardToTrashFromRevealedHand", "filter": "action", "chooser": "self", "trashBy": "targetPlayer" }
     ],
     "staticEffects": []
   },
@@ -483,7 +483,6 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "chooseCardType", "chooser": "self" },
       { "type": "revealUntilType", "putFound": "selfHand", "putRest": "opponentHand" }
     ],
     "staticEffects": []
@@ -649,9 +648,7 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "lookAtTopN", "count": 2, "chooser": "self" },
-      { "type": "trashFromRevealed", "count": 1, "chooser": "self" },
-      { "type": "draw", "count": 1, "player": "self" }
+      { "type": "lookAtTopN", "count": 2, "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -747,9 +744,7 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "chooseNumber", "chooser": "self" },
-      { "type": "revealTopN", "count": 1 },
-      { "type": "conditionalPlay", "condition": "revealedMatchesChosenNumber", "cost": 0 }
+      { "type": "chooseNumber", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -887,7 +882,6 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "chooseCardType", "chooser": "self" },
       { "type": "revealUntilType", "putFound": "selfHand", "putRest": "deckBottom" }
     ],
     "staticEffects": []

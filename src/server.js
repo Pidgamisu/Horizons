@@ -132,15 +132,15 @@ function sanitizeEventForPlayer(event, forPlayer, state) {
  * pull it out, and set it as state.pendingChoice.
  * Returns true if a choice was set, false if no choices pending.
  */
-function advancePendingChoices(state) {
+export function advancePendingChoices(state) {
   // Filter out non-choice triggers (like registerTurnTrigger)
   const choiceTypes = new Set([
     'trashFromHandChoice', 'trashFromStackChoice', 'returnStackCardToHandChoice',
     'stealFromStackChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
     'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
-    'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromStack',
+    'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromStackTarget',
     'lookAtTopN', 'chooseNumber', 'chooseCardToTrashFromRevealedHand',
-    'trashFromHandChoice',
+    'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget',
   ]);
 
   const idx = state.pendingTriggers.findIndex(t => choiceTypes.has(t.type));

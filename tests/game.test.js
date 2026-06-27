@@ -568,6 +568,283 @@ describe('Deferred draws', () => {
   });
 });
 
+// ─── Kinship (revealTopN + opponentChoosesOne) ──────────────────────────────────
+
+describe('Kinship (46): revealTopN + opponentChoosesOne', () => {
+  test('opponent keeps one of four revealed cards, caster gets the rest', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '46'); // Kinship: action
+    setEnergy(state, 'p1', 9);
+    // Known top four
+    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53', '45'].includes(id));
+    state.zones.deck.unshift('00', '04', '53', '45'); // top four
+    const p1HandBefore = state.players.p1.hand.length;
+    const p2HandBefore = state.players.p2.hand.length;
+
+    playCard(state, 'p1', '46');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → opponent (p2) chooses
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'opponentChoosesOne');
+    expect(trigger).not.toBe(undefined);
+    expect(trigger.player).toBe('p2');               // the opponent chooses
+    expect(trigger.revealedCards).toEqual(['00', '04', '53', '45']);
+
+    state.pendingChoice = { ...trigger, type: 'opponentChoosesOne' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const { error } = resolveChoice(state, 'p2', { cardId: '53' }); // p2 keeps 53
+
+    expect(error).toBe(null);
+    expect(state.players.p2.hand).toContain('53');          // opponent kept the chosen card
+    expect(state.players.p2.hand.length).toBe(p2HandBefore + 1);
+    // caster (p1) gets the other three revealed cards
+    for (const id of ['00', '04', '45']) expect(state.players.p1.hand).toContain(id);
+  });
+});
+
+// ─── Predict (chooseNumber) ─────────────────────────────────────────────────────
+
+describe('Predict (54): chooseNumber', () => {
+  test('guessing the top card cost offers a free play', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '54'); // Predict: action
+    setEnergy(state, 'p1', 9);
+    state.zones.deck = state.zones.deck.filter(id => id !== '53');
+    state.zones.deck.unshift('53'); // Sort (cost 0) on top
+
+    playCard(state, 'p1', '54');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → chooseNumber choice
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'chooseNumber');
+    expect(trigger).not.toBe(undefined);
+    state.pendingChoice = { ...trigger, type: 'chooseNumber' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const { error } = resolveChoice(state, 'p1', { number: 0 }); // Sort costs 0 → match
+
+    expect(error).toBe(null);
+    expect(state.pendingChoice?.type).toBe('confirmFreePlay');
+    expect(state.pendingChoice.cardId).toBe('53');
+  });
+});
+
+// ─── Reveal hand + trash (Inquisition / Cerebral Snuff) ─────────────────────────
+
+describe('chooseCardToTrashFromRevealedHand', () => {
+  function resolveTo(state) {
+    const trigger = state.pendingTriggers.find(t => t.type === 'chooseCardToTrashFromRevealedHand');
+    if (trigger) {
+      state.pendingChoice = { ...trigger, type: 'chooseCardToTrashFromRevealedHand' };
+      state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    }
+    return state.pendingChoice;
+  }
+
+  test('Inquisition (16): trashes a chosen action from the opponent\'s hand', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '16'); // Inquisition: point
+    // ensure p2 has an action (53 Sort) and a point (04) in hand
+    giveCard(state, 'p2', '53');
+    giveCard(state, 'p2', '04');
+    setEnergy(state, 'p1', 9);
+
+    playCard(state, 'p1', '16');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → choice for p1
+
+    const choice = resolveTo(state);
+    expect(choice).not.toBe(undefined);
+    expect(choice.player).toBe('p1');
+    expect(choice.targetPlayer).toBe('p2');
+    expect(choice.filter).toBe('action');
+
+    // can't trash a point (filter is action)
+    const bad = resolveChoice(state, 'p1', { cardId: '04' });
+    expect(bad.error).not.toBe(null);
+
+    const good = resolveChoice(state, 'p1', { cardId: '53' });
+    expect(good.error).toBe(null);
+    expect(state.players.p2.hand).not.toContain('53');
+    expect(state.zones.trash).toContain('53');
+  });
+
+  test('Cerebral Snuff (81): trashes any chosen card from the opponent\'s hand', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '81'); // Cerebral Snuff: action
+    giveCard(state, 'p2', '04'); // a point — should be trashable (no filter)
+    setEnergy(state, 'p1', 9);
+
+    playCard(state, 'p1', '81');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');
+
+    const choice = resolveTo(state);
+    expect(choice.filter).toBe('any');
+    const { error } = resolveChoice(state, 'p1', { cardId: '04' });
+    expect(error).toBe(null);
+    expect(state.zones.trash).toContain('04');
+  });
+});
+
+// ─── Search (lookAtTopN) ────────────────────────────────────────────────────────
+
+describe('Search (47): lookAtTopN', () => {
+  test('looks at the top two, trashes the chosen one, then draws a card', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '47'); // Search: action
+    setEnergy(state, 'p1', 9);
+    // Known deck top: 00, 04, 53, ...
+    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53'].includes(id));
+    state.zones.deck.unshift('00', '04', '53'); // top order: 00, 04, 53
+
+    playCard(state, 'p1', '47');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → lookAtTopN choice
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'lookAtTopN');
+    expect(trigger).not.toBe(undefined);
+
+    state.pendingChoice = { ...trigger, type: 'lookAtTopN' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const { error } = resolveChoice(state, 'p1', { trashCardId: '04' }); // trash one of the top two
+
+    expect(error).toBe(null);
+    expect(state.zones.trash).toContain('04');          // the chosen card was trashed
+    expect(state.players.p1.hand).toContain('00');      // then drew the new top (the other looked-at card)
+    expect(state.zones.deck[0]).toBe('53');             // 53 remains on top
+  });
+});
+
+// ─── revealUntilType (Inspiration / Inspect) ────────────────────────────────────
+
+describe('revealUntilType', () => {
+  test('Inspect (64): reveals until the chosen type, takes it, rest to deck bottom', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '64'); // Inspect: action
+    setEnergy(state, 'p1', 9);
+    // Arrange a known deck top: two points then an action.
+    for (const id of ['64']) { /* already in hand */ }
+    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53'].includes(id));
+    state.zones.deck.unshift('53'); // action (the one to find)
+    state.zones.deck.unshift('04'); // point
+    state.zones.deck.unshift('00'); // point  → deck top order: 00, 04, 53, ...
+
+    playCard(state, 'p1', '64');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → revealUntilType choice for p1
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'revealUntilType');
+    expect(trigger).not.toBe(undefined);
+    expect(state.pendingTriggers.find(t => t.type === 'chooseCardType')).toBe(undefined); // no dangling step
+
+    state.pendingChoice = { ...trigger, type: 'revealUntilType' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const { error } = resolveChoice(state, 'p1', { cardType: 'action' });
+
+    expect(error).toBe(null);
+    expect(state.players.p1.hand).toContain('53');        // found action taken to hand
+    expect(state.zones.deck.slice(-2)).toEqual(['00', '04']); // the two points went to deck bottom
+  });
+});
+
+// ─── trashUnlessControllerPays ──────────────────────────────────────────────────
+
+describe('trashUnlessControllerPays', () => {
+  // Set up: p1 plays an action, p2 plays the counter in response, both pass so the
+  // counter resolves → choice goes to the targeted card's controller (p1).
+  function setupCounter(counterId, casterEnergy = 9) {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '53'); // Sort: action — p1's card, will be the target
+    giveCard(state, 'p2', counterId);
+    setEnergy(state, 'p2', casterEnergy);
+    setEnergy(state, 'p1', 9);
+    playCard(state, 'p1', '53');         // stack: [53] (p1's)
+    playCard(state, 'p2', counterId);    // stack: [counter, 53]
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');           // counter resolves → caster (p2) targets
+
+    // Step 1: caster (p2) chooses the target card (the Sort).
+    const t1 = state.pendingTriggers.find(t => t.type === 'trashUnlessControllerPaysTarget');
+    if (t1) {
+      state.pendingChoice = { ...t1, type: 'trashUnlessControllerPaysTarget' };
+      state.pendingTriggers = state.pendingTriggers.filter(t => t !== t1);
+      const idx = state.zones.stack.findIndex(e => e.cardId === '53');
+      resolveChoice(state, 'p2', { stackIndex: idx }); // → step 2 choice for p1
+    }
+    return { state, trigger: state.pendingChoice };
+  }
+
+  test('Poke (87): choice goes to the targeted card\'s controller', () => {
+    const { trigger } = setupCounter('87');
+    expect(trigger).not.toBe(undefined);
+    expect(trigger.player).toBe('p1');       // p1 controls the targeted Sort
+    expect(trigger.targetCardId).toBe('53');
+  });
+
+  test('Poke (87): declining trashes the card', () => {
+    const { state } = setupCounter('87');
+    const { error } = resolveChoice(state, 'p1', { pay: false });
+    expect(error).toBe(null);
+    expect(state.zones.stack.find(e => e.cardId === '53')).toBe(undefined);
+    expect(state.zones.trash).toContain('53');
+  });
+
+  test('Poke (87): paying energy saves the card', () => {
+    const { state } = setupCounter('87');
+    const before = state.players.p1.energy;
+    const { error } = resolveChoice(state, 'p1', { pay: true });
+    expect(error).toBe(null);
+    expect(state.players.p1.energy).toBe(before - 1); // Poke ransom = 1 energy
+    expect(state.zones.stack.find(e => e.cardId === '53')).not.toBe(undefined); // survived
+  });
+
+  test('Overconfidence (71): paying puts a trash card on the deck bottom', () => {
+    const { state } = setupCounter('71');
+    state.zones.trash.push('22'); // ensure a trash card to pay with
+    const { error } = resolveChoice(state, 'p1', { pay: true });
+    expect(error).toBe(null);
+    // Pay opens a follow-up choice to pick the trash card
+    expect(state.pendingChoice?.type).toBe('putFromTrashToDeckBottom');
+    const deckLenBefore = state.zones.deck.length;
+    const r2 = resolveChoice(state, 'p1', { cardIds: ['22'] });
+    expect(r2.error).toBe(null);
+    expect(state.zones.trash).not.toContain('22');
+    expect(state.zones.deck[state.zones.deck.length - 1]).toBe('22'); // bottom
+    expect(state.zones.deck.length).toBe(deckLenBefore + 1);
+    expect(state.zones.stack.find(e => e.cardId === '53')).not.toBe(undefined); // survived
+  });
+});
+
+// ─── Regret (moveFromStackToDeckTop) ────────────────────────────────────────────
+
+describe('Regret (41): moveFromStackToDeckTop', () => {
+  test('puts a chosen stack card on top of the deck', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '53'); // Sort: action — will sit on the stack as the target
+    giveCard(state, 'p2', '41'); // Regret: action
+    setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '53');  // stack: [53]
+    playCard(state, 'p2', '41');  // p2 responds: stack [41, 53]
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');    // Regret resolves → choice for p2
+
+    const trigger = state.pendingTriggers.find(t => t.type === 'moveFromStackToDeckTop');
+    expect(trigger).not.toBe(undefined);
+    expect(trigger.player).toBe('p2');
+
+    // surface + resolve: move card 53 (still on the stack) to the top of the deck
+    state.pendingChoice = { ...trigger, type: 'moveFromStackToDeckTop' };
+    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+    const idx = state.zones.stack.findIndex(e => e.cardId === '53');
+    const { error } = resolveChoice(state, 'p2', { stackIndex: idx });
+
+    expect(error).toBe(null);
+    expect(state.zones.deck[0]).toBe('53');
+    expect(state.zones.stack.find(e => e.cardId === '53')).toBe(undefined);
+  });
+});
+
 // ─── Stack-target effects with no legal target ──────────────────────────────────
 
 describe('Stack-target effects without a legal target', () => {

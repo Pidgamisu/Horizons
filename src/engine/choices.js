@@ -86,6 +86,20 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
+    case 'moveFromStackToDeckTop': {
+      // payload: { stackIndex: number }  — Regret (41)
+      const { stackIndex } = payload;
+      const entry = state.zones.stack[stackIndex];
+      if (!entry) { error = 'Invalid stack index.'; break; }
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+        error = `Must choose a ${choice.filter} card.`; break;
+      }
+      const removed = removeFromStack(state, stackIndex);
+      state.zones.deck.unshift(removed.cardId);
+      events.push({ type: 'CARD_TO_DECK', cardId: removed.cardId, destination: 'deckTop' });
+      break;
+    }
+
     case 'stealFromStack': {
       // payload: { stackIndex: number }  — Steal Intensity (86)
       const { stackIndex } = payload;
@@ -114,6 +128,24 @@ export function resolveChoice(state, playerId, payload) {
         state.zones.trash.splice(state.zones.trash.indexOf(id), 1);
         state.players[playerId].hand.push(id);
         events.push({ type: 'CARD_FROM_TRASH_TO_HAND', cardId: id, player: playerId });
+      }
+      break;
+    }
+
+    case 'putFromTrashToDeckBottom': {
+      // payload: { cardIds: string[] }  — Overconfidence (71) ransom
+      const { cardIds } = payload;
+      if (!Array.isArray(cardIds) || cardIds.length !== (choice.count ?? 1)) {
+        error = `Must choose exactly ${choice.count ?? 1} card(s).`; break;
+      }
+      for (const id of cardIds) {
+        if (!state.zones.trash.includes(id)) { error = `Card ${id} is not in the trash.`; break; }
+      }
+      if (error) break;
+      for (const id of cardIds) {
+        state.zones.trash.splice(state.zones.trash.indexOf(id), 1);
+        state.zones.deck.push(id); // bottom of deck
+        events.push({ type: 'CARD_FROM_TRASH_TO_DECK_BOTTOM', cardId: id, player: playerId });
       }
       break;
     }
@@ -148,27 +180,64 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'trashUnlessControllerPays': {
-      // payload: { pay: boolean, stackIndex: number }
-      // The controller of the targeted card chooses to pay or let it be trashed
-      const { pay, stackIndex } = payload;
+    case 'trashUnlessControllerPaysTarget': {
+      // payload: { stackIndex } — the caster chooses which stack card to target.
+      const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      const entryController = controllerOf(entry);
-      if (playerId !== entryController) { error = 'Only the card\'s controller can respond to this.'; break; }
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+        error = `Must choose a ${choice.filter} card.`; break;
+      }
+      const ransom = choice.ransom;
+      const owner = controllerOf(entry);
+      // Step 2: that card's controller decides to pay the ransom or let it trash.
+      state.pendingChoice = {
+        type: 'trashUnlessControllerPays',
+        player: owner,
+        targetIndex: stackIndex,
+        targetCardId: entry.cardId,
+        ransom,
+        ransomCost: ransom?.type === 'payEnergy' ? resolveRansomCost(state, ransom) : null,
+      };
+      events.push({ type: 'TRASH_UNLESS_TARGETED', cardId: entry.cardId, controller: owner });
+      return { events, error: null }; // suspend for the controller's decision
+    }
+
+    case 'trashUnlessControllerPays': {
+      // payload: { pay: boolean }
+      // The targeted card's controller (choice.player) decides. The target was
+      // chosen by the engine and stored as choice.targetIndex.
+      const { pay } = payload;
+      const stackIndex = choice.targetIndex;
+      const entry = state.zones.stack[stackIndex];
+      if (!entry) { error = 'Invalid stack index.'; break; }
+      const ransom = choice.ransom;
 
       if (!pay) {
         const trashed = trashFromStack(state, stackIndex);
         events.push({ type: 'CARD_TRASHED_FROM_STACK', cardId: trashed.cardId, reason: 'ransom_declined' });
-      } else {
-        // Validate they can afford it
-        const ransom = choice.ransom;
+        break;
+      }
+
+      if (ransom?.type === 'payEnergy') {
         const cost = resolveRansomCost(state, ransom);
         if (state.players[playerId].energy < cost) {
           error = `Not enough energy to pay ransom. Need ${cost}, have ${state.players[playerId].energy}.`; break;
         }
         state.players[playerId].energy -= cost;
         events.push({ type: 'RANSOM_PAID', player: playerId, amount: cost });
+      } else if (ransom?.type === 'putFromTrashToDeckBottom') {
+        if (state.zones.trash.length === 0) { error = 'No card in the trash to pay the ransom.'; break; }
+        // Follow-up: the controller picks which trash card to put on the deck bottom.
+        state.pendingChoice = {
+          type: 'putFromTrashToDeckBottom',
+          player: playerId,
+          count: ransom.count ?? 1,
+        };
+        events.push({ type: 'RANSOM_PAID', player: playerId, ransom: 'putFromTrashToDeckBottom' });
+        return { events, error: null }; // stay suspended for the follow-up choice
+      } else {
+        error = `Unhandled ransom type: ${ransom?.type}`; break;
       }
       break;
     }
@@ -248,9 +317,10 @@ export function resolveChoice(state, playerId, payload) {
       if (!choice.revealedCards?.includes(cardId)) {
         error = 'Must choose from the revealed cards.'; break;
       }
-      const opp = opponent(playerId); // playerId here is the opponent making the choice
-      state.players[opp].hand.push(cardId);
-      events.push({ type: 'CARD_TO_HAND', cardId, player: opp });
+      // playerId is the opponent making the choice: they keep the chosen card;
+      // the rest go to the caster (originalPlayer).
+      state.players[playerId].hand.push(cardId);
+      events.push({ type: 'CARD_TO_HAND', cardId, player: playerId });
 
       const rest = choice.revealedCards.filter(id => id !== cardId);
       const originalPlayer = choice.originalPlayer;
@@ -261,18 +331,35 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'controllerMovesCardFromStack': {
-      // payload: { stackIndex: number, destination: 'deckTop' | 'deckBottom' }  — Journey (57)
-      const { stackIndex, destination } = payload;
-      if (!['deckTop', 'deckBottom'].includes(destination)) {
-        error = 'Must choose deckTop or deckBottom.'; break;
-      }
+    case 'controllerMovesCardFromStackTarget': {
+      // payload: { stackIndex } — Journey (57): caster picks which action to move.
+      const { stackIndex } = payload;
       const entry = state.zones.stack[stackIndex];
       if (!entry) { error = 'Invalid stack index.'; break; }
-      if (getCard(entry.cardId).type !== 'action') { error = 'Must choose an action card.'; break; }
-      if (controllerOf(entry) !== playerId) { error = 'You can only move cards you control.'; break; }
+      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+        error = `Must choose a ${choice.filter} card.`; break;
+      }
+      // Step 2: that card's controller chooses the destination.
+      state.pendingChoice = {
+        type: 'controllerMovesCardFromStack',
+        player: controllerOf(entry),
+        targetIndex: stackIndex,
+        targetCardId: entry.cardId,
+        destinations: choice.destinations ?? ['deckTop', 'deckBottom'],
+      };
+      events.push({ type: 'STACK_MOVE_TARGETED', cardId: entry.cardId, controller: controllerOf(entry) });
+      return { events, error: null }; // suspend for the controller's decision
+    }
 
-      const removed = removeFromStack(state, stackIndex);
+    case 'controllerMovesCardFromStack': {
+      // payload: { destination: 'deckTop' | 'deckBottom' }  — Journey (57)
+      const { destination } = payload;
+      if (!(choice.destinations ?? ['deckTop', 'deckBottom']).includes(destination)) {
+        error = 'Must choose a valid destination.'; break;
+      }
+      const entry = state.zones.stack[choice.targetIndex];
+      if (!entry) { error = 'Invalid stack index.'; break; }
+      const removed = removeFromStack(state, choice.targetIndex);
       if (destination === 'deckTop') {
         state.zones.deck.unshift(removed.cardId);
       } else {
@@ -322,10 +409,14 @@ export function resolveChoice(state, playerId, payload) {
     }
 
     case 'chooseCardToTrashFromRevealedHand': {
-      // payload: { cardId: string, targetPlayer: string }  — Cerebral Snuff (81)
-      const { cardId, targetPlayer } = payload;
+      // payload: { cardId }  — Inquisition (16), Cerebral Snuff (81)
+      const { cardId } = payload;
+      const targetPlayer = choice.targetPlayer;
       if (!state.players[targetPlayer].hand.includes(cardId)) {
         error = 'Card not in that player\'s hand.'; break;
+      }
+      if (choice.filter && choice.filter !== 'any' && getCard(cardId).type !== choice.filter) {
+        error = `Must choose a ${choice.filter} card.`; break;
       }
       trashCardFromHand(state, targetPlayer, cardId);
       events.push({ type: 'CARD_TRASHED_FROM_HAND', player: targetPlayer, cardId });
@@ -380,7 +471,7 @@ export function resolveChoice(state, playerId, payload) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolveRansomCost(state, ransom) {
+export function resolveRansomCost(state, ransom) {
   if (typeof ransom.amount === 'number') return ransom.amount;
   if (ransom.amount === 'countInTrash:any') return state.zones.trash.length;
   if (ransom.amount === 'countOnStack:any') return state.zones.stack.length;

@@ -21,8 +21,11 @@ export function executeEffects(state, entry) {
     if (state.winner) return events; // game over — stop processing
   }
 
+  // One ctx shared across all of a card's effects, so an earlier effect can
+  // pass data to a later one (e.g. revealTopN → opponentChoosesOne).
+  const ctx = {};
   for (const effect of card.effects ?? []) {
-    const newEvents = executeEffect(state, effect, controller, entry, {});
+    const newEvents = executeEffect(state, effect, controller, entry, ctx);
     events.push(...newEvents);
     if (state.winner) break; // stop if game ended mid-effect
   }
@@ -154,9 +157,9 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
     case 'revealHand': {
       // Reveal is informational — server sends hand contents to both players temporarily
-      const target = effect.target === 'opponent' ? opp
-        : effect.target === 'both' ? 'both'
-        : controller; // 'chosenPlayer' handled by pending choice
+      const target = effect.target === 'both' ? 'both'
+        : effect.target === 'self' ? controller
+        : opp; // 'opponent' / 'chosenPlayer' → the opponent (2-player)
       events.push({ type: 'HAND_REVEALED', target, cards: target === 'both'
         ? { [controller]: state.players[controller].hand, [opp]: state.players[opp].hand }
         : state.players[target].hand
@@ -188,6 +191,102 @@ function executeEffect(state, effect, controller, entry, ctx) {
       }
       state.pendingTriggers.push({ type: 'stealFromStackChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'stealFromStack', filter: effect.filter });
+      break;
+    }
+
+    case 'moveFromStackToDeckTop': {
+      // Regret (41) — controller picks a card on the stack to put on top of the deck
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromStackToDeckTop', filter: effect.filter });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'moveFromStackToDeckTop', player: controller, filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'moveFromStackToDeckTop', filter: effect.filter });
+      break;
+    }
+
+    case 'chooseCardToTrashFromRevealedHand': {
+      // Inquisition (16), Cerebral Snuff (81): reveal the opponent's hand, then
+      // the caster picks a card from it (filtered) to trash.
+      const target = opp;
+      const filter = effect.filter ?? 'any';
+      const candidates = state.players[target].hand.filter(
+        id => filter === 'any' || getCard(id).type === filter
+      );
+      if (candidates.length === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'chooseCardToTrashFromRevealedHand', filter });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'chooseCardToTrashFromRevealedHand',
+        player: controller,
+        targetPlayer: target,
+        filter,
+        revealedHand: [...state.players[target].hand],
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'chooseCardToTrashFromRevealedHand', filter });
+      break;
+    }
+
+    case 'controllerMovesCardFromStack': {
+      // Journey (57): caster picks an action on the stack; step 2 lets THAT
+      // card's controller choose to put it on the top or bottom of the deck.
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'controllerMovesCardFromStack', filter: effect.filter });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'controllerMovesCardFromStackTarget',
+        player: controller,
+        filter: effect.filter,
+        destinations: effect.destinations ?? ['deckTop', 'deckBottom'],
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'controllerMovesCardFromStackTarget', filter: effect.filter });
+      break;
+    }
+
+    case 'revealTopN': {
+      // Kinship (46): pull the top N cards off the deck and hold them for the
+      // following effect (opponentChoosesOne) via the shared ctx.
+      const n = effect.count ?? 1;
+      const revealed = state.zones.deck.splice(0, n);
+      ctx.revealedCards = revealed;
+      events.push({ type: 'CARDS_REVEALED', cards: revealed });
+      break;
+    }
+
+    case 'opponentChoosesOne': {
+      // Kinship (46): the opponent picks one of the revealed cards for their
+      // hand; the rest go to the caster's hand.
+      const revealed = ctx.revealedCards ?? [];
+      if (revealed.length === 0) { break; }
+      state.pendingTriggers.push({
+        type: 'opponentChoosesOne',
+        player: opp,                 // the opponent chooses
+        revealedCards: revealed,
+        originalPlayer: controller,  // caster gets the rest
+        putChosen: effect.putChosen,
+        putRest: effect.putRest,
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: opp, choiceType: 'opponentChoosesOne' });
+      break;
+    }
+
+    case 'trashUnlessControllerPays': {
+      // Drown in Fog (59), Chains (74), Poke (87), Overconfidence (71).
+      // Step 1: the caster picks which stack card to target. Step 2 (set up when
+      // this resolves) lets THAT card's controller pay the ransom or lose it.
+      if (!stackHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashUnlessControllerPays', filter: effect.filter });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'trashUnlessControllerPaysTarget',
+        player: controller,
+        filter: effect.filter,
+        ransom: effect.ransom,
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashUnlessControllerPaysTarget', filter: effect.filter });
       break;
     }
 
@@ -307,20 +406,11 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
     // Complex effects that need player interaction — all queued as pending choices
     case 'revealUntilType':
-    case 'chooseCardType':
     case 'chooseNumber':
-    case 'controllerMovesCardFromStack':
-    case 'opponentChoosesOne':
     case 'lookAtTopN':
-    case 'trashFromRevealed':
-    case 'conditionalPlay':
-    case 'trashUnlessControllerPays':
-    case 'chooseCardToTrashFromRevealedHand':
-    case 'trashFromRevealedHand':
     case 'trashFromHandChoice':
     case 'mayPlayFromHand':
     case 'mayPlayTopOfDeck':
-    case 'moveFromStackToDeckTop':
     case 'putHandCardOnDeckTop': {
       state.pendingTriggers.push({ type: effect.type, player: controller, ...effect });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: effect.type });
