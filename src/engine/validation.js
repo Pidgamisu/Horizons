@@ -55,9 +55,19 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   if (card.type === 'action') {
-    // Actions: own turn (stack empty) OR response
+    // Actions: own turn (stack empty) OR response to an opponent's card.
+    // The empty-stack + opponent's-turn case is the opponent's end-of-turn
+    // window — you can't sneak an action in there.
     if (!isOwnTurn && stackEmpty) {
       return 'You can only play action cards on your turn or in response to an opponent\'s card.';
+    }
+    // You can't respond to your own card — let it resolve first. Responses are
+    // only legal against a card the opponent controls on top of the stack. This
+    // also constrains granted play-from-trash (Consult the Past 38, Brought
+    // Back 72): the grant lets you play from the trash, but timing still applies
+    // — you may only do so proactively or in response to the opponent's card.
+    if (!stackEmpty && controllerOf(state.zones.stack[0]) === playerId) {
+      return 'You cannot respond to your own card; let it resolve first.';
     }
     // Injustice (67) — can't play an action in response to a protected action.
     const top = state.zones.stack[0];

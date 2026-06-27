@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
-import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash, createStackEntry } from '../src/engine/state.js';
+import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
 import { resolveChoice } from '../src/engine/choices.js';
 import { validatePlay } from '../src/engine/validation.js';
@@ -182,6 +182,45 @@ describe('Playing cards', () => {
     const events = playCard(state, 'p2', '45');
     expect(eventTypes(events)).not.toContain('ERROR');
     expect(state.zones.stack).toHaveLength(2);
+  });
+
+  test('cannot respond to your own card with another action', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '55'); // Lost at Sea: action
+    giveCard(state, 'p1', '65'); // Enlightenment: action
+    giveCard(state, 'p2', '45'); // Dig for Ideas: action
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '55');   // p1's action on the stack, priority → p2
+
+    // the opponent CAN respond to it
+    expect(validatePlay(state, 'p2', '45')).toBe(null);
+
+    passPriority(state, 'p2');     // p2 declines, priority returns to p1
+
+    // p1 may NOT respond to its own card
+    expect(validatePlay(state, 'p1', '65')).not.toBe(null);
+    const events = playCard(state, 'p1', '65');
+    expect(eventTypes(events)).toContain('ERROR');
+    expect(state.zones.stack).toHaveLength(1);
+  });
+
+  test('cannot respond on the opponent\'s end-of-turn empty-stack window', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p2', '45'); // Dig for Ideas: action
+    setEnergy(state, 'p2', 9);
+
+    // p1's turn, empty stack: p1 passes → priority to p2 (end-of-turn window)
+    passPriority(state, 'p1');
+    expect(state.activePlayer).toBe('p2');
+    expect(state.turn).toBe('p1');
+    expect(state.zones.stack).toHaveLength(0);
+
+    // p2 (non-turn player) cannot sneak in an action
+    expect(validatePlay(state, 'p2', '45')).not.toBe(null);
+    const events = playCard(state, 'p2', '45');
+    expect(eventTypes(events)).toContain('ERROR');
   });
 });
 
@@ -498,20 +537,19 @@ describe('Special card interactions', () => {
   test('Trip (37): trashes itself when 4th card is played', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '37'); // Trip: point cost 4
-    giveCard(state, 'p1', '53'); // Sort
+    giveCard(state, 'p2', '53'); // Sort
     giveCard(state, 'p1', '65'); // Enlightenment cost 0
-    giveCard(state, 'p1', '66'); // By Any Means cost 0
     giveCard(state, 'p2', '56'); // Debilitate cost 0
     setEnergy(state, 'p1', 9);
+    setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '37'); // card 1, Trip on stack
-    passPriority(state, 'p2');   // p1 gets priority
-    playCard(state, 'p1', '53'); // card 2
-    passPriority(state, 'p2');
-    playCard(state, 'p1', '65'); // card 3
-    passPriority(state, 'p2');
+    // Players alternate responses (each onto the OPPONENT's card) so Trip stays
+    // on the stack while four cards get played this turn.
+    playCard(state, 'p1', '37'); // card 1, Trip (point) on stack, priority → p2
+    playCard(state, 'p2', '53'); // card 2, responds to Trip
+    playCard(state, 'p1', '65'); // card 3, responds to Sort
     // Playing the 4th card should trigger Trip to trash itself
-    const events = playCard(state, 'p1', '66'); // card 4
+    const events = playCard(state, 'p2', '56'); // card 4, responds to Enlightenment
     expect(eventTypes(events)).toContain('CARD_TRASHED_BY_TRIGGER');
     // Trip (37) should no longer be on the stack
     expect(state.zones.stack.map(e => e.cardId)).not.toContain('37');
@@ -609,20 +647,39 @@ describe('Deferred draws', () => {
 // ─── Consult the Past (38): play from trash ─────────────────────────────────────
 
 describe('Consult the Past (38)', () => {
-  test('lets its controller play a card from the trash while on the stack', () => {
+  test('lets its controller play a trashed card in response to the opponent', () => {
     const { state } = freshGame();
-    state.zones.stack.unshift(createStackEntry('38', 'p1', {})); // Consult on the stack, p1 controls
-    state.zones.trash.push('53');                                // an action in the trash
-    state.activePlayer = 'p1';
+    giveCard(state, 'p1', '38'); // Consult the Past (point)
+    giveCard(state, 'p2', '56'); // Debilitate (action) — p2's response
+    state.zones.trash.push('53'); // an action in the trash
     setEnergy(state, 'p1', 9);
+    setEnergy(state, 'p2', 9);
 
+    playCard(state, 'p1', '38'); // Consult on the stack, priority → p2
     expect(canPlayFromTrash(state, 'p1')).toBe(true);
     expect(canPlayFromTrash(state, 'p2')).toBe(false);
 
+    playCard(state, 'p2', '56'); // p2 responds; its action is now on top
+
+    // p1 may now play the trashed action in response to the opponent's card
     const ev = playCard(state, 'p1', '53', { fromTrash: true });
     expect(ev.some(e => e.type === 'ERROR')).toBe(false);
     expect(state.zones.trash).not.toContain('53');
     expect(state.zones.stack[0].cardId).toBe('53');
+  });
+
+  test('still enforces timing — cannot play from trash onto your own Consult', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '38'); // Consult the Past (point)
+    state.zones.trash.push('53'); // an action in the trash
+    setEnergy(state, 'p1', 9);
+
+    playCard(state, 'p1', '38'); // Consult on the stack, priority → p2
+    passPriority(state, 'p2');   // priority returns to p1, own Consult on top
+
+    // the grant is active, but timing forbids responding to your own card
+    expect(canPlayFromTrash(state, 'p1')).toBe(true);
+    expect(validatePlay(state, 'p1', '53', { fromTrash: true })).not.toBe(null);
   });
 });
 
@@ -789,10 +846,10 @@ describe('Injustice (67)', () => {
   test('protects only the next action played, not all responses', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '67'); // Injustice: action
-    giveCard(state, 'p1', '53'); // protected action A (Sort)
+    giveCard(state, 'p1', '55'); // protected action A (Lost at Sea — clean draw)
     giveCard(state, 'p1', '65'); // later action B (Enlightenment)
     giveCard(state, 'p2', '45'); // p2's responder action (Dig for Ideas)
-    setEnergy(state, 'p1', 9);
+    setEnergy(state, 'p1', 20);
     setEnergy(state, 'p2', 9);
 
     // Play & resolve Injustice
@@ -802,15 +859,21 @@ describe('Injustice (67)', () => {
     expect(state.turnFlags.protectNextSelfAction).toBe('p1');
 
     // p1 plays the protected action A
-    playCard(state, 'p1', '53');
+    playCard(state, 'p1', '55');
     expect(state.zones.stack[0].responsesLocked).toBe(true);
     expect(state.turnFlags.protectNextSelfAction).toBe(null); // consumed
 
     // p2 cannot play an action in response to A
     expect(validatePlay(state, 'p2', '45')).not.toBe(null);
+    // p1 also cannot stack another action onto its own card
+    expect(validatePlay(state, 'p1', '65')).not.toBe(null);
 
-    // p2 passes; p1 plays a second action B (not protected)
+    // let A resolve (p2 passes, then p1 passes), clearing the stack
     passPriority(state, 'p2');
+    passPriority(state, 'p1');
+    expect(state.zones.stack).toHaveLength(0);
+
+    // p1 plays a second action B (not protected)
     playCard(state, 'p1', '65');
     expect(state.zones.stack[0].responsesLocked).toBe(false);
 
