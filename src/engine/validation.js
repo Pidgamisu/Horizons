@@ -59,9 +59,10 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     if (!isOwnTurn && stackEmpty) {
       return 'You can only play action cards on your turn or in response to an opponent\'s card.';
     }
-    // Injustice (67) — opponent action response locked for next action
-    if (!isOwnTurn && state.turnFlags.opponentActionResponseLocked) {
-      return 'Your opponent\'s next action card is protected from action responses.';
+    // Injustice (67) — can't play an action in response to a protected action.
+    const top = state.zones.stack[0];
+    if (top?.responsesLocked && controllerOf(top) !== playerId) {
+      return 'That action card is protected from action responses.';
     }
   }
 

@@ -2,6 +2,7 @@ import { describe, test, expect } from './helpers.js';
 import { createGameState, drawCards, opponent, initDeck } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
 import { resolveChoice } from '../src/engine/choices.js';
+import { validatePlay } from '../src/engine/validation.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -565,6 +566,42 @@ describe('Deferred draws', () => {
     passPriority(state, 'p2'); // p1 turn ends
 
     expect(state.players.p1.hand.length).toBe(baseline + 1);
+  });
+});
+
+// ─── Injustice (67): protect next action only ───────────────────────────────────
+
+describe('Injustice (67)', () => {
+  test('protects only the next action played, not all responses', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '67'); // Injustice: action
+    giveCard(state, 'p1', '53'); // protected action A (Sort)
+    giveCard(state, 'p1', '65'); // later action B (Enlightenment)
+    giveCard(state, 'p2', '45'); // p2's responder action (Dig for Ideas)
+    setEnergy(state, 'p1', 9);
+    setEnergy(state, 'p2', 9);
+
+    // Play & resolve Injustice
+    playCard(state, 'p1', '67');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → arms protection for p1
+    expect(state.turnFlags.protectNextSelfAction).toBe('p1');
+
+    // p1 plays the protected action A
+    playCard(state, 'p1', '53');
+    expect(state.zones.stack[0].responsesLocked).toBe(true);
+    expect(state.turnFlags.protectNextSelfAction).toBe(null); // consumed
+
+    // p2 cannot play an action in response to A
+    expect(validatePlay(state, 'p2', '45')).not.toBe(null);
+
+    // p2 passes; p1 plays a second action B (not protected)
+    passPriority(state, 'p2');
+    playCard(state, 'p1', '65');
+    expect(state.zones.stack[0].responsesLocked).toBe(false);
+
+    // now p2 CAN respond with an action (only the next action was protected)
+    expect(validatePlay(state, 'p2', '45')).toBe(null);
   });
 });
 

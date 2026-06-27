@@ -54,7 +54,7 @@ export function createTurnFlags() {
     redirectTrashToDeckBottom:false,  // Brought Back (72)
     allCardsCostLess:         0,      // Possess Love (83) — stacks as delta
     opponentLocked:           false,  // Stifle Speech (52)
-    opponentActionResponseLocked: false, // Injustice (67) — cleared after next action
+    protectNextSelfAction: null, // Injustice (67) — playerId whose next action this turn is protected from action responses
     shareTheLootActive:       false,  // Share the Loot (75)
   };
 }
@@ -68,6 +68,7 @@ export function createStackEntry(cardId, playedBy, meta = {}) {
     controlledBy: null,        // overrides playedBy for controller effects (Change of Luck, Reverse)
     respondedToCardIndex: meta.respondedToCardIndex ?? null,
     respondedToCardType:  meta.respondedToCardType  ?? null,
+    responsesLocked: meta.responsesLocked ?? false, // Injustice (67) — opponents can't action-respond to this entry
   };
 }
 

@@ -64,6 +64,13 @@ export function playCard(state, playerId, cardId, context = {}) {
     respondedToCardType:  state.zones.stack.length > 0 ? getCard(state.zones.stack[0].cardId).type : null,
   });
 
+  // Injustice (67): if this player's next action is protected, lock responses
+  // to this entry and consume the protection.
+  if (card.type === 'action' && state.turnFlags.protectNextSelfAction === playerId) {
+    entry.responsesLocked = true;
+    state.turnFlags.protectNextSelfAction = null;
+  }
+
   // Place on top of stack
   state.zones.stack.unshift(entry);
 

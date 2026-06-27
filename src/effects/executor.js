@@ -349,8 +349,9 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'lockOpponentActionResponse': {
-      state.turnFlags.opponentActionResponseLocked = true;
-      events.push({ type: 'OPPONENT_ACTION_RESPONSE_LOCKED' });
+      // Injustice (67): protect only the controller's NEXT action this turn.
+      state.turnFlags.protectNextSelfAction = controller;
+      events.push({ type: 'OPPONENT_ACTION_RESPONSE_LOCKED', player: controller });
       break;
     }
 
