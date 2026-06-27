@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
-import { createGameState, drawCards, opponent, initDeck } from '../src/engine/state.js';
+import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash, createStackEntry } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
 import { resolveChoice } from '../src/engine/choices.js';
 import { validatePlay } from '../src/engine/validation.js';
@@ -603,6 +603,26 @@ describe('Deferred draws', () => {
     passPriority(state, 'p2'); // p1 turn ends
 
     expect(state.players.p1.hand.length).toBe(baseline + 1);
+  });
+});
+
+// ─── Consult the Past (38): play from trash ─────────────────────────────────────
+
+describe('Consult the Past (38)', () => {
+  test('lets its controller play a card from the trash while on the stack', () => {
+    const { state } = freshGame();
+    state.zones.stack.unshift(createStackEntry('38', 'p1', {})); // Consult on the stack, p1 controls
+    state.zones.trash.push('53');                                // an action in the trash
+    state.activePlayer = 'p1';
+    setEnergy(state, 'p1', 9);
+
+    expect(canPlayFromTrash(state, 'p1')).toBe(true);
+    expect(canPlayFromTrash(state, 'p2')).toBe(false);
+
+    const ev = playCard(state, 'p1', '53', { fromTrash: true });
+    expect(ev.some(e => e.type === 'ERROR')).toBe(false);
+    expect(state.zones.trash).not.toContain('53');
+    expect(state.zones.stack[0].cardId).toBe('53');
   });
 });
 

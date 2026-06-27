@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { createGameState, initDeck, opponent } from './engine/state.js';
+import { createGameState, initDeck, opponent, canPlayFromTrash } from './engine/state.js';
 import { startGame, playCard, passPriority, voidCard } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
 
@@ -65,6 +65,7 @@ function broadcastState(room) {
             energy: state.players[slot].energy,
             timerSeconds: state.players[slot].timerSeconds,
             lockedFromPlaying: state.players[slot].lockedFromPlaying,
+            canPlayFromTrash: canPlayFromTrash(state, slot), // Consult the Past (38)
           },
           [opp]: {
             hand: [],                                      // hidden

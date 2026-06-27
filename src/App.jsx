@@ -201,6 +201,12 @@ export default function App() {
     setViewingZone(zoneType)
   }, [])
 
+  const handlePlayFromTrash = useCallback((cardId) => {
+    gameClient.playCard(cardId, { fromTrash: true })
+    setViewingZone(null)
+    setSelectedCard(null)
+  }, [])
+
   const handlePlay = useCallback(() => {
     if (!selectedCard) return
     gameClient.playCard(selectedCard)
@@ -294,9 +300,10 @@ export default function App() {
 
       {viewingZone === 'trash' && (
         <ZoneViewer
-          title="Trash"
+          title={myState?.canPlayFromTrash ? 'Trash — you may play from here' : 'Trash'}
           cardIds={[...(gameState?.zones?.trash ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
+          onPlayCard={myState?.canPlayFromTrash ? handlePlayFromTrash : null}
         />
       )}
 
