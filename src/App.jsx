@@ -101,6 +101,7 @@ export default function App() {
   const [roomId, setRoomId] = useState(null)
   const [hoveredCard, setHoveredCard] = useState(null)
   const [viewingZone, setViewingZone] = useState(null)
+  const [revealedHand, setRevealedHand] = useState(null)
 
   const connect = useCallback((id) => {
     gameClient.connect(id)
@@ -124,7 +125,16 @@ export default function App() {
         // Any effect that removes a card from the stack before it resolves = countered.
         if (STACK_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
         if (ev.type === 'STACK_CLEARED') addToast(`Stack cleared — ${ev.cards?.length ?? 0} trashed`)
-        if (ev.type === 'HAND_REVEALED') addToast('Hand revealed!')
+        if (ev.type === 'HAND_REVEALED') {
+          const me = gameClient.playerId
+          const opp = me === 'p1' ? 'p2' : 'p1'
+          if (ev.target === 'both' && ev.cards && !Array.isArray(ev.cards)) {
+            setRevealedHand({ title: "Opponent's hand (revealed)", cardIds: ev.cards[opp] ?? [] })
+          } else if (Array.isArray(ev.cards)) {
+            if (ev.target === me) addToast('Your hand was revealed')
+            else setRevealedHand({ title: "Opponent's hand (revealed)", cardIds: ev.cards })
+          }
+        }
         if (ev.type === 'CONTROL_GAINED') addToast('Gained control of a card')
         if (ev.type === 'STACK_POSITIONS_SWAPPED') addToast('Stack order swapped!')
         if (ev.type === 'GAME_OVER') {
@@ -287,6 +297,15 @@ export default function App() {
           title="Trash"
           cardIds={[...(gameState?.zones?.trash ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
+        />
+      )}
+
+      {revealedHand && (
+        <ZoneViewer
+          title={revealedHand.title}
+          cardIds={revealedHand.cardIds}
+          badgeTop={false}
+          onClose={() => setRevealedHand(null)}
         />
       )}
 

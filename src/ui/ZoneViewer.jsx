@@ -5,7 +5,7 @@ const CARD_H = 154
 
 // Modal overlay that shows every card in a zone (e.g. the trash pile), since
 // the canvas only renders the top of the pile. Cards are passed top-first.
-export function ZoneViewer({ title, cardIds, onClose }) {
+export function ZoneViewer({ title, cardIds, onClose, badgeTop = true }) {
   return (
     <div
       onClick={onClose}
@@ -67,7 +67,7 @@ export function ZoneViewer({ title, cardIds, onClose }) {
                   height: CARD_H,
                   borderRadius: 8,
                   overflow: 'hidden',
-                  border: i === 0 ? '2px solid rgba(124,106,255,0.6)' : '1px solid rgba(255,255,255,0.12)',
+                  border: badgeTop && i === 0 ? '2px solid rgba(124,106,255,0.6)' : '1px solid rgba(255,255,255,0.12)',
                   background: '#1a1a2e',
                   flexShrink: 0,
                   position: 'relative',
@@ -79,7 +79,7 @@ export function ZoneViewer({ title, cardIds, onClose }) {
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   draggable={false}
                 />
-                {i === 0 && (
+                {badgeTop && i === 0 && (
                   <div style={{
                     position: 'absolute', top: 0, left: 0, right: 0,
                     background: 'rgba(124,106,255,0.85)', fontSize: 9, color: '#fff',
