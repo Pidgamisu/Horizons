@@ -606,6 +606,40 @@ describe('Deferred draws', () => {
   });
 });
 
+// ─── Choice effects with insufficient resources ─────────────────────────────────
+
+describe('Choice effects with insufficient resources', () => {
+  test('Mulled Over (12): a player who can\'t trash is skipped, not locked', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['12']; // only Mulled Over
+    state.players.p2.hand = [];     // empty
+    setEnergy(state, 'p1', 9);
+
+    playCard(state, 'p1', '12');    // point on stack
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');      // resolves: grant point + each player trashes
+
+    // neither player can trash → no stuck choice
+    expect(state.pendingTriggers.find(t => t.type === 'trashFromHandChoice')).toBe(undefined);
+    expect(state.players.p1.points).toBe(1);
+  });
+
+  test('Mulled Over (12): only players who can trash get the choice', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['12', '53']; // Mulled Over + a spare card
+    state.players.p2.hand = [];           // empty
+    setEnergy(state, 'p1', 9);
+
+    playCard(state, 'p1', '12');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');
+
+    const triggers = state.pendingTriggers.filter(t => t.type === 'trashFromHandChoice');
+    expect(triggers.length).toBe(1);
+    expect(triggers[0].player).toBe('p1');
+  });
+});
+
 // ─── Additional cost affordability ──────────────────────────────────────────────
 
 describe('Additional cost affordability', () => {

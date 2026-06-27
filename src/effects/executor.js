@@ -101,9 +101,12 @@ function executeEffect(state, effect, controller, entry, ctx) {
       const targets = resolvePlayers(effect.player, controller, opp);
       const playerList = targets === 'both' ? [controller, opp] : [targets];
       for (const p of playerList) {
-        // In a real server this would be async (prompt player) — here we mark as pending choice
-        state.pendingTriggers.push({ type: 'trashFromHandChoice', player: p, count, optional: false });
-        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'trashFromHand', count });
+        // Clamp to what the player actually holds — "trash N" with fewer than N
+        // trashes all of them; with an empty hand it does nothing (no lock).
+        const effective = Math.min(count, state.players[p].hand.length);
+        if (effective === 0) continue;
+        state.pendingTriggers.push({ type: 'trashFromHandChoice', player: p, count: effective, optional: false });
+        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'trashFromHand', count: effective });
       }
       break;
     }
@@ -168,8 +171,14 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'putFromTrashToHand': {
-      state.pendingTriggers.push({ type: 'putFromTrashToHandChoice', player: controller, count: effect.count });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromTrashToHand', count: effect.count });
+      // Clamp to what's in the trash; skip if there's nothing to take.
+      const effective = Math.min(effect.count ?? 1, state.zones.trash.length);
+      if (effective === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'putFromTrashToHand' });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'putFromTrashToHandChoice', player: controller, count: effective });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromTrashToHand', count: effective });
       break;
     }
 
