@@ -14,4 +14,8 @@ services:
     buildCommand: npm install
     startCommand: node src/index.js
     healthCheckPath: /healthz
-    autoDeploy: true
+    # The GitHub Actions deploy workflow triggers deploys after tests pass, so
+    # Render's own push-based auto-deploy is off to avoid double builds. Set
+    # this to true (and drop the workflow's Render step) if you'd rather have
+    # Render deploy on every push directly.
+    autoDeploy: false

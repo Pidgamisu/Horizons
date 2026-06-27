@@ -50,6 +50,27 @@ The client talks to the server over `wss://`, configured by the `VITE_SERVER_URL
 Open the Netlify site URL in two tabs (or send the share link to a friend), create a game in
 one, and join from the other. The browsers connect to the Render server over `wss://`.
 
+## Auto-deploy (test-gated)
+
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs on every push to `main`:
+it runs `npm test` + `npm run build`, and **only if both pass** triggers the Render and Netlify
+deploys via their deploy hooks. This is stricter than the hosts' built-in auto-deploy, which
+would ship even when tests are red.
+
+**One-time setup:**
+
+1. **Render** → service → **Settings → Deploy Hook** → copy the URL.
+2. **Netlify** → **Site config → Build & deploy → Build hooks** → **Add build hook** → copy the URL.
+3. **GitHub** → repo **Settings → Secrets and variables → Actions** → add:
+   - `RENDER_DEPLOY_HOOK_URL`
+   - `NETLIFY_BUILD_HOOK_URL`
+4. Turn off the hosts' own push-based auto-deploy so you don't get double builds:
+   - `render.yaml` already sets `autoDeploy: false`.
+   - **Netlify** → **Site config → Build & deploy** → **Stop auto publishing**.
+
+If a secret is missing, that host's deploy step is skipped (the build/tests still run), so you
+can wire up one host at a time.
+
 ## Local development (unchanged)
 
 ```bash

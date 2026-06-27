@@ -1,0 +1,52 @@
+# Test-gated auto-deploy.
+#
+# On every push to main: run the engine/server tests and a production build,
+# and ONLY if both pass, trigger the Render (server) and Netlify (client)
+# deploys via their deploy hooks. This is stricter than the hosts' built-in
+# auto-deploy, which would ship even when tests are red.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   RENDER_DEPLOY_HOOK_URL   — Render: service → Settings → Deploy Hook
+#   NETLIFY_BUILD_HOOK_URL   — Netlify: Site config → Build & deploy → Build hooks
+#
+# Because this workflow drives the deploys, turn OFF the hosts' own auto-deploy
+# so you don't get double builds:
+#   - render.yaml already sets autoDeploy: false
+#   - Netlify: Site config → Build & deploy → "Stop auto publishing"
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Production build (client)
+        run: npm run build
+
+      - name: Trigger Render deploy (server)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Trigger Netlify deploy (client)
+        env:
+          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
+        if: ${{ env.NETLIFY_BUILD_HOOK_URL != '' }}
+        run: curl -fsSL -X POST -d '{}' "$NETLIFY_BUILD_HOOK_URL"
