@@ -1,0 +1,17 @@
+# Render configuration for the Horizons WebSocket game server.
+#
+# This hosts the authoritative game server (src/index.js → src/server.js), which
+# holds live in-memory rooms and persistent WebSocket connections — the part
+# Netlify can't run. The client (deployed on Netlify) connects here via
+# VITE_SERVER_URL = wss://<this-service>.onrender.com
+#
+# Render sets $PORT automatically; src/index.js already reads process.env.PORT.
+services:
+  - type: web
+    name: horizons-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /healthz
+    autoDeploy: true

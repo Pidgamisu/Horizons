@@ -1,3 +1,4 @@
+import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createGameState, initDeck, opponent, canPlayFromTrash } from './engine/state.js';
 import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow } from './engine/game.js';
@@ -301,8 +302,26 @@ function autoSkipDeadPriority(state, events) {
 // ─── Server Setup ─────────────────────────────────────────────────────────────
 
 export function createServer(port = 8080) {
-  const wss = new WebSocketServer({ port });
-  console.log(`Horizons game server listening on ws://localhost:${port}`);
+  // Attach the WS server to a plain HTTP server so hosts (Render, etc.) can
+  // hit an HTTP health check. A bare WebSocketServer({ port }) only answers
+  // upgrade requests and returns 426 to a normal GET, which fails health checks.
+  const httpServer = http.createServer((req, res) => {
+    if (req.url === '/healthz' || req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('ok');
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  const wss = new WebSocketServer({ server: httpServer });
+  httpServer.listen(port);
+  console.log(`Horizons game server listening on port ${port}`);
+
+  // wss.close() won't close an externally-provided HTTP server, which would
+  // leave the port bound (and tests / the process hanging). Tear down both.
+  const closeWss = wss.close.bind(wss);
+  wss.close = (cb) => closeWss(() => httpServer.close(cb));
 
   wss.on('connection', (ws, req) => {
     const url = req.url;

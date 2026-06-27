@@ -1,0 +1,20 @@
+# Netlify configuration for the Horizons client (Vite static build).
+#
+# NOTE: Netlify hosts the CLIENT only. The WebSocket game server (src/index.js)
+# cannot run on Netlify — it needs a persistent-connection host (see render.yaml).
+# Point the client at that server by setting VITE_SERVER_URL in the Netlify UI:
+#   Site settings → Environment variables → VITE_SERVER_URL = wss://<your-server>.onrender.com
+# It MUST be wss:// (not ws://) because Netlify serves the site over HTTPS.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback: serve index.html for any path so deep links still load the app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
