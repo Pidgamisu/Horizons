@@ -39,7 +39,7 @@ function makePayload(s, ch) {
         : { cardIds: hand.slice(0, ch.cost?.count ?? 1) };
     case 'optional': return { accept: true };
     case 'revealUntilType': return { cardType: 'action' };
-    case 'lookAtTopN': return { trashCardId: s.zones.deck[0] };
+    case 'lookAtTopN': return { trashCardId: (ch.revealed ?? s.zones.deck)[0] };
     case 'opponentChoosesOne': return ch.revealedCards?.length ? { cardId: ch.revealedCards[0] } : undefined;
     case 'controllerMovesCardFromStackTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
     case 'controllerMovesCardFromStack': return { destination: 'deckTop' };

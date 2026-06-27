@@ -86,6 +86,8 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       onRespond({ accept: true })
     } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToTrashFromRevealedHand' || type === 'opponentChoosesOne') {
       onRespond({ cardId: selected[0] })
+    } else if (type === 'lookAtTopN') {
+      onRespond({ trashCardId: selected[0] })
     } else if (type === 'additionalCost') {
       // payload shape depends on the underlying cost type (see resolveChoice)
       if (choice.cost?.type === 'putHandCardOnDeckTop') {
@@ -191,6 +193,14 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       confirmLabel = 'Pay'
       canConfirm = true
     }
+  }
+
+  else if (type === 'lookAtTopN') {
+    title = 'Look at the top cards — trash one'
+    subtitle = 'Then draw a card'
+    cards = (choice.revealed ?? []).map(id => ({ id, label: null }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'Trash'
   }
 
   else if (type === 'chooseCardToTrashFromRevealedHand') {

@@ -245,6 +245,20 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
+    case 'lookAtTopN': {
+      // Search (47): show the caster the top N cards so they can pick one to
+      // trash. The deck is hidden, so the revealed ids must travel with the choice.
+      const n = effect.count ?? 1;
+      const revealed = state.zones.deck.slice(0, n);
+      if (revealed.length === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'lookAtTopN' });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'lookAtTopN', player: controller, count: n, revealed });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'lookAtTopN' });
+      break;
+    }
+
     case 'revealTopN': {
       // Kinship (46): pull the top N cards off the deck and hold them for the
       // following effect (opponentChoosesOne) via the shared ctx.
@@ -408,7 +422,6 @@ function executeEffect(state, effect, controller, entry, ctx) {
     // Complex effects that need player interaction — all queued as pending choices
     case 'revealUntilType':
     case 'chooseNumber':
-    case 'lookAtTopN':
     case 'trashFromHandChoice':
     case 'mayPlayFromHand':
     case 'mayPlayTopOfDeck':
