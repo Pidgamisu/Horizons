@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createGameState, initDeck, opponent, canPlayFromTrash } from './engine/state.js';
 import { startGame, playCard, passPriority, voidCard } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
+import { hasAnyLegalPlay } from './engine/validation.js';
 
 // ─── Room Management ──────────────────────────────────────────────────────────
 
@@ -269,9 +270,44 @@ function handleMessage(ws, room, playerId, msg) {
     advancePendingChoices(state);
   }
 
+  // Auto-skip dead priority windows: a player should never be handed priority
+  // they can only pass on. If the active player has no possible response
+  // (opponent's end-of-turn empty stack, or their own card sitting on top of
+  // the stack), pass on their behalf — which may resolve the stack or end the
+  // turn, cascading into the next window. Stops as soon as someone can act, a
+  // choice surfaces, or the game ends.
+  autoSkipDeadPriority(state, events);
+
   // Broadcast events, then full state
   if (events.length > 0) broadcastEvents(room, events);
   broadcastState(room);
+}
+
+/**
+ * Is the player holding priority in a "dead" window — no possible response at
+ * all? Their own main phase (their turn, empty stack) is never dead: they can
+ * still void for energy, play proactively, or end the turn.
+ */
+function isDeadPriorityWindow(state, playerId) {
+  const ownMainPhase = state.turn === playerId && state.zones.stack.length === 0;
+  if (ownMainPhase) return false;
+  return !hasAnyLegalPlay(state, playerId);
+}
+
+function autoSkipDeadPriority(state, events) {
+  // Guard bounds the cascade (resolve → return priority → resolve …) so a bug
+  // can never spin forever.
+  let guard = 0;
+  while (
+    state.phase === 'active' &&
+    !state.winner &&
+    !state.pendingChoice &&
+    ++guard < 16 &&
+    isDeadPriorityWindow(state, state.activePlayer)
+  ) {
+    events.push(...passPriority(state, state.activePlayer));
+    if (!state.pendingChoice) advancePendingChoices(state);
+  }
 }
 
 // ─── Server Setup ─────────────────────────────────────────────────────────────

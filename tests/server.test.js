@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from './helpers.js';
 import { WebSocket } from 'ws';
 import { createServer } from '../src/server.js';
+import { getCard } from '../src/data/cardDb.js';
 
 const TEST_PORT = 8766;
 
@@ -130,23 +131,27 @@ describe('Game actions over WebSocket', () => {
     expect(err.code).toBe('NOT_YOUR_PRIORITY');
   });
 
-  test('priority passes between players correctly', async () => {
-    const { p1, p2 } = await startTestGame();
+  test('passing on an empty stack ends the turn (opponent has no response to give)', async () => {
+    const { p1 } = await startTestGame();
+    // p1 passes with an empty stack on its own turn. p2's resulting priority is
+    // a dead end-of-turn window (nothing it could possibly play), so it is
+    // auto-skipped and the turn ends on this single pass.
     p1.send({ type: 'PASS_PRIORITY' });
-    const after1 = await p1.nextState();
-    expect(after1.state.activePlayer).toBe('p2');
-
-    p2.send({ type: 'PASS_PRIORITY' });
-    const after2 = await p1.nextState();
-    expect(after2.state.turn).toBe('p2');
-    expect(after2.state.turnNumber).toBe(2);
+    const after = await p1.nextState();
+    expect(after.state.turn).toBe('p2');
+    expect(after.state.turnNumber).toBe(2);
+    expect(after.state.activePlayer).toBe('p2');
   });
 
   test('played card appears on stack for both players', async () => {
-    const { p1, p2, p1State } = await startTestGame();
+    const { p1, p2, p1State, p2State } = await startTestGame();
     const zeroCost = ['53', '56', '65', '66'];
     const card = p1State.state.players.p1.hand.find(id => zeroCost.includes(id));
     if (!card) return;
+    // p2 must be able to respond, else its window is dead and the play would be
+    // auto-skipped straight to resolution. Any action card is a legal response.
+    const p2CanRespond = p2State.state.players.p2.hand.some(id => getCard(id).type === 'action');
+    if (!p2CanRespond) return;
 
     p1.send({ type: 'PLAY_CARD', cardId: card });
     const [s1, s2] = await Promise.all([p1.nextState(), p2.nextState()]);
@@ -183,10 +188,9 @@ describe('Game actions over WebSocket', () => {
     expect(s3.state.players.p1.energy).toBe(9);
     expect(s3.state.players.p1.handSize).toBe(2);
 
-    // End turn: both pass, empty stack
+    // End turn: p1 passes on an empty stack. p2's end-of-turn window is dead, so
+    // it is auto-skipped and the turn ends on this single pass.
     p1.send({ type: 'PASS_PRIORITY' });
-    await p1.nextState();
-    p2.send({ type: 'PASS_PRIORITY' });
     const endState = await p1.nextState();
 
     expect(endState.state.turn).toBe('p2');
@@ -205,11 +209,14 @@ describe('Choice flow', () => {
     if (!p1State.state.players.p1.hand.includes('53')) return null;
 
     p1.send({ type: 'PLAY_CARD', cardId: '53' });
-    await p1.nextState();
-    p2.send({ type: 'PASS_PRIORITY' });
-    await p1.nextState();
-    p1.send({ type: 'PASS_PRIORITY' });
-    const afterResolve = await p1.nextState();
+    let afterResolve = await p1.nextState();
+    // If p2 has a live response window it must decline; then 53 resolves on its
+    // own (p1 can't respond to its own card, so that window is auto-skipped). If
+    // p2 had no possible response, the play already cascaded to resolution.
+    if (!afterResolve.state.pendingChoice && afterResolve.state.activePlayer === 'p2') {
+      p2.send({ type: 'PASS_PRIORITY' });
+      afterResolve = await p1.nextState();
+    }
 
     if (!afterResolve.state.pendingChoice) return null;
     return { ...game, afterResolve };

@@ -3,7 +3,7 @@ import { describe, test, expect } from './helpers.js';
 import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
 import { resolveChoice } from '../src/engine/choices.js';
-import { validatePlay } from '../src/engine/validation.js';
+import { validatePlay, hasAnyLegalPlay } from '../src/engine/validation.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -204,6 +204,46 @@ describe('Playing cards', () => {
     const events = playCard(state, 'p1', '65');
     expect(eventTypes(events)).toContain('ERROR');
     expect(state.zones.stack).toHaveLength(1);
+  });
+
+  test('hasAnyLegalPlay: a dead priority window reports no possible play', () => {
+    const { state } = freshGame();
+    // p1 plays an action; p2 then declines so priority returns to p1.
+    giveCard(state, 'p1', '55'); // Lost at Sea (action)
+    giveCard(state, 'p1', '65'); // Enlightenment (action)
+    giveCard(state, 'p2', '45'); // Dig for Ideas (action)
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '55');
+    // p2 holds priority with p1's card on top — it CAN respond
+    expect(hasAnyLegalPlay(state, 'p2')).toBe(true);
+
+    passPriority(state, 'p2'); // priority back to p1, its own card on top
+    // p1 can only respond to its own card → dead window
+    expect(hasAnyLegalPlay(state, 'p1')).toBe(false);
+  });
+
+  test('hasAnyLegalPlay: ignores affordability (energy can be voided for)', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '55'); // action on the stack
+    giveCard(state, 'p2', '45'); // Dig for Ideas (cost 1)
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 0);   // can't currently afford a response…
+
+    playCard(state, 'p1', '55');
+    // …but a response is still *possible* (p2 could void for energy), so the
+    // window is live, not dead.
+    expect(hasAnyLegalPlay(state, 'p2')).toBe(true);
+  });
+
+  test('hasAnyLegalPlay: opponent\'s end-of-turn empty stack is dead', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p2', '45'); // p2 has an action, but it's p1's turn
+    setEnergy(state, 'p2', 9);
+    passPriority(state, 'p1');    // p1's turn, empty stack → priority to p2
+    expect(state.activePlayer).toBe('p2');
+    expect(hasAnyLegalPlay(state, 'p2')).toBe(false);
   });
 
   test('cannot respond on the opponent\'s end-of-turn empty-stack window', () => {

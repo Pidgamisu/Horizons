@@ -96,34 +96,59 @@ export function validatePlay(state, playerId, cardId, context = {}) {
         }
         break;
       case 'exactEnergy':
-        if (player.energy !== restriction.amount) {
+        if (!context.ignoreCost && player.energy !== restriction.amount) {
           return `${card.name} requires exactly ${restriction.amount} energy.`;
         }
         break;
     }
   }
 
-  // ── Energy check ──────────────────────────────────────────────────────────
-  const cost = computeActualCost(state, cardId, playerId, context);
-  if (player.energy < cost) {
-    return `Not enough energy. Need ${cost}, have ${player.energy}.`;
-  }
+  // ── Cost checks ───────────────────────────────────────────────────────────
+  // Skipped under `ignoreCost` (hasAnyLegalPlay), since energy / hand costs can
+  // be paid by voiding — they don't determine whether a play is *possible*.
+  if (!context.ignoreCost) {
+    // Energy check
+    const cost = computeActualCost(state, cardId, playerId, context);
+    if (player.energy < cost) {
+      return `Not enough energy. Need ${cost}, have ${player.energy}.`;
+    }
 
-  // ── Additional costs must be payable (Sneak 08, Vitalize 25) ──────────────
-  // Treated like energy: if you can't pay, you can't put the card on the stack.
-  const handCosts = (card.additionalCosts ?? []).filter(
-    c => c.type === 'trashFromHand' || c.type === 'putHandCardOnDeckTop'
-  );
-  if (handCosts.length) {
-    const needed = handCosts.reduce((n, c) => n + (c.count ?? 1), 0);
-    // The card being played leaves the hand, so it can't pay its own cost.
-    const available = player.hand.length - (context.fromTrash ? 0 : 1);
-    if (available < needed) {
-      return `${card.name} needs ${needed} more card${needed !== 1 ? 's' : ''} in hand to pay its additional cost.`;
+    // Additional costs must be payable (Sneak 08, Vitalize 25) — treated like
+    // energy: if you can't pay, you can't put the card on the stack.
+    const handCosts = (card.additionalCosts ?? []).filter(
+      c => c.type === 'trashFromHand' || c.type === 'putHandCardOnDeckTop'
+    );
+    if (handCosts.length) {
+      const needed = handCosts.reduce((n, c) => n + (c.count ?? 1), 0);
+      // The card being played leaves the hand, so it can't pay its own cost.
+      const available = player.hand.length - (context.fromTrash ? 0 : 1);
+      if (available < needed) {
+        return `${card.name} needs ${needed} more card${needed !== 1 ? 's' : ''} in hand to pay its additional cost.`;
+      }
     }
   }
 
   return null; // legal
+}
+
+/**
+ * Does this player have ANY legal play available right now, ignoring whether
+ * they can currently afford it? (Energy / additional costs can be paid by
+ * voiding, so affordability doesn't determine whether a response is *possible*.)
+ *
+ * Used to decide whether a priority window is "live": if there is no possible
+ * response at all — e.g. the opponent's end-of-turn empty stack, or your own
+ * card sitting on top of the stack — the player should be skipped rather than
+ * handed a dead priority prompt they can only pass on.
+ */
+export function hasAnyLegalPlay(state, playerId) {
+  for (const cardId of state.players[playerId].hand) {
+    if (validatePlay(state, playerId, cardId, { ignoreCost: true }) === null) return true;
+  }
+  for (const cardId of state.zones.trash) {
+    if (validatePlay(state, playerId, cardId, { fromTrash: true, ignoreCost: true }) === null) return true;
+  }
+  return false;
 }
 
 function checkPointResponsePermission(state, playerId, context) {
