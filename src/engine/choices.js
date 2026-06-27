@@ -53,8 +53,12 @@ export function resolveChoice(state, playerId, payload) {
 
       // Execute thenGrant if present (Metamorphosis 61, Reinstate 84, etc.)
       if (choice.thenGrant) {
+        // Clear the current (just-resolved) choice first so we can detect a NEW
+        // one that thenGrant may set (may-play-for-0) and keep it.
+        state.pendingChoice = null;
         const grantEvents = executeThenGrant(state, choice.thenGrant, controllerOf(trashed), choice.originalController);
         events.push(...grantEvents);
+        if (state.pendingChoice) return { events, error: null };
       }
       break;
     }
@@ -408,6 +412,31 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
+    case 'mayPlayFromHand': {
+      // payload: { play: boolean, cardId?: string }  — Metamorphosis (61)
+      if (!payload.play) { events.push({ type: 'FREE_PLAY_DECLINED' }); break; }
+      const { cardId } = payload;
+      if (!state.players[playerId].hand.includes(cardId)) { error = 'Card not in hand.'; break; }
+      if (choice.filter && choice.filter !== 'any' && getCard(cardId).type !== choice.filter) {
+        error = `Must play a ${choice.filter} card.`; break;
+      }
+      // Card stays in hand; the server plays it for free.
+      events.push({ type: 'FREE_PLAY_CONFIRMED', cardId, player: playerId });
+      break;
+    }
+
+    case 'mayPlayTopOfDeck': {
+      // payload: { play: boolean }  — Reinstate (84)
+      if (!payload.play) { events.push({ type: 'FREE_PLAY_DECLINED' }); break; }
+      const top = choice.cardId;
+      const idx = state.zones.deck.indexOf(top);
+      if (idx === -1) { error = 'Top card is no longer available.'; break; }
+      state.zones.deck.splice(idx, 1);
+      state.players[playerId].hand.push(top); // server plays it from hand for free
+      events.push({ type: 'FREE_PLAY_CONFIRMED', cardId: top, player: playerId });
+      break;
+    }
+
     case 'chooseCardToTrashFromRevealedHand': {
       // payload: { cardId }  — Inquisition (16), Cerebral Snuff (81)
       const { cardId } = payload;
@@ -489,7 +518,12 @@ function executeThenGrant(state, grant, grantTarget, originalController) {
       state.players[player].energy += grant.amount;
       events.push({ type: 'ENERGY_GAINED', player, amount: grant.amount });
       break;
-    case 'mayPlayFromHand':
+    case 'mayPlayFromHand': {
+      // Only offer the choice if the player holds a matching card.
+      const playable = state.players[player].hand.filter(
+        id => !grant.filter || grant.filter === 'any' || getCard(id).type === grant.filter
+      );
+      if (playable.length === 0) break;
       state.pendingChoice = {
         type: 'mayPlayFromHand',
         player,
@@ -498,14 +532,19 @@ function executeThenGrant(state, grant, grantTarget, originalController) {
       };
       events.push({ type: 'CHOICE_REQUIRED', player, choiceType: 'mayPlayFromHand', filter: grant.filter, cost: grant.cost });
       break;
-    case 'mayPlayTopOfDeck':
+    }
+    case 'mayPlayTopOfDeck': {
+      const top = state.zones.deck[0];
+      if (!top) break; // empty deck — nothing to play
       state.pendingChoice = {
         type: 'mayPlayTopOfDeck',
         player,
         cost: grant.cost,
+        cardId: top, // reveal the top card to the player
       };
-      events.push({ type: 'CHOICE_REQUIRED', player, choiceType: 'mayPlayTopOfDeck', cost: grant.cost });
+      events.push({ type: 'CHOICE_REQUIRED', player, choiceType: 'mayPlayTopOfDeck', cardId: top, cost: grant.cost });
       break;
+    }
     case 'draw':
       const drawn = drawCards(state, player, grant.count);
       events.push({ type: 'CARDS_DRAWN', player, cards: drawn });

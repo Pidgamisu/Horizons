@@ -569,6 +569,103 @@ describe('Deferred draws', () => {
   });
 });
 
+// ─── Free play ("may play a card for 0") ────────────────────────────────────────
+
+describe('Free play for 0', () => {
+  // Mimic the server: when a choice emits FREE_PLAY_CONFIRMED, the card is
+  // played onto the stack for free.
+  function completeFreePlay(state, events) {
+    for (const ev of events) {
+      if (ev.type === 'FREE_PLAY_CONFIRMED') playCard(state, ev.player, ev.cardId, { free: true });
+    }
+  }
+
+  function trashFromStackTo(state, chooser, cardId) {
+    const t = state.pendingTriggers.find(x => x.type === 'trashFromStackChoice');
+    state.pendingChoice = { ...t, type: 'trashFromStack' };
+    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
+    const idx = state.zones.stack.findIndex(e => e.cardId === cardId);
+    return resolveChoice(state, chooser, { stackIndex: idx });
+  }
+
+  test('Metamorphosis (61): trashed card\'s controller may play a point from hand for 0', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '04'); // Snatch (point) — p1's card, to be trashed
+    giveCard(state, 'p1', '01'); // Sprint (point) — to free-play from hand
+    giveCard(state, 'p2', '61'); // Metamorphosis
+    setEnergy(state, 'p1', 9); setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '04');  // point on stack
+    playCard(state, 'p2', '61');  // Metamorphosis in response
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');    // Metamorphosis resolves → trash choice for p2
+
+    const r1 = trashFromStackTo(state, 'p2', '04'); // p2 trashes p1's point
+    expect(r1.error).toBe(null);
+    // thenGrant must surface (not be nulled) for p1, the trashed card's controller
+    expect(state.pendingChoice?.type).toBe('mayPlayFromHand');
+    expect(state.pendingChoice.player).toBe('p1');
+
+    const energyBefore = state.players.p1.energy;
+    const r2 = resolveChoice(state, 'p1', { play: true, cardId: '01' });
+    expect(r2.error).toBe(null);
+    completeFreePlay(state, r2.events);
+
+    expect(state.zones.stack[0].cardId).toBe('01');         // played onto the stack
+    expect(state.players.p1.energy).toBe(energyBefore);     // for free
+    expect(state.players.p1.hand).not.toContain('01');
+  });
+
+  test('Reinstate (84): trashed action\'s controller may play the top of deck for 0', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '53'); // Sort (action) — p1's card, to be trashed
+    giveCard(state, 'p2', '84'); // Reinstate
+    setEnergy(state, 'p1', 9); setEnergy(state, 'p2', 9);
+    state.zones.deck = state.zones.deck.filter(id => id !== '01');
+    state.zones.deck.unshift('01'); // Sprint on top of the deck
+
+    playCard(state, 'p1', '53');  // action on stack
+    playCard(state, 'p2', '84');  // Reinstate in response
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');    // Reinstate resolves → trash choice for p2
+
+    const r1 = trashFromStackTo(state, 'p2', '53');
+    expect(r1.error).toBe(null);
+    expect(state.pendingChoice?.type).toBe('mayPlayTopOfDeck');
+    expect(state.pendingChoice.cardId).toBe('01'); // top card revealed
+
+    const r2 = resolveChoice(state, 'p1', { play: true });
+    expect(r2.error).toBe(null);
+    completeFreePlay(state, r2.events);
+
+    expect(state.zones.stack[0].cardId).toBe('01'); // top card played for free
+    expect(state.zones.deck).not.toContain('01');
+  });
+
+  test('Predict (54): playing the guessed card puts it on the stack', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '54'); // Predict
+    setEnergy(state, 'p1', 9);
+    state.zones.deck = state.zones.deck.filter(id => id !== '53');
+    state.zones.deck.unshift('53'); // Sort (cost 0) on top
+
+    playCard(state, 'p1', '54');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // resolves → chooseNumber
+
+    const t = state.pendingTriggers.find(x => x.type === 'chooseNumber');
+    state.pendingChoice = { ...t, type: 'chooseNumber' };
+    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
+    resolveChoice(state, 'p1', { number: 0 }); // match → confirmFreePlay
+    expect(state.pendingChoice?.type).toBe('confirmFreePlay');
+
+    const r = resolveChoice(state, 'p1', { play: true });
+    expect(r.error).toBe(null);
+    completeFreePlay(state, r.events);
+    expect(state.zones.stack[0].cardId).toBe('53'); // played onto the stack
+  });
+});
+
 // ─── Injustice (67): protect next action only ───────────────────────────────────
 
 describe('Injustice (67)', () => {

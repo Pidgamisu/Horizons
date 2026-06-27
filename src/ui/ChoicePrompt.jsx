@@ -88,6 +88,8 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       onRespond({ cardId: selected[0] })
     } else if (type === 'lookAtTopN') {
       onRespond({ trashCardId: selected[0] })
+    } else if (type === 'mayPlayFromHand') {
+      onRespond({ play: true, cardId: selected[0] })
     } else if (type === 'additionalCost') {
       // payload shape depends on the underlying cost type (see resolveChoice)
       if (choice.cost?.type === 'putHandCardOnDeckTop') {
@@ -104,6 +106,8 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       onRespond({ accept: false })
     } else if (choice.type === 'trashUnlessControllerPays') {
       onRespond({ pay: false })
+    } else if (choice.type === 'mayPlayFromHand') {
+      onRespond({ play: false })
     }
     setSelected([])
   }
@@ -149,6 +153,25 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
     isFreePlayChoice = true
     title = `Play ${cardName(choice.cardId)} for 0 energy?`
     subtitle = 'You guessed its cost'
+  }
+
+  else if (type === 'mayPlayTopOfDeck') {
+    isFreePlayChoice = true
+    title = `Play ${cardName(choice.cardId)} from the deck for 0 energy?`
+    subtitle = 'Revealed from the top of the deck'
+  }
+
+  else if (type === 'mayPlayFromHand') {
+    const filterLabel = !filter || filter === 'any' ? 'card' : `${filter} card`
+    title = `Play a ${filterLabel} from your hand for 0 energy?`
+    subtitle = 'Choose one, or decline'
+    cards = myHand
+      .filter(id => !filter || filter === 'any' || cardType(id) === filter)
+      .map(id => ({ id, label: null }))
+    isOptional = true
+    declineLabel = "Don't play"
+    confirmLabel = 'Play for 0'
+    canConfirm = selected.length === 1
   }
 
   else if (type === 'opponentChoosesOne') {

@@ -227,6 +227,13 @@ function handleMessage(ws, room, playerId, msg) {
       }
       events = choiceEvents;
 
+      // A confirmed "play for 0" puts the card on the stack immediately.
+      for (const ev of choiceEvents) {
+        if (ev.type === 'FREE_PLAY_CONFIRMED') {
+          events.push(...playCard(state, ev.player, ev.cardId, { free: true }));
+        }
+      }
+
       // After a choice resolves, check if more choices are pending
       if (!state.pendingChoice) {
         advancePendingChoices(state);

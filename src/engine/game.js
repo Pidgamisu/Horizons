@@ -28,25 +28,31 @@ export function startGame(state) {
 
 export function playCard(state, playerId, cardId, context = {}) {
   if (state.phase !== 'active') return [{ type: 'ERROR', code: 'GAME_NOT_ACTIVE' }];
-  if (state.activePlayer !== playerId) return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
 
-  // Validate
-  const error = validatePlay(state, playerId, cardId, context);
-  if (error) return [{ type: 'ERROR', code: 'INVALID_PLAY', message: error }];
+  // A granted free play (Metamorphosis 61, Reinstate 84, Predict 54) bypasses
+  // priority, play restrictions, energy cost, and additional costs.
+  if (!context.free) {
+    if (state.activePlayer !== playerId) return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
+    const error = validatePlay(state, playerId, cardId, context);
+    if (error) return [{ type: 'ERROR', code: 'INVALID_PLAY', message: error }];
+  }
 
   const card = getCard(cardId);
   const events = [];
 
-  // Pay energy cost
-  const cost = computeActualCost(state, cardId, playerId, context);
-  state.players[playerId].energy -= cost;
-  events.push({ type: 'ENERGY_SPENT', player: playerId, amount: cost });
+  if (!context.free) {
+    // Pay energy cost
+    const cost = computeActualCost(state, cardId, playerId, context);
+    state.players[playerId].energy -= cost;
+    events.push({ type: 'ENERGY_SPENT', player: playerId, amount: cost });
 
-  // Pay additional costs (additionalCosts are validated separately, handled here)
-  // For now, additional costs that require choices are added as pending triggers
-  for (const addCost of card.additionalCosts ?? []) {
-    state.pendingTriggers.push({ type: 'additionalCost', player: playerId, cost: addCost });
-    events.push({ type: 'ADDITIONAL_COST_REQUIRED', player: playerId, cost: addCost });
+    // Pay additional costs (validated separately, surfaced as pending choices)
+    for (const addCost of card.additionalCosts ?? []) {
+      state.pendingTriggers.push({ type: 'additionalCost', player: playerId, cost: addCost });
+      events.push({ type: 'ADDITIONAL_COST_REQUIRED', player: playerId, cost: addCost });
+    }
+  } else {
+    events.push({ type: 'FREE_PLAY', player: playerId, cardId });
   }
 
   // Remove from source zone

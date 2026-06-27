@@ -46,6 +46,8 @@ function makePayload(s, ch) {
     case 'chooseNumber': return { number: 0 };
     case 'confirmFreePlay': return { play: false };
     case 'trashUnlessControllerPaysTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
+    case 'mayPlayFromHand': return { play: false };
+    case 'mayPlayTopOfDeck': return { play: false };
     case 'trashUnlessControllerPays': return { pay: false };
     case 'putFromTrashToDeckBottom': return { cardIds: s.zones.trash.slice(0, ch.count ?? 1) };
     case 'chooseCardToTrashFromRevealedHand': {
@@ -56,7 +58,7 @@ function makePayload(s, ch) {
   }
 }
 
-const CHOICE_TRIGGER_TYPES = new Set(['trashFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromTrashToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','trashUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','trashUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN']);
+const CHOICE_TRIGGER_TYPES = new Set(['trashFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromTrashToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','trashUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','trashUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
 
 function sweepCard(card) {
   const s = setup();
