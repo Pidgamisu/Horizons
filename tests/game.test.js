@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import { createGameState, drawCards, opponent, initDeck } from '../src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard, endTurn } from '../src/engine/game.js';
@@ -18,10 +19,13 @@ function eventTypes(events) {
 }
 
 function giveCard(state, playerId, cardId) {
-  // Put a specific card in a player's hand (remove from deck if present)
+  // Put a specific card in a player's hand (remove from deck if present).
   const di = state.zones.deck.indexOf(cardId);
   if (di !== -1) state.zones.deck.splice(di, 1);
-  state.players[playerId].hand.push(cardId);
+  // Avoid duplicates: the random opening hand may already hold this card.
+  if (!state.players[playerId].hand.includes(cardId)) {
+    state.players[playerId].hand.push(cardId);
+  }
 }
 
 function setEnergy(state, playerId, amount) {
@@ -29,6 +33,39 @@ function setEnergy(state, playerId, amount) {
 }
 
 // ─── Initialisation ───────────────────────────────────────────────────────────
+
+// ─── Client choice-prompt coverage ──────────────────────────────────────────────
+
+describe('Client prompt coverage', () => {
+  // Guard against the "choice resolves in the engine but the client has no prompt
+  // / never receives the hidden data" class of bug (Search, the free-play cards).
+  // Every choice type that can surface must have a ChoicePrompt branch.
+  test('every surfaceable choice type has a ChoicePrompt branch', () => {
+    const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8');
+    const server = read('server.js');
+    const choices = read('engine/choices.js');
+    const prompt = read('ui/ChoicePrompt.jsx');
+
+    // Trigger types the server surfaces, mapped to their client choice type.
+    const setBlock = server.match(/choiceTypes = new Set\(\[([\s\S]*?)\]\)/);
+    expect(setBlock).not.toBe(null);
+    const triggers = [...setBlock[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    const mapBlock = server.match(/const typeMap = \{([\s\S]*?)\};/);
+    expect(mapBlock).not.toBe(null);
+    const typeMap = {};
+    for (const m of mapBlock[1].matchAll(/(\w+):\s*'([^']+)'/g)) typeMap[m[1]] = m[2];
+
+    const surfaced = new Set(triggers.map((t) => typeMap[t] ?? t));
+    // Choices set directly as state.pendingChoice (chained / follow-up choices).
+    for (const m of choices.matchAll(/pendingChoice\s*=\s*\{\s*type:\s*'([^']+)'/g)) surfaced.add(m[1]);
+
+    // Choice types the client prompt renders.
+    const handled = new Set([...prompt.matchAll(/type === '([^']+)'/g)].map((m) => m[1]));
+
+    const missing = [...surfaced].filter((t) => !handled.has(t)).sort();
+    expect(missing).toEqual([]);
+  });
+});
 
 describe('Game initialisation', () => {
   test('starts in active phase', () => {
