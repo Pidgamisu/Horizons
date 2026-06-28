@@ -9,8 +9,8 @@ const ZONES = {
   myHand:       { cx: 0, cy:  340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'hand' },
   stack:        { cx: -220, cy: 0, w: CW + 40, h: 520,  label: 'Stack', zoneType: 'stack' },
   trash:        { cx:  20,  cy: 0, w: CW + 40, h: CH + 40, label: 'Trash', zoneType: 'trash' },
-  deck:         { cx:  180, cy: -60, w: CW + 40, h: CH + 40, label: 'Deck', zoneType: 'deck' },
-  void:         { cx:  180, cy:  80, w: CW + 40, h: CH + 40, label: 'Void', zoneType: 'void' },
+  deck:         { cx:  180, cy: -100, w: CW + 40, h: CH + 40, label: 'Deck', zoneType: 'deck' },
+  void:         { cx:  180, cy:  100, w: CW + 40, h: CH + 40, label: 'Void', zoneType: 'void' },
 }
 
 const sid = (key) => createShapeId(key)
