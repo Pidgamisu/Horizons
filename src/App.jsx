@@ -108,6 +108,7 @@ export default function App() {
   const [hoveredCard, setHoveredCard] = useState(null)
   const [viewingZone, setViewingZone] = useState(null)
   const [revealedHand, setRevealedHand] = useState(null)
+  const rootRef = useRef(null)
 
   const connect = useCallback((id) => {
     gameClient.connect(id)
@@ -233,6 +234,24 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [screen, handlePlay, handleVoid])
 
+  // Block zoom gestures (ctrl+wheel / trackpad pinch) over the UI overlays.
+  // tldraw handles zoom inside its own container, but the HUD/dialogs are
+  // siblings on top of it, so a zoom gesture there falls through to the
+  // browser and zooms the whole page. Suppress the default when the gesture
+  // isn't over the canvas. Native listener with passive:false so we can
+  // preventDefault (React's onWheel is passive and can't).
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const onWheel = (e) => {
+      if (!e.ctrlKey) return // only zoom gestures carry ctrlKey
+      if (e.target.closest?.('.tl-container')) return // over the canvas: let tldraw zoom
+      e.preventDefault()
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [screen])
+
   const handlePass = useCallback(() => gameClient.passPriority(), [])
   const handleConcede = useCallback(() => {
     if (window.confirm('Concede this game?')) gameClient.concede()
@@ -256,7 +275,7 @@ export default function App() {
   if (screen === 'waiting') return <WaitingScreen roomId={roomId} />
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div ref={rootRef} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0 }}>
         <Tldraw
           licenseKey="tldraw-2026-07-12/WyJlcWU4ZkYyVCIsWyIqIl0sMTYsIjIwMjYtMDctMTIiXQ.hF3RewUwuFXKSY8SFMKWb6QRVzmBB0Ddv21vNlDaf2AZ/i/X5qO/FvV6JoRBPPTCrWDpWPwsJt2P9Hf43/9/wQ"
