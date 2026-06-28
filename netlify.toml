@@ -12,6 +12,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # VITE_SERVER_URL is intentionally baked into the client bundle (that's how the
+  # browser learns the server address) — it's public client config, not a secret.
+  # Without this, Netlify's automatic secrets scanner finds the value in dist/ and
+  # fails the build with exit code 2 (after Vite has already built successfully).
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SERVER_URL"
 
 # SPA fallback: serve index.html for any path so deep links still load the app.
 [[redirects]]
