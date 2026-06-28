@@ -8,7 +8,7 @@ import { ZoneShapeUtil } from './shapes/ZoneShapeUtil.jsx'
 import { HUD } from './ui/HUD.jsx'
 import { ActionBar } from './ui/ActionBar.jsx'
 import { ChoicePrompt } from './ui/ChoicePrompt.jsx'
-import { GameOver, Lobby, Toast } from './ui/GameOver.jsx'
+import { GameOver, Lobby, Toast, BrandBackdrop } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
 import { cardName } from './data/cardImages.js'
@@ -352,18 +352,14 @@ function DarkBackground() {
 function WaitingScreen({ roomId }) {
   const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      width: '100%', height: '100%',
-      background: 'radial-gradient(ellipse at 50% 50%, #0e0e1f 0%, #07070f 100%)'
-    }}>
+    <BrandBackdrop>
       <div style={{
         textAlign: 'center', color: '#fff', display: 'flex',
         flexDirection: 'column', alignItems: 'center', gap: 18
       }}>
         <div style={{
           width: 40, height: 40, border: '3px solid rgba(255,255,255,0.1)',
-          borderTop: '3px solid #7c6aff', borderRadius: '50%',
+          borderTop: '3px solid #ff7ec8', borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }} />
         <p style={{ fontSize: 18, opacity: 0.8 }}>Waiting for opponent…</p>
@@ -374,13 +370,13 @@ function WaitingScreen({ roomId }) {
           title="Click to copy"
           style={{
             fontSize: 12, background: 'rgba(255,255,255,0.07)', padding: '8px 16px',
-            borderRadius: 6, color: '#7c6aff', userSelect: 'all', cursor: 'pointer',
+            borderRadius: 6, color: '#ff7ec8', userSelect: 'all', cursor: 'pointer',
             maxWidth: 420, wordBreak: 'break-all'
           }}>
           {shareUrl}
         </code>
         <p style={{ fontSize: 11, opacity: 0.3 }}>Click the link to copy</p>
       </div>
-    </div>
+    </BrandBackdrop>
   )
 }

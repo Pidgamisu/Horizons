@@ -42,6 +42,45 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
   )
 }
 
+// ── BrandBackdrop ─────────────────────────────────────────────────────────────
+// Darkened aurora photo + crisp pink HORIZONS wordmark, shared by the lobby and
+// the waiting-for-opponent screen so they look identical. Renders children below.
+
+export function BrandBackdrop({ children }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', gap: 44,
+      width: '100%', height: '100%',
+      backgroundColor: '#07070f',
+      backgroundImage:
+        'linear-gradient(to bottom, rgba(5,5,12,0.6) 0%, rgba(5,5,12,0.5) 45%, rgba(5,5,12,0.78) 100%), url(/lobby-bg.png)',
+      backgroundSize: 'cover, cover',
+      backgroundPosition: 'center, center',
+      backgroundRepeat: 'no-repeat, no-repeat',
+    }}>
+      {/* HORIZONS wordmark + copyright — crisp layer over the photo */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          fontSize: 66, fontWeight: 800, letterSpacing: '0.14em',
+          color: '#ff7ec8',
+          textShadow: '0 0 32px rgba(255,126,200,0.45), 0 2px 30px rgba(0,0,0,0.5)',
+          lineHeight: 1,
+        }}>
+          HORIZONS
+        </div>
+        <div style={{
+          fontSize: 11, color: 'rgba(255,255,255,0.55)',
+          marginTop: 10, letterSpacing: '0.05em',
+        }}>
+          © 2026 Nathaniel Robert Lefcourt
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 
 export function Lobby({ onConnect }) {
@@ -69,37 +108,7 @@ export function Lobby({ onConnect }) {
   }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexDirection: 'column', gap: 44,
-      width: '100%', height: '100%',
-      backgroundColor: '#07070f',
-      // Aurora photo as a darkened backdrop; the wordmark + copyright are drawn
-      // on our own layer below so they stay crisp.
-      backgroundImage:
-        'linear-gradient(to bottom, rgba(5,5,12,0.6) 0%, rgba(5,5,12,0.5) 45%, rgba(5,5,12,0.78) 100%), url(/lobby-bg.png)',
-      backgroundSize: 'cover, cover',
-      backgroundPosition: 'center, center',
-      backgroundRepeat: 'no-repeat, no-repeat',
-    }}>
-      {/* HORIZONS wordmark + copyright — our crisp layer over the photo */}
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontSize: 66, fontWeight: 800, letterSpacing: '0.14em',
-          color: 'rgba(255,255,255,0.94)',
-          textShadow: '0 2px 30px rgba(0,0,0,0.55)',
-          lineHeight: 1,
-        }}>
-          HORIZONS
-        </div>
-        <div style={{
-          fontSize: 11, color: 'rgba(255,255,255,0.55)',
-          marginTop: 10, letterSpacing: '0.05em',
-        }}>
-          © 2026 Nathaniel Robert Lefcourt
-        </div>
-      </div>
-
+    <BrandBackdrop>
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: 12, maxWidth: 380, width: '100%', padding: '0 24px',
@@ -145,7 +154,7 @@ export function Lobby({ onConnect }) {
           </div>
         )}
       </div>
-    </div>
+    </BrandBackdrop>
   )
 }
 
