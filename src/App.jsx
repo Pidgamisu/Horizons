@@ -160,19 +160,6 @@ export default function App() {
     }
   }, [myPlayerId])
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.code !== 'Space') return
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      e.preventDefault()
-      if (screen !== 'game') return
-      if (!gameClient.holdingPriority || gameClient.myChoicePending) return
-      gameClient.passPriority()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [screen])
-
   const handleCardClick = useCallback((cardCode) => {
     setSelectedCard(prev => prev === cardCode ? null : cardCode)
   }, [])
@@ -218,6 +205,27 @@ export default function App() {
     gameClient.voidCard(selectedCard)
     setSelectedCard(null)
   }, [selectedCard])
+
+  // Keyboard shortcuts (mirror the ActionBar): Space = pass, P = play, V = void.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (screen !== 'game') return
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      const canAct = gameClient.holdingPriority && !gameClient.myChoicePending
+      if (e.code === 'Space') {
+        e.preventDefault()
+        if (canAct) gameClient.passPriority()
+      } else if (e.code === 'KeyP') {
+        e.preventDefault()
+        if (canAct) handlePlay()
+      } else if (e.code === 'KeyV') {
+        e.preventDefault()
+        if (canAct) handleVoid()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [screen, handlePlay, handleVoid])
 
   const handlePass = useCallback(() => gameClient.passPriority(), [])
   const handleConcede = useCallback(() => {
