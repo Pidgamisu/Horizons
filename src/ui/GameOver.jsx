@@ -72,7 +72,12 @@ export function Lobby({ onConnect }) {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       width: '100%', height: '100%',
-      background: 'radial-gradient(ellipse at 50% 40%, #0e0e1f 0%, #07070f 100%)',
+      backgroundColor: '#07070f',
+      backgroundImage:
+        'radial-gradient(ellipse at 50% 40%, rgba(14,14,31,0.72) 0%, rgba(7,7,15,0.92) 100%), url(/cards/back.png)',
+      backgroundSize: 'cover, cover',
+      backgroundPosition: 'center, center',
+      backgroundRepeat: 'no-repeat, no-repeat',
     }}>
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
