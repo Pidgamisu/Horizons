@@ -145,11 +145,9 @@ export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber }
         <div style={{ fontSize: 10, marginTop: 3, opacity: 0.4 }}>SPACE to pass</div>
       </div>
 
-      {/* You — bottom center, above the action bar */}
+      {/* You — bottom left, beside the action bar */}
       <div style={{
-        position: 'absolute', bottom: 88, left: 0, right: 0,
-        display: 'flex', justifyContent: 'center',
-        padding: '0 16px',
+        position: 'absolute', bottom: 20, left: 16,
         pointerEvents: 'none', zIndex: 100,
       }}>
         <PlayerPanel label="You" state={myState} holdingPriority={holdingPriority} isMyTurn={isMyTurn} align="left" />
