@@ -1,4 +1,4 @@
-import { createShapeId } from 'tldraw'
+import { createShapeId, Box } from 'tldraw'
 
 const CW = 120  // card width
 const CH = 168  // card height
@@ -197,6 +197,14 @@ export class BoardManager {
   }
 
   fitBoard() {
-    this.editor.zoomToFit()
+    const b = this.editor.getCurrentPageBounds()
+    if (!b) { this.editor.zoomToFit(); return }
+    // The HUD panels overlay the canvas: the "You" priority/energy panel sits
+    // at the bottom and the opponent panel at the top. Fit to an expanded box
+    // (extra room reserved bottom > top) so the hand cards never sit under
+    // those panels at game start.
+    const padTop = 150, padBottom = 300, padX = 60
+    const expanded = new Box(b.x - padX, b.y - padTop, b.w + padX * 2, b.h + padTop + padBottom)
+    this.editor.zoomToBounds(expanded, { inset: 0 })
   }
 }
