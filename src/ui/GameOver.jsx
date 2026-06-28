@@ -70,19 +70,36 @@ export function Lobby({ onConnect }) {
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-      flexDirection: 'column',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', gap: 44,
       width: '100%', height: '100%',
-      paddingBottom: 72,
       backgroundColor: '#07070f',
-      // Card back art (carries the HORIZONS wordmark) centered as the backdrop,
-      // with a bottom-weighted dark gradient so the buttons stay readable.
+      // Aurora photo as a darkened backdrop; the wordmark + copyright are drawn
+      // on our own layer below so they stay crisp.
       backgroundImage:
-        'linear-gradient(to bottom, rgba(7,7,15,0.15) 0%, rgba(7,7,15,0.35) 55%, rgba(7,7,15,0.9) 100%), url(/cards/back.png)',
+        'linear-gradient(to bottom, rgba(5,5,12,0.6) 0%, rgba(5,5,12,0.5) 45%, rgba(5,5,12,0.78) 100%), url(/lobby-bg.png)',
       backgroundSize: 'cover, cover',
       backgroundPosition: 'center, center',
       backgroundRepeat: 'no-repeat, no-repeat',
     }}>
+      {/* HORIZONS wordmark + copyright — our crisp layer over the photo */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          fontSize: 66, fontWeight: 800, letterSpacing: '0.14em',
+          color: 'rgba(255,255,255,0.94)',
+          textShadow: '0 2px 30px rgba(0,0,0,0.55)',
+          lineHeight: 1,
+        }}>
+          HORIZONS
+        </div>
+        <div style={{
+          fontSize: 11, color: 'rgba(255,255,255,0.55)',
+          marginTop: 10, letterSpacing: '0.05em',
+        }}>
+          © 2026 Nathaniel Robert Lefcourt
+        </div>
+      </div>
+
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: 12, maxWidth: 380, width: '100%', padding: '0 24px',
