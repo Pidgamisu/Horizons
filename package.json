@@ -9,13 +9,11 @@
     "test": "node --test tests/game.test.js tests/server.test.js"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tldraw": "^5.1.1",
+    "vite": "^5.0.0",
     "ws": "^8.21.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
-    "vite": "^5.0.0"
   }
 }
