@@ -253,6 +253,7 @@ export default function App() {
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0 }}>
         <Tldraw
+          licenseKey="tldraw-2026-07-12/WyJlcWU4ZkYyVCIsWyIqIl0sMTYsIjIwMjYtMDctMTIiXQ.hF3RewUwuFXKSY8SFMKWb6QRVzmBB0Ddv21vNlDaf2AZ/i/X5qO/FvV6JoRBPPTCrWDpWPwsJt2P9Hf43/9/wQ"
           shapeUtils={CUSTOM_SHAPE_UTILS}
           hideUi
           components={{ Background: DarkBackground }}
