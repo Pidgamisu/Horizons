@@ -72,30 +72,22 @@ export function Lobby({ onConnect }) {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       width: '100%', height: '100%',
-      backgroundColor: '#07070f',
-      backgroundImage:
-        'radial-gradient(ellipse at 50% 40%, rgba(14,14,31,0.72) 0%, rgba(7,7,15,0.92) 100%), url(/cards/back.png)',
-      backgroundSize: 'cover, cover',
-      backgroundPosition: 'center, center',
-      backgroundRepeat: 'no-repeat, no-repeat',
+      background: 'radial-gradient(ellipse at 50% 40%, #0e0e1f 0%, #07070f 100%)',
     }}>
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: 32, maxWidth: 380, width: '100%', padding: '0 24px',
       }}>
-        {/* Title */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: '-0.03em',
-                        background: 'linear-gradient(135deg, #7c6aff, #b794f4)',
-                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                        lineHeight: 1 }}>
-            HORIZONS
-          </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', marginTop: 6,
-                        letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Card Game
-          </div>
-        </div>
+        {/* Title — the card back art (carries the HORIZONS wordmark) */}
+        <img
+          src="/cards/back.png"
+          alt="Horizons"
+          style={{
+            width: 200, height: 'auto',
+            borderRadius: 12,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+          }}
+        />
 
         {mode === 'choose' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
