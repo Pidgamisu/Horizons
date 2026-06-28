@@ -100,6 +100,15 @@ function executeEffect(state, effect, controller, entry, ctx) {
       const count = effect.count;
       const targets = resolvePlayers(effect.player, controller, opp);
       const playerList = targets === 'both' ? [controller, opp] : [targets];
+      // Last Chance (76): defer the trash to the turn boundary (same time as
+      // Prepare's deferred draw) instead of trashing on resolution.
+      if (effect.timing === 'endOfTurn') {
+        for (const p of playerList) {
+          state.pendingTriggers.push({ type: 'endOfTurnTrash', player: p, count });
+        }
+        events.push({ type: 'PENDING_TRASH', player: controller, count });
+        break;
+      }
       for (const p of playerList) {
         // Clamp to what the player actually holds — "trash N" with fewer than N
         // trashes all of them; with an empty hand it does nothing (no lock).
@@ -360,8 +369,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'lockOpponentFromPlaying': {
-      state.turnFlags.opponentLocked = true;
-      events.push({ type: 'OPPONENT_LOCKED_FROM_PLAYING' });
+      // Lock the caster's opponent specifically (not "whoever isn't on turn"),
+      // so Stifle Speech never stops the caster's own plays.
+      state.turnFlags.lockedPlayer = opp;
+      events.push({ type: 'OPPONENT_LOCKED_FROM_PLAYING', player: opp });
       break;
     }
 

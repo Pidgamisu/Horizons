@@ -658,6 +658,56 @@ describe('Deferred draws', () => {
 
     expect(state.players.p1.hand.length).toBe(baseline + 1);
   });
+
+  // Regression: Last Chance draws 4 now but must not trash on resolution — the
+  // trash is deferred to the turn boundary (same timing as Prepare's draw).
+  test('Last Chance (76) defers its trash to the turn boundary', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '76');
+    setEnergy(state, 'p1', 20);
+    const before = state.players.p1.hand.length;
+
+    playCard(state, 'p1', '76');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // Last Chance resolves
+
+    // Drew 4, and the trash is queued — not surfaced as an immediate choice.
+    expect(state.players.p1.hand.length).toBe(before + 3); // -1 played, +4 drawn
+    expect(state.pendingTriggers.some(t => t.type === 'trashFromHandChoice')).toBe(false);
+    expect(state.pendingTriggers.some(t => t.type === 'endOfTurnTrash')).toBe(true);
+
+    // End the turn → the deferred trash becomes a choice.
+    passPriority(state, 'p1');
+    passPriority(state, 'p2');
+    expect(state.pendingTriggers.some(t => t.type === 'trashFromHandChoice')).toBe(true);
+  });
+});
+
+describe('Stifle Speech (52)', () => {
+  const LOCK_MSG = 'You cannot play any more cards this turn.';
+
+  test('locks the caster\'s opponent, not the caster', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '52');
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', '52');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1'); // Stifle Speech resolves
+    expect(state.turnFlags.lockedPlayer).toBe('p2');
+  });
+
+  test('the lock blocks the locked player even on their own turn', () => {
+    const { state } = freshGame(); // p1's turn
+    giveCard(state, 'p1', '30');
+    setEnergy(state, 'p1', 20);
+    // Caster locked their opponent; here we lock the turn player directly to
+    // prove the block is player-specific (the old !isOwnTurn check could not).
+    state.turnFlags.lockedPlayer = 'p1';
+    expect(validatePlay(state, 'p1', '30')).toBe(LOCK_MSG);
+    // A different locked target leaves the turn player free to play.
+    state.turnFlags.lockedPlayer = 'p2';
+    expect(validatePlay(state, 'p1', '30')).toBe(null);
+  });
 });
 
 // ─── Consult the Past (38): play from trash ─────────────────────────────────────

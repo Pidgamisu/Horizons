@@ -220,11 +220,11 @@ export function endTurn(state) {
     }
   }
 
-  // 5b. Flush deferred "draw at start of next turn" triggers (Prepare 50,
-  //     Foresee 95, etc.) AFTER the refill so they add cards on top of the
-  //     5-card hand instead of being absorbed by draw-up-to-5.
-  const triggerEvents = flushEndOfTurnTriggers(state);
-  events.push(...triggerEvents);
+  // 5b. Capture deferred "start of next turn" triggers (Prepare 50 draw, Last
+  //     Chance 76 trash, …) before the per-turn reset wipes pendingTriggers.
+  const deferred = state.pendingTriggers.filter(
+    t => t.type === 'draw' || t.type === 'endOfTurnTrash'
+  );
 
   // 6. Reset per-turn state
   state.cardsPlayedThisTurn = [];
@@ -234,7 +234,13 @@ export function endTurn(state) {
   state.players.p2.lockedFromPlaying = false;
   state.players.p1.pointResponseToActions = false;
   state.players.p2.pointResponseToActions = false;
-  state.pendingTriggers = state.pendingTriggers.filter(t => t.type === 'registerTurnTrigger' && false); // clear all
+  state.pendingTriggers = []; // clear all leftover triggers
+
+  // 6b. Fire the captured deferred triggers AFTER the refill + reset: queued
+  //     draws happen now (on top of the 5-card hand); a deferred trash becomes
+  //     a choice the owner resolves at the start of their next turn.
+  const triggerEvents = flushDeferredTriggers(state, deferred);
+  events.push(...triggerEvents);
 
   // 7. Pass turn
   state.turn = otherPlayer;
@@ -361,18 +367,21 @@ function executeStaticTriggerEffect(state, effect, contextPlayer, thatPlayer) {
   return events;
 }
 
-function flushEndOfTurnTriggers(state) {
+function flushDeferredTriggers(state, deferred) {
   const events = [];
-  // Fire every queued "start of next turn" draw for whichever player owns it.
-  // (Each turn boundary is the start of someone's next turn; the trigger is
-  // removed once fired so it only happens once.)
-  const toProcess = state.pendingTriggers.filter(t => t.type === 'draw');
-  state.pendingTriggers = state.pendingTriggers.filter(t => t.type !== 'draw');
-
-  for (const trigger of toProcess) {
-    const drawn = drawCards(state, trigger.player, trigger.count);
-    events.push({ type: 'CARDS_DRAWN', player: trigger.player, cards: drawn, reason: 'endOfTurnTrigger' });
+  for (const trigger of deferred) {
+    if (trigger.type === 'draw') {
+      // Prepare (50) etc. — draw on top of the refilled hand.
+      const drawn = drawCards(state, trigger.player, trigger.count);
+      events.push({ type: 'CARDS_DRAWN', player: trigger.player, cards: drawn, reason: 'endOfTurnTrigger' });
+    } else if (trigger.type === 'endOfTurnTrash') {
+      // Last Chance (76) — the owner now chooses which cards to trash. Clamp to
+      // what they actually hold; an empty hand trashes nothing.
+      const effective = Math.min(trigger.count, state.players[trigger.player].hand.length);
+      if (effective === 0) continue;
+      state.pendingTriggers.push({ type: 'trashFromHandChoice', player: trigger.player, count: effective, optional: false });
+      events.push({ type: 'CHOICE_REQUIRED', player: trigger.player, choiceType: 'trashFromHand', count: effective });
+    }
   }
-
   return events;
 }

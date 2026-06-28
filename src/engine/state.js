@@ -53,7 +53,7 @@ export function createTurnFlags() {
     playFromTrash:            false,  // Consult the Past (38), Brought Back (72)
     redirectTrashToDeckBottom:false,  // Brought Back (72)
     allCardsCostLess:         0,      // Possess Love (83) — stacks as delta
-    opponentLocked:           false,  // Stifle Speech (52)
+    lockedPlayer:             null,   // Stifle Speech (52) — playerId locked from playing this turn
     protectNextSelfAction: null, // Injustice (67) — playerId whose next action this turn is protected from action responses
     shareTheLootActive:       false,  // Share the Loot (75)
   };

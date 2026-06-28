@@ -30,7 +30,8 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   if (player.lockedFromPlaying) return 'You cannot play any more cards this turn.';
 
   // ── Opponent lock (Stifle Speech 52) ─────────────────────────────────────
-  if (!isOwnTurn && state.turnFlags.opponentLocked) {
+  // Only the specific player the caster locked is blocked — not both players.
+  if (state.turnFlags.lockedPlayer === playerId) {
     return 'You cannot play any more cards this turn.';
   }
 
