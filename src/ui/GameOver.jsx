@@ -70,25 +70,23 @@ export function Lobby({ onConnect }) {
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+      flexDirection: 'column',
       width: '100%', height: '100%',
-      background: 'radial-gradient(ellipse at 50% 40%, #0e0e1f 0%, #07070f 100%)',
+      paddingBottom: 72,
+      backgroundColor: '#07070f',
+      // Card back art (carries the HORIZONS wordmark) centered as the backdrop,
+      // with a bottom-weighted dark gradient so the buttons stay readable.
+      backgroundImage:
+        'linear-gradient(to bottom, rgba(7,7,15,0.15) 0%, rgba(7,7,15,0.35) 55%, rgba(7,7,15,0.9) 100%), url(/cards/back.png)',
+      backgroundSize: 'cover, cover',
+      backgroundPosition: 'center, center',
+      backgroundRepeat: 'no-repeat, no-repeat',
     }}>
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 32, maxWidth: 380, width: '100%', padding: '0 24px',
+        gap: 12, maxWidth: 380, width: '100%', padding: '0 24px',
       }}>
-        {/* Title — the card back art (carries the HORIZONS wordmark) */}
-        <img
-          src="/cards/back.png"
-          alt="Horizons"
-          style={{
-            width: 200, height: 'auto',
-            borderRadius: 12,
-            boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
-          }}
-        />
-
         {mode === 'choose' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
             <LobbyButton onClick={handleCreate} primary>
@@ -129,10 +127,6 @@ export function Lobby({ onConnect }) {
             </LobbyButton>
           </div>
         )}
-
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
-          5 points to win · Share a URL to invite
-        </div>
       </div>
     </div>
   )
