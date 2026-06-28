@@ -83,7 +83,7 @@ export function BrandBackdrop({ children }) {
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 
-export function Lobby({ onConnect }) {
+export function Lobby({ onConnect, onShowRules }) {
   const [roomInput, setRoomInput] = useState('')
   const [mode, setMode] = useState('choose') // 'choose' | 'create' | 'join'
 
@@ -120,6 +120,9 @@ export function Lobby({ onConnect }) {
             </LobbyButton>
             <LobbyButton onClick={() => setMode('join')}>
               Join Game
+            </LobbyButton>
+            <LobbyButton onClick={onShowRules}>
+              How to Play
             </LobbyButton>
           </div>
         )}

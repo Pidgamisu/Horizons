@@ -11,6 +11,7 @@ import { ChoicePrompt } from './ui/ChoicePrompt.jsx'
 import { GameOver, Lobby, Toast, BrandBackdrop } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
+import { RulesOverlay } from './ui/Rules.jsx'
 import { cardName } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
@@ -108,6 +109,7 @@ export default function App() {
   const [hoveredCard, setHoveredCard] = useState(null)
   const [viewingZone, setViewingZone] = useState(null)
   const [revealedHand, setRevealedHand] = useState(null)
+  const [showRules, setShowRules] = useState(false)
   const rootRef = useRef(null)
 
   const connect = useCallback((id) => {
@@ -271,7 +273,12 @@ export default function App() {
   const pendingChoice = gameState?.pendingChoice ?? null
   const myChoicePending = pendingChoice?.player === myPlayerId
 
-  if (screen === 'lobby') return <Lobby onConnect={connect} />
+  if (screen === 'lobby') return (
+    <>
+      <Lobby onConnect={connect} onShowRules={() => setShowRules(true)} />
+      {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
+    </>
+  )
   if (screen === 'waiting') return <WaitingScreen roomId={roomId} />
 
   return (
@@ -365,6 +372,24 @@ export default function App() {
           }}
         />
       )}
+
+      {/* How-to-play (rules) — top-left help button */}
+      <button
+        onClick={() => setShowRules(true)}
+        title="How to play"
+        style={{
+          position: 'absolute', top: 14, left: 16, zIndex: 200,
+          width: 34, height: 34, borderRadius: '50%',
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(255,0,153,0.18)', color: '#fff',
+          fontSize: 16, fontWeight: 800, cursor: 'pointer',
+          pointerEvents: 'all',
+        }}
+      >
+        ?
+      </button>
+
+      {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
 
       <div style={{
         position: 'absolute', top: 76, left: '50%', transform: 'translateX(-50%)',
