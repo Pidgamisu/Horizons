@@ -26,10 +26,14 @@ export class BoardManager {
     const opp = myPlayerId === 'p1' ? 'p2' : 'p1'
     // Server-driven sync: run as a single transaction that is kept out of the
     // user's undo history, and bypass shape-lock since our shapes are locked.
+    // Can this player act right now (hold priority, no choice pending)? Drives
+    // the on-card Play/Void buttons.
+    const canAct = state.activePlayer === myPlayerId &&
+      !(state.pendingChoice && state.pendingChoice.player === myPlayerId)
     this.editor.run(() => {
       this._syncZones(state)
       this._syncStack(state.zones?.stack ?? [])
-      this._syncHand(state.players?.[myPlayerId]?.hand ?? [])
+      this._syncHand(state.players?.[myPlayerId]?.hand ?? [], canAct)
       this._syncOpponentHand(state.players?.[opp]?.handSize ?? 0)
       this._syncTrash(state.zones?.trash ?? [])
       this._updateZoneCount('deck', state.zones?.deckSize ?? 0)
@@ -93,7 +97,7 @@ export class BoardManager {
 
   // ── My hand ───────────────────────────────────────────────────────────────────
 
-  _syncHand(cards) {
+  _syncHand(cards, canAct = false) {
     this._clearPrefix('card-myhand-')
     if (!cards.length) return
     const z = ZONES.myHand
@@ -107,7 +111,7 @@ export class BoardManager {
       props: {
         cardId: code, faceUp: true, zone: 'hand', owner: 'me',
         selected: this.selectedCardId === code,
-        targeted: false, dimmed: false, w: CW, h: CH,
+        targeted: false, dimmed: false, playable: canAct, w: CW, h: CH,
       },
     })))
   }

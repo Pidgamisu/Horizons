@@ -58,7 +58,7 @@ function Timer({ serverSeconds, active }) {
   )
 }
 
-function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left' }) {
+function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', onConcede }) {
   const isRight = align === 'right'
   const handCount = state?.handSize ?? state?.hand?.length ?? 0
 
@@ -99,6 +99,25 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left' }
         <Stat value={handCount}           label="hand"   color="rgba(255,255,255,0.7)" />
         <Timer serverSeconds={state?.timerSeconds} active={holdingPriority} />
       </div>
+
+      {onConcede && (
+        <button
+          onClick={onConcede}
+          title="Concede this game"
+          style={{
+            pointerEvents: 'all',
+            marginLeft: 4,
+            background: 'transparent',
+            color: 'rgba(255,100,100,0.55)',
+            border: '1px solid rgba(255,100,100,0.25)',
+            borderRadius: 7, padding: '6px 10px',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            letterSpacing: '0.04em', whiteSpace: 'nowrap',
+          }}
+        >
+          Concede
+        </button>
+      )}
     </div>
   )
 }
@@ -113,7 +132,7 @@ function Stat({ value, label, color }) {
   )
 }
 
-export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber }) {
+export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber, onConcede }) {
   return (
     <>
       <style>{`
@@ -148,7 +167,7 @@ export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber }
         position: 'absolute', bottom: 20, left: 16,
         pointerEvents: 'none', zIndex: 100,
       }}>
-        <PlayerPanel label="You" state={myState} holdingPriority={holdingPriority} isMyTurn={isMyTurn} align="left" />
+        <PlayerPanel label="You" state={myState} holdingPriority={holdingPriority} isMyTurn={isMyTurn} align="left" onConcede={onConcede} />
       </div>
     </>
   )

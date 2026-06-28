@@ -1,11 +1,7 @@
 export function ActionBar({
-  selectedCard,
   holdingPriority,
   myChoicePending,
-  onPlay,
-  onVoid,
   onPass,
-  onConcede,
 }) {
   const canAct = holdingPriority && !myChoicePending
 
@@ -27,46 +23,13 @@ export function ActionBar({
       pointerEvents: 'all',
     }}>
 
-      {/* Play button — only when a card is selected and priority held */}
-      <ActionButton
-        label="Play"
-        shortcut="P"
-        onClick={onPlay}
-        disabled={!selectedCard || !canAct}
-        variant="primary"
-      />
-
-      {/* Void button — only when a card is selected and priority held */}
-      <ActionButton
-        label="Void"
-        shortcut="V"
-        onClick={onVoid}
-        disabled={!selectedCard || !canAct}
-        variant="secondary"
-        tooltip="+3 energy"
-      />
-
-      {/* Divider */}
-      <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.1)' }} />
-
-      {/* Pass priority — always available when holding priority and no choice pending */}
+      {/* Pass priority — Play/Void now live on the cards, Concede on the panel */}
       <ActionButton
         label="Pass"
         shortcut="Space"
         onClick={onPass}
         disabled={!canAct}
         variant={canAct ? 'pass' : 'ghost'}
-      />
-
-      {/* Divider */}
-      <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.1)' }} />
-
-      {/* Concede */}
-      <ActionButton
-        label="Concede"
-        onClick={onConcede}
-        disabled={false}
-        variant="danger"
       />
 
       {/* Status indicator */}

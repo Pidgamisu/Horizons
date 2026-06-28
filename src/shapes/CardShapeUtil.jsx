@@ -1,5 +1,6 @@
 import { BaseBoxShapeUtil } from 'tldraw'
 import { cardImageSrc } from '../data/cardImages.js'
+import { gameClient } from '../game/client.js'
 
 const CW = 120
 const CH = 168
@@ -18,14 +19,16 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       dimmed: false,
       stackIndex: null,
       stackIsTop: false,
+      playable: false,
       w: CW,
       h: CH,
     }
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, stackIndex, stackIsTop, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, stackIndex, stackIsTop, playable, w, h } = shape.props
     const onStack = zone === 'stack'
+    const showActions = selected && zone === 'hand' && playable && cardId
 
     const border = targeted ? '2px solid #00e5ff'
       : selected ? '2px solid #ff0099'
@@ -83,6 +86,24 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             {stackIsTop ? 'TOP' : `#${stackIndex + 1}`}
           </div>
         )}
+
+        {/* Play / Void actions on the selected hand card. Buttons opt back into
+            pointer events (the card itself is pointer-events:none) and stop
+            propagation so tldraw's canvas input doesn't swallow the click. */}
+        {showActions && (
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            display: 'flex', flexDirection: 'column', gap: 6,
+            padding: 8,
+            background: 'linear-gradient(to top, rgba(7,7,15,0.92) 60%, rgba(7,7,15,0))',
+            pointerEvents: 'none',
+          }}>
+            <CardActionButton label="Play" bg="#ff0099"
+              onClick={() => gameClient.playCard(cardId)} />
+            <CardActionButton label="Void" sub="+3" bg="rgba(255,255,255,0.16)"
+              onClick={() => gameClient.voidCard(cardId)} />
+          </div>
+        )}
       </div>
     )
   }
@@ -93,6 +114,25 @@ getIndicatorPath() { return undefined }
   canRotate() { return false }
   canEdit() { return false }
   canBind() { return false }
+}
+
+function CardActionButton({ label, sub, bg, onClick }) {
+  return (
+    <button
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => { e.stopPropagation(); onClick() }}
+      style={{
+        pointerEvents: 'all',
+        width: '100%',
+        background: bg, color: '#fff',
+        border: 'none', borderRadius: 6,
+        padding: '6px 0', fontSize: 13, fontWeight: 700,
+        letterSpacing: '0.04em', cursor: 'pointer',
+      }}
+    >
+      {label}{sub && <span style={{ opacity: 0.6, fontSize: 10, marginLeft: 5 }}>{sub}</span>}
+    </button>
+  )
 }
 
 export const CARD_SIZE = { w: CW, h: CH }

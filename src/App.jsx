@@ -254,6 +254,13 @@ export default function App() {
     return () => root.removeEventListener('wheel', onWheel)
   }, [screen])
 
+  // Clear the selection once the selected card leaves the hand — covers the
+  // on-card Play/Void buttons, which act via gameClient directly.
+  useEffect(() => {
+    const hand = gameState?.players?.[myPlayerId]?.hand
+    if (selectedCard && hand && !hand.includes(selectedCard)) setSelectedCard(null)
+  }, [gameState, myPlayerId, selectedCard])
+
   const handlePass = useCallback(() => gameClient.passPriority(), [])
   const handleConcede = useCallback(() => {
     if (window.confirm('Concede this game?')) gameClient.concede()
@@ -309,18 +316,15 @@ export default function App() {
           isMyTurn={isMyTurn}
           holdingPriority={holdingPriority}
           turnNumber={gameState.turnNumber}
+          onConcede={handleConcede}
         />
       )}
 
       {screen === 'game' && (
         <ActionBar
-          selectedCard={selectedCard}
           holdingPriority={holdingPriority}
           myChoicePending={myChoicePending}
-          onPlay={handlePlay}
-          onVoid={handleVoid}
           onPass={handlePass}
-          onConcede={handleConcede}
         />
       )}
 
