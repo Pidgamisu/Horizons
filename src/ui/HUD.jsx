@@ -122,11 +122,9 @@ export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber }
           50% { opacity: 0.6; }
         }
       `}</style>
-      {/* Opponent — top center */}
+      {/* Opponent — top left */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        display: 'flex', justifyContent: 'center',
-        padding: '12px 16px',
+        position: 'absolute', top: 14, left: 16,
         pointerEvents: 'none', zIndex: 100,
       }}>
         <PlayerPanel label="Opponent" state={oppState} holdingPriority={!holdingPriority} isMyTurn={!isMyTurn} align="left" />

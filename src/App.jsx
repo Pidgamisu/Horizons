@@ -378,7 +378,7 @@ export default function App() {
         onClick={() => setShowRules(true)}
         title="How to play"
         style={{
-          position: 'absolute', top: 14, left: 16, zIndex: 200,
+          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
           width: 34, height: 34, borderRadius: '50%',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(255,0,153,0.18)', color: '#fff',
