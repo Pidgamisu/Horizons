@@ -72,6 +72,8 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     const container = editor.getContainer()
 
     const handleClick = (e) => {
+      // Clicks on the on-card Play/Void buttons are theirs to handle.
+      if (e.target?.closest?.('button')) return
       // A press-and-hold (enlarge) ends in a click — swallow that one so it
       // doesn't also select/open the card.
       if (suppressClickRef.current) { suppressClickRef.current = false; return }
@@ -120,6 +122,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     const onPointerDown = (e) => {
       suppressClickRef.current = false // self-heal: a fresh press never stays suppressed
       if (e.button !== 0) return
+      if (e.target?.closest?.('button')) return // never hold-preview from a button press
       const shape = faceUpCardAt(e)
       if (!shape) return
       const cardId = shape.props.cardId
@@ -436,7 +439,7 @@ export default function App() {
         onClick={() => setShowRules(true)}
         title="How to play"
         style={{
-          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          position: 'absolute', bottom: 20, right: 16, zIndex: 200,
           width: 34, height: 34, borderRadius: '50%',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(255,0,153,0.18)', color: '#fff',

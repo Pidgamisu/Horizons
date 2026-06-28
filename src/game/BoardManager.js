@@ -79,7 +79,7 @@ export class BoardManager {
     const PITCH = 80
     const totalH = (entries.length - 1) * PITCH + CH
     const startY = z.cy - totalH / 2
-    this.editor.createShapes(entries.map((entry, i) => ({
+    const shapes = entries.map((entry, i) => ({
       id: sid(`card-stack-${i}`),
       type: 'horizons-card',
       isLocked: true,
@@ -92,7 +92,10 @@ export class BoardManager {
         stackIndex: i,        // used for choice targeting
         stackIsTop: i === 0,  // visual badge
       },
-    })))
+    }))
+    // Create bottom-to-top so the top-of-stack card (i=0) is drawn last and
+    // therefore overlaps the cards below it.
+    this.editor.createShapes(shapes.reverse())
   }
 
   // ── My hand ───────────────────────────────────────────────────────────────────

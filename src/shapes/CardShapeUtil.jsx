@@ -117,10 +117,11 @@ getIndicatorPath() { return undefined }
 }
 
 function CardActionButton({ label, sub, bg, onClick }) {
+  // Act on pointerdown: it always fires on the button itself, before tldraw's
+  // canvas listeners or the hold-gesture timer can interfere with a click.
   return (
     <button
-      onPointerDown={e => e.stopPropagation()}
-      onClick={e => { e.stopPropagation(); onClick() }}
+      onPointerDown={e => { e.stopPropagation(); e.preventDefault(); onClick() }}
       style={{
         pointerEvents: 'all',
         width: '100%',
