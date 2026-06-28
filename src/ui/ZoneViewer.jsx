@@ -25,12 +25,12 @@ export function ZoneViewer({ title, cardIds, onClose, badgeTop = true, onPlayCar
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'rgba(10,10,22,0.97)',
-          border: '1px solid rgba(124,106,255,0.3)',
+          border: '1px solid rgba(255,0,153,0.3)',
           borderRadius: 14,
           padding: '18px 22px',
           maxWidth: '82vw',
           maxHeight: '82vh',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,106,255,0.1)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,0,153,0.1)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -67,7 +67,7 @@ export function ZoneViewer({ title, cardIds, onClose, badgeTop = true, onPlayCar
                   height: CARD_H,
                   borderRadius: 8,
                   overflow: 'hidden',
-                  border: badgeTop && i === 0 ? '2px solid rgba(124,106,255,0.6)' : '1px solid rgba(255,255,255,0.12)',
+                  border: badgeTop && i === 0 ? '2px solid rgba(255,0,153,0.6)' : '1px solid rgba(255,255,255,0.12)',
                   background: '#1a1a2e',
                   flexShrink: 0,
                   position: 'relative',
@@ -82,7 +82,7 @@ export function ZoneViewer({ title, cardIds, onClose, badgeTop = true, onPlayCar
                 {badgeTop && i === 0 && (
                   <div style={{
                     position: 'absolute', top: 0, left: 0, right: 0,
-                    background: 'rgba(124,106,255,0.85)', fontSize: 9, color: '#fff',
+                    background: 'rgba(255,0,153,0.85)', fontSize: 9, color: '#fff',
                     textAlign: 'center', padding: '2px 0', letterSpacing: '0.06em', fontWeight: 700,
                   }}>
                     TOP
@@ -94,7 +94,7 @@ export function ZoneViewer({ title, cardIds, onClose, badgeTop = true, onPlayCar
                     style={{
                       position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
                       border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 700,
-                      background: '#7c6aff', color: '#fff', cursor: 'pointer', letterSpacing: '0.02em',
+                      background: '#ff0099', color: '#fff', cursor: 'pointer', letterSpacing: '0.02em',
                     }}
                   >
                     Play

@@ -19,7 +19,7 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
       }}>
         <div style={{ fontSize: 64 }}>{iWon ? '🎉' : '💀'}</div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
-                      color: iWon ? '#7c6aff' : 'rgba(255,255,255,0.6)' }}>
+                      color: iWon ? '#ff0099' : 'rgba(255,255,255,0.6)' }}>
           {iWon ? 'You Win' : 'You Lose'}
         </div>
         <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)' }}>
@@ -29,7 +29,7 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
           onClick={onPlayAgain}
           style={{
             marginTop: 8,
-            background: '#7c6aff', color: '#fff',
+            background: '#ff0099', color: '#fff',
             border: 'none', borderRadius: 10,
             padding: '12px 32px', fontSize: 15, fontWeight: 700,
             cursor: 'pointer', letterSpacing: '0.03em',
@@ -165,7 +165,7 @@ function LobbyButton({ children, onClick, primary, disabled }) {
       style={{
         width: '100%',
         background: disabled ? 'rgba(255,255,255,0.03)'
-          : primary ? '#7c6aff'
+          : primary ? '#ff0099'
           : 'rgba(255,255,255,0.07)',
         color: disabled ? 'rgba(255,255,255,0.2)' : '#fff',
         border: `1px solid ${primary ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
@@ -193,10 +193,10 @@ export function Toast({ msg, type = 'info' }) {
   }, [])
 
   const bg = {
-    info:    'rgba(124,106,255,0.9)',
+    info:    'rgba(255,0,153,0.9)',
     error:   'rgba(220,53,69,0.9)',
     warning: 'rgba(255,152,0,0.9)',
-  }[type] ?? 'rgba(124,106,255,0.9)'
+  }[type] ?? 'rgba(255,0,153,0.9)'
 
   return (
     <div style={{

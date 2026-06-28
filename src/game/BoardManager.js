@@ -7,7 +7,7 @@ const GAP = 10
 const ZONES = {
   opponentHand: { cx: 0, cy: -340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'opponent-hand' },
   myHand:       { cx: 0, cy:  340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'hand' },
-  stack:        { cx: -220, cy: 0, w: CW + 40, h: 520,  label: 'Stack', zoneType: 'stack' },
+  stack:        { cx: -220, cy: 0, w: CW + 40, h: 460,  label: 'Stack', zoneType: 'stack' },
   trash:        { cx:  20,  cy: 0, w: CW + 40, h: CH + 40, label: 'Trash', zoneType: 'trash' },
   deck:         { cx:  180, cy: -100, w: CW + 40, h: CH + 40, label: 'Deck', zoneType: 'deck' },
   void:         { cx:  180, cy:  100, w: CW + 40, h: CH + 40, label: 'Void', zoneType: 'void' },
@@ -69,12 +69,18 @@ export class BoardManager {
     if (!entries.length) return
 
     const z = ZONES.stack
+    // Overlap the stacked cards (pitch < card height) and center the pile
+    // vertically so it stays in the band between the two hands and never
+    // collides with them. Top of the stack (i=0) is the newest entry.
+    const PITCH = 80
+    const totalH = (entries.length - 1) * PITCH + CH
+    const startY = z.cy - totalH / 2
     this.editor.createShapes(entries.map((entry, i) => ({
       id: sid(`card-stack-${i}`),
       type: 'horizons-card',
       isLocked: true,
       x: z.cx - CW / 2,
-      y: (z.cy - z.h / 2 + 20) + i * (CH + GAP),
+      y: startY + i * PITCH,
       props: {
         cardId: entry.cardId, faceUp: true, zone: 'stack',
         owner: entry.playedBy, selected: false, targeted: false,

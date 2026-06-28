@@ -6,8 +6,8 @@ function PointPips({ points, max = 5 }) {
       {Array.from({ length: max }).map((_, i) => (
         <div key={i} style={{
           width: 10, height: 10, borderRadius: '50%',
-          background: i < points ? '#7c6aff' : 'rgba(255,255,255,0.12)',
-          boxShadow: i < points ? '0 0 6px rgba(124,106,255,0.7)' : 'none',
+          background: i < points ? '#ff0099' : 'rgba(255,255,255,0.12)',
+          boxShadow: i < points ? '0 0 6px rgba(255,0,153,0.7)' : 'none',
           transition: 'all 0.25s',
         }} />
       ))}
@@ -49,7 +49,7 @@ function Timer({ serverSeconds, active }) {
       fontVariantNumeric: 'tabular-nums',
       fontSize: 13, fontWeight: 600,
       color: low ? '#ff6b6b' : 'rgba(255,255,255,0.55)',
-      background: active ? 'rgba(124,106,255,0.15)' : 'transparent',
+      background: active ? 'rgba(255,0,153,0.15)' : 'transparent',
       padding: '2px 8px', borderRadius: 5,
       transition: 'color 0.3s, background 0.3s',
     }}>
@@ -69,9 +69,9 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left' }
       alignItems: 'center',
       gap: 14,
       padding: '10px 18px',
-      background: holdingPriority ? 'rgba(124,106,255,0.12)' : 'rgba(255,255,255,0.04)',
+      background: holdingPriority ? 'rgba(255,0,153,0.12)' : 'rgba(255,255,255,0.04)',
       borderRadius: 10,
-      border: `1px solid ${holdingPriority ? 'rgba(124,106,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+      border: `1px solid ${holdingPriority ? 'rgba(255,0,153,0.4)' : 'rgba(255,255,255,0.06)'}`,
       transition: 'all 0.25s',
       minWidth: 290,
     }}>
@@ -84,7 +84,7 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left' }
             {label}
           </span>
           {holdingPriority && (
-            <span style={{ fontSize: 10, background: '#7c6aff', color: '#fff',
+            <span style={{ fontSize: 10, background: '#ff0099', color: '#fff',
                            padding: '1px 6px', borderRadius: 3, fontWeight: 700,
                            animation: 'priorityPulse 1.5s ease-in-out infinite' }}>
               PRIORITY

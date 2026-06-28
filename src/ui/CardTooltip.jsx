@@ -37,7 +37,7 @@ export function CardTooltip({ cardId, point }) {
       borderRadius: 10,
       overflow: 'hidden',
       border: '1px solid rgba(255,255,255,0.15)',
-      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,106,255,0.15)',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,0,153,0.15)',
       zIndex: 350,
       pointerEvents: 'none',
       opacity: visible ? 1 : 0,

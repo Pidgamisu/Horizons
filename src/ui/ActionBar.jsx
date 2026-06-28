@@ -106,7 +106,7 @@ export function ActionBar({
 
 function ActionButton({ label, shortcut, onClick, disabled, variant = 'secondary', tooltip }) {
   const colors = {
-    primary:   { bg: '#7c6aff', hover: '#9580ff', text: '#fff' },
+    primary:   { bg: '#ff0099', hover: '#ff33ad', text: '#fff' },
     secondary: { bg: 'rgba(255,255,255,0.08)', hover: 'rgba(255,255,255,0.14)', text: 'rgba(255,255,255,0.8)' },
     pass:      { bg: 'rgba(76,175,80,0.2)', hover: 'rgba(76,175,80,0.35)', text: '#81c784' },
     ghost:     { bg: 'transparent', hover: 'rgba(255,255,255,0.05)', text: 'rgba(255,255,255,0.2)' },

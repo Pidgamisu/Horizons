@@ -12,14 +12,14 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
         height: CARD_IMG_SIZE.h,
         borderRadius: 6,
         border: selected
-          ? '2px solid #7c6aff'
+          ? '2px solid #ff0099'
           : targeted
             ? '2px solid #00e5ff'
             : '1px solid rgba(255,255,255,0.12)',
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
         flexShrink: 0,
-        boxShadow: selected ? '0 0 12px rgba(124,106,255,0.5)' : 'none',
+        boxShadow: selected ? '0 0 12px rgba(255,0,153,0.5)' : 'none',
         transition: 'all 0.15s',
         background: '#1a1a2e',
         position: 'relative',
@@ -344,13 +344,13 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       transform: 'translateX(-50%)',
       background: 'rgba(10,10,22,0.96)',
       backdropFilter: 'blur(16px)',
-      border: '1px solid rgba(124,106,255,0.3)',
+      border: '1px solid rgba(255,0,153,0.3)',
       borderRadius: 14,
       padding: '18px 22px',
       zIndex: 200,
       maxWidth: 600,
       width: 'calc(100vw - 40px)',
-      boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,106,255,0.1)',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,0,153,0.1)',
       pointerEvents: 'all',
     }}>
       {/* Header */}
@@ -434,7 +434,7 @@ function btnStyle(variant) {
     transition: 'all 0.15s',
     letterSpacing: '0.02em',
   }
-  if (variant === 'primary') return { ...base, background: '#7c6aff', color: '#fff' }
+  if (variant === 'primary') return { ...base, background: '#ff0099', color: '#fff' }
   if (variant === 'ghost') return { ...base, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }
   if (variant === 'disabled') return { ...base, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)' }
   return base

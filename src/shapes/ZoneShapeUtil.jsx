@@ -29,19 +29,20 @@ export class ZoneShapeUtil extends BaseBoxShapeUtil {
     }
 
     // Large container zones (hands, stack) — a clean framed area with a label.
-    const accent = {
-      'hand':          'rgba(255,255,255,0.12)',
-      'opponent-hand': 'rgba(255,255,255,0.10)',
-      'stack':         'rgba(0,150,255,0.30)',
-    }[zoneType] || 'rgba(255,255,255,0.10)'
+    // Aurora palette: your side pink, opponent aurora-green, the stack pink.
+    const frame = {
+      'hand':          { border: 'rgba(255,0,153,0.30)',  fill: 'rgba(255,0,153,0.045)' },
+      'opponent-hand': { border: 'rgba(77,255,176,0.26)', fill: 'rgba(77,255,176,0.035)' },
+      'stack':         { border: 'rgba(255,0,153,0.34)',  fill: 'rgba(255,0,153,0.05)' },
+    }[zoneType] || { border: 'rgba(255,255,255,0.10)', fill: 'rgba(255,255,255,0.02)' }
 
     return (
       <div style={{
         width: w,
         height: h,
         borderRadius: 14,
-        border: `1px solid ${accent}`,
-        background: 'rgba(255,255,255,0.02)',
+        border: `1px solid ${frame.border}`,
+        background: frame.fill,
         padding: '6px 12px',
         pointerEvents: 'none',
       }}>
@@ -76,15 +77,15 @@ function PileSlot({ kind, label, count, w, h }) {
   const depth = isDeck ? Math.min(3, Math.max(0, n - 1)) : 0
 
   const tint = {
-    deck:  'rgba(255,255,255,0.04)',
-    trash: 'rgba(255,100,100,0.06)',
-    void:  'rgba(150,0,255,0.06)',
+    deck:  'rgba(255,0,153,0.05)',
+    trash: 'rgba(255,77,120,0.07)',
+    void:  'rgba(177,77,255,0.07)',
   }[kind] || 'rgba(255,255,255,0.04)'
 
   const stroke = {
-    deck:  'rgba(255,255,255,0.14)',
-    trash: 'rgba(255,100,100,0.25)',
-    void:  'rgba(150,0,255,0.28)',
+    deck:  'rgba(255,0,153,0.30)',
+    trash: 'rgba(255,77,120,0.32)',
+    void:  'rgba(177,77,255,0.34)',
   }[kind] || 'rgba(255,255,255,0.14)'
 
   return (

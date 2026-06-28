@@ -28,11 +28,11 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
     const onStack = zone === 'stack'
 
     const border = targeted ? '2px solid #00e5ff'
-      : selected ? '2px solid #fff'
+      : selected ? '2px solid #ff0099'
       : '1px solid rgba(255,255,255,0.10)'
 
     const glow = targeted ? '0 0 14px rgba(0,229,255,0.55)'
-      : selected ? '0 0 10px rgba(255,255,255,0.35)'
+      : selected ? '0 0 12px rgba(255,0,153,0.6)'
       : onStack ? '0 4px 16px rgba(0,0,0,0.5)'
       : 'none'
 
@@ -73,7 +73,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
         {onStack && stackIndex !== null && (
           <div style={{
             position: 'absolute', top: 4, right: 4,
-            background: stackIsTop ? '#7c6aff' : 'rgba(0,0,0,0.65)',
+            background: stackIsTop ? '#ff0099' : 'rgba(0,0,0,0.65)',
             color: stackIsTop ? '#fff' : 'rgba(255,255,255,0.55)',
             fontSize: 9, fontWeight: 800,
             padding: '2px 5px', borderRadius: 4,
