@@ -63,8 +63,8 @@ export function BrandBackdrop({ children }) {
       <div style={{ textAlign: 'center' }}>
         <div style={{
           fontSize: 66, fontWeight: 800, letterSpacing: '0.14em',
-          color: '#ff7ec8',
-          textShadow: '0 0 32px rgba(255,126,200,0.45), 0 2px 30px rgba(0,0,0,0.5)',
+          color: '#ff0099',
+          textShadow: '0 0 32px rgba(255,0,153,0.5), 0 2px 30px rgba(0,0,0,0.5)',
           lineHeight: 1,
         }}>
           HORIZONS

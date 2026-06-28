@@ -359,7 +359,7 @@ function WaitingScreen({ roomId }) {
       }}>
         <div style={{
           width: 40, height: 40, border: '3px solid rgba(255,255,255,0.1)',
-          borderTop: '3px solid #ff7ec8', borderRadius: '50%',
+          borderTop: '3px solid #ff0099', borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }} />
         <p style={{ fontSize: 18, opacity: 0.8 }}>Waiting for opponent…</p>
@@ -370,7 +370,7 @@ function WaitingScreen({ roomId }) {
           title="Click to copy"
           style={{
             fontSize: 12, background: 'rgba(255,255,255,0.07)', padding: '8px 16px',
-            borderRadius: 6, color: '#ff7ec8', userSelect: 'all', cursor: 'pointer',
+            borderRadius: 6, color: '#ff0099', userSelect: 'all', cursor: 'pointer',
             maxWidth: 420, wordBreak: 'break-all'
           }}>
           {shareUrl}
