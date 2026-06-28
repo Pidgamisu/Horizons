@@ -122,21 +122,37 @@ export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber }
           50% { opacity: 0.6; }
         }
       `}</style>
+      {/* Opponent — top center */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', justifyContent: 'center',
         padding: '12px 16px',
         pointerEvents: 'none', zIndex: 100,
       }}>
-        <PlayerPanel label="You"      state={myState}  holdingPriority={holdingPriority}  isMyTurn={isMyTurn}  align="left" />
-        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Turn</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,0.55)', lineHeight: 1.1 }}>
-            {turnNumber ?? 1}
-          </div>
-          <div style={{ fontSize: 10, marginTop: 3, opacity: 0.4 }}>SPACE to pass</div>
+        <PlayerPanel label="Opponent" state={oppState} holdingPriority={!holdingPriority} isMyTurn={!isMyTurn} align="left" />
+      </div>
+
+      {/* Turn indicator — top right corner */}
+      <div style={{
+        position: 'absolute', top: 12, right: 16,
+        textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12,
+        pointerEvents: 'none', zIndex: 100,
+      }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Turn</div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,0.55)', lineHeight: 1.1 }}>
+          {turnNumber ?? 1}
         </div>
-        <PlayerPanel label="Opponent" state={oppState} holdingPriority={!holdingPriority} isMyTurn={!isMyTurn} align="right" />
+        <div style={{ fontSize: 10, marginTop: 3, opacity: 0.4 }}>SPACE to pass</div>
+      </div>
+
+      {/* You — bottom center, above the action bar */}
+      <div style={{
+        position: 'absolute', bottom: 88, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center',
+        padding: '0 16px',
+        pointerEvents: 'none', zIndex: 100,
+      }}>
+        <PlayerPanel label="You" state={myState} holdingPriority={holdingPriority} isMyTurn={isMyTurn} align="left" />
       </div>
     </>
   )
