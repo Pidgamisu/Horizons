@@ -32,6 +32,12 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
   useEffect(() => {
     if (!editor) return
     editor.setCurrentTool('select')
+    // Disable tldraw's default "double-click empty canvas → create a text shape".
+    // The board is fully managed by BoardManager; players never author shapes,
+    // and the cards' content is pointer-events:none so dbl-clicks land on the
+    // canvas behind them and would otherwise spawn an editable text box.
+    const idle = editor.getStateDescendant('select.idle')
+    if (idle) idle.onDoubleClick = () => void 0
     boardRef.current = new BoardManager(editor)
     // Re-sync game state now that editor is ready
     if (gameState && myPlayerId) {
