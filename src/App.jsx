@@ -12,7 +12,7 @@ import { GameOver, Lobby, Toast, BrandBackdrop } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
 import { RulesOverlay } from './ui/Rules.jsx'
-import { cardName } from './data/cardImages.js'
+import { cardName, cardImageSrc } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
 
@@ -26,9 +26,10 @@ const STACK_REMOVAL_EVENTS = new Set([
   'CARD_TRASHED_BY_TRIGGER',
 ])
 
-function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover, onZoneClick }) {
+function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover, onZoneClick, onCardHold, onCardHoldEnd }) {
   const editor = useEditor()
   const boardRef = useRef(null)
+  const suppressClickRef = useRef(false)
 
   useEffect(() => {
     if (!editor) return
@@ -71,6 +72,9 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     const container = editor.getContainer()
 
     const handleClick = (e) => {
+      // A press-and-hold (enlarge) ends in a click — swallow that one so it
+      // doesn't also select/open the card.
+      if (suppressClickRef.current) { suppressClickRef.current = false; return }
       // Resolve which card was clicked using the editor's own hit-testing.
       // Cards are locked, so hitLocked is required; hitInside catches clicks
       // anywhere within the filled card, not just its edge.
@@ -96,6 +100,50 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
     return () => container.removeEventListener('click', handleClick)
   }, [editor, onCardClick, onStackCardClick, onZoneClick])
 
+  // Press-and-hold a face-up card to preview it enlarged. A short hold timer
+  // distinguishes a hold from a click; releasing ends the preview and suppresses
+  // the trailing click so it doesn't select/open the card.
+  useEffect(() => {
+    if (!editor) return
+    const container = editor.getContainer()
+    let holdTimer = null
+    let holding = false
+
+    const faceUpCardAt = (e) => {
+      const point = editor.screenToPage({ x: e.clientX, y: e.clientY })
+      return editor.getShapeAtPoint(point, {
+        hitInside: true, hitLocked: true,
+        filter: (s) => s.type === 'horizons-card' && !!s.props.cardId && s.props.faceUp,
+      })
+    }
+
+    const onPointerDown = (e) => {
+      suppressClickRef.current = false // self-heal: a fresh press never stays suppressed
+      if (e.button !== 0) return
+      const shape = faceUpCardAt(e)
+      if (!shape) return
+      const cardId = shape.props.cardId
+      holdTimer = setTimeout(() => {
+        holding = true
+        onCardHold(cardId)
+      }, 300)
+    }
+    const endHold = () => {
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null }
+      if (holding) { holding = false; suppressClickRef.current = true; onCardHoldEnd() }
+    }
+
+    container.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointerup', endHold)
+    container.addEventListener('pointerleave', endHold)
+    return () => {
+      container.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', endHold)
+      container.removeEventListener('pointerleave', endHold)
+      if (holdTimer) clearTimeout(holdTimer)
+    }
+  }, [editor, onCardHold, onCardHoldEnd])
+
   return null
 }
 
@@ -110,6 +158,7 @@ export default function App() {
   const [viewingZone, setViewingZone] = useState(null)
   const [revealedHand, setRevealedHand] = useState(null)
   const [showRules, setShowRules] = useState(false)
+  const [enlargedCard, setEnlargedCard] = useState(null)
   const rootRef = useRef(null)
 
   const connect = useCallback((id) => {
@@ -192,6 +241,9 @@ export default function App() {
   const handleCardHover = useCallback((cardId, point) => {
     setHoveredCard(cardId ? { cardId, point } : null)
   }, [])
+
+  const handleCardHold = useCallback((cardId) => setEnlargedCard(cardId), [])
+  const handleCardHoldEnd = useCallback(() => setEnlargedCard(null), [])
 
   const handleZoneClick = useCallback((zoneType) => {
     setViewingZone(zoneType)
@@ -305,6 +357,8 @@ export default function App() {
             onStackCardClick={handleStackCardClick}
             onCardHover={handleCardHover}
             onZoneClick={handleZoneClick}
+            onCardHold={handleCardHold}
+            onCardHoldEnd={handleCardHoldEnd}
           />
         </Tldraw>
       </div>
@@ -392,6 +446,25 @@ export default function App() {
       >
         ?
       </button>
+
+      {/* Hold-to-enlarge card preview */}
+      {enlargedCard && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 450,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.62)', pointerEvents: 'none',
+        }}>
+          <img
+            src={cardImageSrc(enlargedCard)}
+            alt={cardName(enlargedCard)}
+            draggable={false}
+            style={{
+              height: 'min(82vh, 600px)', maxWidth: '88vw', objectFit: 'contain',
+              borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,0.75)',
+            }}
+          />
+        </div>
+      )}
 
       {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
 
