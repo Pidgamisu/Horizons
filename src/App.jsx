@@ -371,8 +371,7 @@ export default function App() {
 
   if (screen === 'lobby') return (
     <>
-      <Lobby onConnect={connect} onStartTutorial={startTutorial} onShowRules={() => setShowRules(true)} />
-      {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
+      <Lobby onConnect={connect} onStartTutorial={startTutorial} />
     </>
   )
   if (screen === 'waiting') return <WaitingScreen roomId={roomId} />

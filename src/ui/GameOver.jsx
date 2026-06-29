@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { OnlineIntro } from './Intro.jsx'
 
 // ── GameOver ──────────────────────────────────────────────────────────────────
 
@@ -84,13 +83,12 @@ export function BrandBackdrop({ children }) {
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 
-export function Lobby({ onConnect, onStartTutorial, onShowRules }) {
+export function Lobby({ onConnect, onStartTutorial }) {
   const [roomInput, setRoomInput] = useState('')
   const [mode, setMode] = useState('choose') // 'choose' | 'create' | 'join'
-  const [showIntro, setShowIntro] = useState(false)
 
   // Auto-fill room from URL query param; first-time visitors (who aren't
-  // joining via a link) get the how-to-play-online walkthrough.
+  // joining via a link) are dropped straight into the interactive tutorial.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const roomParam = params.get('room')
@@ -98,13 +96,11 @@ export function Lobby({ onConnect, onStartTutorial, onShowRules }) {
       onConnect(roomParam.toUpperCase())
       return
     }
-    if (!localStorage.getItem('horizons_intro_seen')) setShowIntro(true)
+    if (onStartTutorial && !localStorage.getItem('horizons_tutorial_seen')) {
+      localStorage.setItem('horizons_tutorial_seen', '1')
+      onStartTutorial()
+    }
   }, [])
-
-  const dismissIntro = () => {
-    localStorage.setItem('horizons_intro_seen', '1')
-    setShowIntro(false)
-  }
 
   const handleCreate = () => {
     const code = Array.from({ length: 6 }, () =>
@@ -136,20 +132,6 @@ export function Lobby({ onConnect, onStartTutorial, onShowRules }) {
                 Tutorial
               </LobbyButton>
             )}
-            <LobbyButton onClick={onShowRules}>
-              How to Play
-            </LobbyButton>
-            <button
-              onClick={() => setShowIntro(true)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 600,
-                marginTop: 2, letterSpacing: '0.02em', textDecoration: 'underline',
-                textUnderlineOffset: 3,
-              }}
-            >
-              New here? See how it works
-            </button>
           </div>
         )}
 
@@ -183,13 +165,6 @@ export function Lobby({ onConnect, onStartTutorial, onShowRules }) {
           </div>
         )}
       </div>
-
-      {showIntro && (
-        <OnlineIntro
-          onClose={dismissIntro}
-          onCreateGame={() => { dismissIntro(); handleCreate() }}
-        />
-      )}
     </BrandBackdrop>
   )
 }
