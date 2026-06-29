@@ -92,7 +92,7 @@ export function CoachOverlay({ client, onExit }) {
           background: 'rgba(255,152,0,0.16)', border: '1px solid rgba(255,152,0,0.4)',
           color: '#ffcc80', fontSize: 12.5, fontWeight: 600,
         }}>
-          {nudge}
+          {renderText(nudge)}
         </div>
       )}
 
