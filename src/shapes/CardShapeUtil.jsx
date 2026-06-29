@@ -1,6 +1,6 @@
 import { BaseBoxShapeUtil } from 'tldraw'
 import { cardImageSrc } from '../data/cardImages.js'
-import { gameClient } from '../game/client.js'
+import { getClient } from '../game/activeClient.js'
 
 const CW = 120
 const CH = 168
@@ -99,9 +99,9 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             pointerEvents: 'none',
           }}>
             <CardActionButton label="Play" bg="#ff0099"
-              onClick={() => gameClient.playCard(cardId)} />
+              onClick={() => getClient().playCard(cardId)} />
             <CardActionButton label="Void" sub="+3" bg="rgba(255,255,255,0.16)"
-              onClick={() => gameClient.voidCard(cardId)} />
+              onClick={() => getClient().voidCard(cardId)} />
           </div>
         )}
       </div>

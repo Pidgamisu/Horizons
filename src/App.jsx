@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Tldraw, useEditor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { gameClient } from './game/client.js'
+import { TutorialClient } from './game/tutorialClient.js'
+import { setClient } from './game/activeClient.js'
 import { BoardManager } from './game/BoardManager.js'
 import { CardShapeUtil } from './shapes/CardShapeUtil.jsx'
 import { ZoneShapeUtil } from './shapes/ZoneShapeUtil.jsx'
@@ -12,6 +14,7 @@ import { GameOver, Lobby, Toast, BrandBackdrop } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
 import { RulesOverlay } from './ui/Rules.jsx'
+import { CoachOverlay } from './ui/CoachOverlay.jsx'
 import { cardName, cardImageSrc } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
@@ -162,13 +165,37 @@ export default function App() {
   const [revealedHand, setRevealedHand] = useState(null)
   const [showRules, setShowRules] = useState(false)
   const [enlargedCard, setEnlargedCard] = useState(null)
+  // The client the UI is driving: the networked singleton, or a scripted
+  // TutorialClient. Both share the same surface + emitted events.
+  const [client, setActiveClient] = useState(gameClient)
+  const isTutorial = client instanceof TutorialClient
   const rootRef = useRef(null)
 
   const connect = useCallback((id) => {
+    setClient(gameClient)
+    setActiveClient(gameClient)
     gameClient.connect(id)
     setRoomId(id)
     setScreen('waiting')
   }, [])
+
+  const startTutorial = useCallback(() => {
+    const tut = new TutorialClient()
+    setClient(tut)        // module indirection (for the on-card Play/Void buttons)
+    setActiveClient(tut)  // triggers re-subscribe + the start effect below
+    setRoomId('TUTORIAL')
+    setScreen('game')
+  }, [])
+
+  const leaveTutorial = useCallback(() => {
+    client.disconnect()
+    setClient(gameClient)
+    setActiveClient(gameClient)
+    setScreen('lobby')
+    setGameState(null)
+    setMyPlayerId(null)
+    setSelectedCard(null)
+  }, [client])
 
   useEffect(() => {
     const onJoined = ({ detail }) => {
@@ -187,7 +214,7 @@ export default function App() {
         if (STACK_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
         if (ev.type === 'STACK_CLEARED') addToast(`Stack cleared — ${ev.cards?.length ?? 0} trashed`)
         if (ev.type === 'HAND_REVEALED') {
-          const me = gameClient.playerId
+          const me = client.playerId
           const opp = me === 'p1' ? 'p2' : 'p1'
           if (ev.target === 'both' && ev.cards && !Array.isArray(ev.cards)) {
             setRevealedHand({ title: "Opponent's hand (revealed)", cardIds: ev.cards[opp] ?? [] })
@@ -206,27 +233,34 @@ export default function App() {
     const onError = ({ detail }) => addToast(`⚠ ${detail.message}`, 'error')
     const onDisconn = () => addToast('Opponent disconnected. Waiting…', 'warning')
 
-    gameClient.addEventListener('joined', onJoined)
-    gameClient.addEventListener('stateUpdate', onStateUpdate)
-    gameClient.addEventListener('events', onEvents)
-    gameClient.addEventListener('gameError', onError)
-    gameClient.addEventListener('opponentDisconnected', onDisconn)
+    client.addEventListener('joined', onJoined)
+    client.addEventListener('stateUpdate', onStateUpdate)
+    client.addEventListener('events', onEvents)
+    client.addEventListener('gameError', onError)
+    client.addEventListener('opponentDisconnected', onDisconn)
 
     return () => {
-      gameClient.removeEventListener('joined', onJoined)
-      gameClient.removeEventListener('stateUpdate', onStateUpdate)
-      gameClient.removeEventListener('events', onEvents)
-      gameClient.removeEventListener('gameError', onError)
-      gameClient.removeEventListener('opponentDisconnected', onDisconn)
+      client.removeEventListener('joined', onJoined)
+      client.removeEventListener('stateUpdate', onStateUpdate)
+      client.removeEventListener('events', onEvents)
+      client.removeEventListener('gameError', onError)
+      client.removeEventListener('opponentDisconnected', onDisconn)
     }
-  }, [myPlayerId])
+  }, [client, myPlayerId])
+
+  // Start the scripted tutorial once it's the active client. Declared after the
+  // listener effect so App (and the CoachOverlay child) are subscribed before
+  // start() synchronously emits the first beat. The `started` guard is idempotent.
+  useEffect(() => {
+    if (client instanceof TutorialClient && !client.started) client.start()
+  }, [client])
 
   const handleCardClick = useCallback((cardCode) => {
     setSelectedCard(prev => prev === cardCode ? null : cardCode)
   }, [])
 
   const handleStackCardClick = useCallback((cardCode, editor) => {
-    const choice = gameClient.pendingChoice
+    const choice = client.pendingChoice
     if (!choice || choice.player !== myPlayerId) return
     const stackChoiceTypes = ['trashFromStack', 'trashFromStackChoice', 'returnToControllerHand',
       'returnStackCardToHandChoice', 'stealFromStack', 'stealFromStackChoice',
@@ -237,9 +271,9 @@ export default function App() {
       .sort((a, b) => a.y - b.y)
     const idx = stackShapes.findIndex(s => s.props.cardId === cardCode)
     if (idx === -1) return
-    gameClient.choose({ stackIndex: idx })
+    client.choose({ stackIndex: idx })
     setSelectedCard(null)
-  }, [myPlayerId])
+  }, [client, myPlayerId])
 
   const handleCardHover = useCallback((cardId, point) => {
     setHoveredCard(cardId ? { cardId, point } : null)
@@ -253,32 +287,32 @@ export default function App() {
   }, [])
 
   const handlePlayFromTrash = useCallback((cardId) => {
-    gameClient.playCard(cardId, { fromTrash: true })
+    client.playCard(cardId, { fromTrash: true })
     setViewingZone(null)
     setSelectedCard(null)
-  }, [])
+  }, [client])
 
   const handlePlay = useCallback(() => {
     if (!selectedCard) return
-    gameClient.playCard(selectedCard)
+    client.playCard(selectedCard)
     setSelectedCard(null)
-  }, [selectedCard])
+  }, [client, selectedCard])
 
   const handleVoid = useCallback(() => {
     if (!selectedCard) return
-    gameClient.voidCard(selectedCard)
+    client.voidCard(selectedCard)
     setSelectedCard(null)
-  }, [selectedCard])
+  }, [client, selectedCard])
 
   // Keyboard shortcuts (mirror the ActionBar): Space = pass, P = play, V = void.
   useEffect(() => {
     const onKey = (e) => {
       if (screen !== 'game') return
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      const canAct = gameClient.holdingPriority && !gameClient.myChoicePending
+      const canAct = client.holdingPriority && !client.myChoicePending
       if (e.code === 'Space') {
         e.preventDefault()
-        if (canAct) gameClient.passPriority()
+        if (canAct) client.passPriority()
       } else if (e.code === 'KeyP') {
         e.preventDefault()
         if (canAct) handlePlay()
@@ -289,7 +323,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [screen, handlePlay, handleVoid])
+  }, [screen, client, handlePlay, handleVoid])
 
   // Block zoom gestures (ctrl+wheel / trackpad pinch) over the UI overlays.
   // tldraw handles zoom inside its own container, but the HUD/dialogs are
@@ -316,10 +350,10 @@ export default function App() {
     if (selectedCard && hand && !hand.includes(selectedCard)) setSelectedCard(null)
   }, [gameState, myPlayerId, selectedCard])
 
-  const handlePass = useCallback(() => gameClient.passPriority(), [])
+  const handlePass = useCallback(() => client.passPriority(), [client])
   const handleConcede = useCallback(() => {
-    if (window.confirm('Concede this game?')) gameClient.concede()
-  }, [])
+    if (window.confirm('Concede this game?')) client.concede()
+  }, [client])
 
   const addToast = (msg, type = 'info') => {
     const id = Date.now() + Math.random()
@@ -337,7 +371,7 @@ export default function App() {
 
   if (screen === 'lobby') return (
     <>
-      <Lobby onConnect={connect} onShowRules={() => setShowRules(true)} />
+      <Lobby onConnect={connect} onStartTutorial={startTutorial} onShowRules={() => setShowRules(true)} />
       {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
     </>
   )
@@ -373,8 +407,12 @@ export default function App() {
           isMyTurn={isMyTurn}
           holdingPriority={holdingPriority}
           turnNumber={gameState.turnNumber}
-          onConcede={handleConcede}
+          onConcede={isTutorial ? undefined : handleConcede}
         />
+      )}
+
+      {isTutorial && screen === 'game' && (
+        <CoachOverlay client={client} onExit={leaveTutorial} />
       )}
 
       {screen === 'game' && (
@@ -425,7 +463,9 @@ export default function App() {
           myPoints={myState?.points ?? 0}
           oppPoints={oppState?.points ?? 0}
           onPlayAgain={() => {
-            gameClient.disconnect()
+            client.disconnect()
+            setClient(gameClient)
+            setActiveClient(gameClient)
             setScreen('lobby')
             setGameState(null)
             setMyPlayerId(null)
