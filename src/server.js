@@ -1,7 +1,7 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createGameState, initDeck, opponent, canPlayFromTrash } from './engine/state.js';
-import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow } from './engine/game.js';
+import { createGameState, initDeck, opponent, canPlayFromTrash, CHOICE_TRIGGER_TYPES } from './engine/state.js';
+import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow, flushResolutionTrash } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
 
 // ─── Room Management ──────────────────────────────────────────────────────────
@@ -135,17 +135,10 @@ function sanitizeEventForPlayer(event, forPlayer, state) {
  * Returns true if a choice was set, false if no choices pending.
  */
 export function advancePendingChoices(state) {
-  // Filter out non-choice triggers (like registerTurnTrigger)
-  const choiceTypes = new Set([
-    'trashFromHandChoice', 'trashFromStackChoice', 'returnStackCardToHandChoice',
-    'stealFromStackChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
-    'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
-    'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromStackTarget',
-    'lookAtTopN', 'chooseNumber', 'chooseCardToTrashFromRevealedHand',
-    'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget',
-  ]);
-
-  const idx = state.pendingTriggers.findIndex(t => choiceTypes.has(t.type));
+  // Filter out non-choice triggers (like registerTurnTrigger). CHOICE_TRIGGER_TYPES
+  // is shared with the resolution engine so the "defer the resolving card's trash
+  // while a choice is outstanding" logic stays in lockstep with what surfaces here.
+  const idx = state.pendingTriggers.findIndex(t => CHOICE_TRIGGER_TYPES.has(t.type));
   if (idx === -1) return false;
 
   const trigger = state.pendingTriggers.splice(idx, 1)[0];
@@ -270,6 +263,13 @@ function handleMessage(ws, room, playerId, msg) {
     advancePendingChoices(state);
   }
 
+  // A resolving card whose effect spawned a choice was held out of the trash
+  // until that choice chain drained. Now that no choice is pending, complete the
+  // trash — before autoSkip resolves the next card on the stack.
+  if (!state.pendingChoice) {
+    events.push(...flushResolutionTrash(state));
+  }
+
   // Auto-skip dead priority windows: a player should only hold priority on their
   // own main phase (their turn, empty stack) or to respond to an opponent's card
   // on the stack. In any other window there's nothing they could do, so pass on
@@ -277,6 +277,9 @@ function handleMessage(ws, room, playerId, msg) {
   // the next window. Stops as soon as a player can act, a choice surfaces, or
   // the game ends.
   autoSkipDeadPriority(state, events);
+  if (!state.pendingChoice) {
+    events.push(...flushResolutionTrash(state));
+  }
 
   // Broadcast events, then full state
   if (events.length > 0) broadcastEvents(room, events);

@@ -1,5 +1,24 @@
 import { ALL_CARD_IDS } from '../data/cardDb.js';
 
+// ─── Choice Triggers ─────────────────────────────────────────────────────────
+// The subset of pendingTriggers that the server surfaces to a player as a
+// CHOICE_REQUIRED prompt (as opposed to background triggers like
+// registerTurnTrigger / endOfTurnTrash that resolve on their own). Single source
+// of truth shared by server.advancePendingChoices and the resolution engine.
+export const CHOICE_TRIGGER_TYPES = new Set([
+  'trashFromHandChoice', 'trashFromStackChoice', 'returnStackCardToHandChoice',
+  'stealFromStackChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
+  'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
+  'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromStackTarget',
+  'lookAtTopN', 'chooseNumber', 'chooseCardToTrashFromRevealedHand',
+  'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget',
+]);
+
+/** Does a pending trigger require a player choice (vs. resolving on its own)? */
+export function isChoiceTrigger(trigger) {
+  return CHOICE_TRIGGER_TYPES.has(trigger.type);
+}
+
 // ─── State Factory ───────────────────────────────────────────────────────────
 
 export function createGameState() {
@@ -29,6 +48,10 @@ export function createGameState() {
 
     // Pending end-of-turn triggers
     pendingTriggers: [],
+
+    // Cards mid-resolution whose trip to the trash is deferred until their
+    // effect (including any player choices it spawned) has fully resolved.
+    pendingResolutionTrash: [],
 
     winner: null,
   };

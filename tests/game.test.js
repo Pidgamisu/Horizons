@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash } from '../src/engine/state.js';
-import { startGame, playCard, passPriority, voidCard, endTurn, isLivePriorityWindow } from '../src/engine/game.js';
+import { startGame, playCard, passPriority, voidCard, endTurn, isLivePriorityWindow, flushResolutionTrash } from '../src/engine/game.js';
 import { resolveChoice } from '../src/engine/choices.js';
 import { validatePlay } from '../src/engine/validation.js';
+import { advancePendingChoices } from '../src/server.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,11 +44,12 @@ describe('Client prompt coverage', () => {
   test('every surfaceable choice type has a ChoicePrompt branch', () => {
     const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8');
     const server = read('server.js');
+    const state = read('engine/state.js');
     const choices = read('engine/choices.js');
     const prompt = read('ui/ChoicePrompt.jsx');
 
     // Trigger types the server surfaces, mapped to their client choice type.
-    const setBlock = server.match(/choiceTypes = new Set\(\[([\s\S]*?)\]\)/);
+    const setBlock = state.match(/CHOICE_TRIGGER_TYPES = new Set\(\[([\s\S]*?)\]\)/);
     expect(setBlock).not.toBe(null);
     const triggers = [...setBlock[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
     const mapBlock = server.match(/const typeMap = \{([\s\S]*?)\};/);
@@ -240,13 +242,79 @@ describe('Playing cards', () => {
   });
 });
 
+// ─── Resolving card reaches the trash only after it has fully taken effect ─────
+
+describe('A card takes full effect before it is trashed', () => {
+  // Mimic the server: surface the next queued choice, resolve it, and once the
+  // choice chain drains, complete the deferred trash of the resolved card.
+  function respond(state, player, payload) {
+    if (!state.pendingChoice) advancePendingChoices(state);
+    const res = resolveChoice(state, player, payload);
+    if (!state.pendingChoice) advancePendingChoices(state);
+    if (!state.pendingChoice) res.events.push(...flushResolutionTrash(state));
+    return res;
+  }
+
+  test('Dig for Ideas (45): cannot pull itself out of the trash', () => {
+    const { state } = freshGame();
+    state.zones.trash = ['10'];        // an existing card to dig up
+    giveCard(state, 'p1', '45');       // Dig for Ideas (cost 1)
+    setEnergy(state, 'p1', 3);
+
+    playCard(state, 'p1', '45');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');          // Dig resolves → putFromTrashToHand choice
+
+    advancePendingChoices(state);
+    expect(state.pendingChoice?.type).toBe('putFromTrashToHand');
+    // Dig is NOT in the trash while its own effect is resolving, so it can't be
+    // chosen — only the pre-existing card is diggable.
+    expect(state.zones.trash).toEqual(['10']);
+    expect(state.zones.trash).not.toContain('45');
+    const bad = resolveChoice(state, 'p1', { cardIds: ['45'] });
+    expect(bad.error).not.toBe(null);
+
+    respond(state, 'p1', { cardIds: ['10'] });
+    // The dug card is in hand; Dig itself is now in the trash (not the hand).
+    expect(state.players.p1.hand).toContain('10');
+    expect(state.players.p1.hand).not.toContain('45');
+    expect(state.zones.trash).toContain('45');
+    expect(state.zones.stack).toHaveLength(0);
+  });
+
+  test('Stop (44): can trash a card its own caster controls, then goes to the trash', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '01'); // Sprint (point) — p1's own card
+    giveCard(state, 'p2', '82'); // Drain (action) — something to respond to
+    giveCard(state, 'p1', '44'); // Stop (cost 3)
+    setEnergy(state, 'p1', 20); setEnergy(state, 'p2', 9);
+
+    playCard(state, 'p1', '01'); // stack: [01(p1)]
+    playCard(state, 'p2', '82'); // stack: [82(p2), 01(p1)]
+    playCard(state, 'p1', '44'); // Stop in response → stack: [44(p1), 82(p2), 01(p1)]
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');    // Stop resolves → trashFromStack choice for p1
+
+    advancePendingChoices(state);
+    expect(state.pendingChoice?.type).toBe('trashFromStack');
+    // Stop has left the stack but has NOT yet reached the trash.
+    expect(state.zones.trash).not.toContain('44');
+
+    const idx = state.zones.stack.findIndex(e => e.cardId === '01'); // p1's own point
+    respond(state, 'p1', { stackIndex: idx });
+
+    expect(state.zones.trash).toContain('01'); // own card trashed
+    expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
+  });
+});
+
 // ─── Priority & Stack Resolution ──────────────────────────────────────────────
 
 describe('Priority and stack resolution', () => {
   test('both passing resolves top of stack', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action, 0 cost, draw 2 trash 2
-    playCard(state, 'p1', '53');
+    giveCard(state, 'p1', '56'); // Debilitate: action, 0 cost, no player choice
+    playCard(state, 'p1', '56');
     passPriority(state, 'p2');
     const events = passPriority(state, 'p1');
     expect(eventTypes(events)).toContain('CARD_RESOLVING');

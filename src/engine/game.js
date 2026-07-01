@@ -2,6 +2,7 @@ import { getCard } from '../data/cardDb.js';
 import {
   createGameState, createStackEntry, createTurnFlags,
   drawCards, sendToTrash, opponent, controllerOf, computeActualCost,
+  isChoiceTrigger,
 } from './state.js';
 import { validatePlay } from './validation.js';
 import { executeEffects, executeOnPlayEffects } from '../effects/executor.js';
@@ -164,11 +165,21 @@ export function resolveTopOfStack(state) {
   const effectEvents = executeEffects(state, entry);
   events.push(...effectEvents);
 
-  // Send to trash (unless effect moved it — moveSelf effects handle their own destination)
+  // Send to trash (unless effect moved it — moveSelf effects handle their own destination).
   const selfMoved = card.effects?.some(e => e.type === 'moveSelf' || e.type === 'swapStackPositions');
   if (!selfMoved) {
-    sendToTrash(state, entry.cardId);
-    events.push({ type: 'CARD_TRASHED', cardId: entry.cardId });
+    // A card only reaches the trash once it has FULLY taken effect. If its
+    // effect spawned a player choice (Stop 44 → trashFromStack, Dig for Ideas 45
+    // → putFromTrashToHand, …) that choice resolves asynchronously, so defer the
+    // trash until the chain drains (see flushResolutionTrash). Otherwise the card
+    // would be in the trash while its own effect is still resolving — letting
+    // Dig for Ideas pull itself back into hand.
+    if (state.pendingTriggers.some(isChoiceTrigger)) {
+      state.pendingResolutionTrash.push(entry.cardId);
+    } else {
+      sendToTrash(state, entry.cardId);
+      events.push({ type: 'CARD_TRASHED', cardId: entry.cardId });
+    }
   }
 
   // Fire "opponent's card took effect" triggers (Share the Loot 75)
@@ -177,6 +188,23 @@ export function resolveTopOfStack(state) {
     events.push(...lootEvents);
   }
 
+  return events;
+}
+
+/**
+ * Trash any cards that finished resolving while a player choice was outstanding.
+ * Called once the choice chain drains (no pending choice) so a resolved card
+ * reaches the trash only after its effect is fully complete — and before the
+ * next card on the stack starts resolving.
+ */
+export function flushResolutionTrash(state) {
+  if (state.pendingResolutionTrash.length === 0) return [];
+  const events = [];
+  for (const cardId of state.pendingResolutionTrash) {
+    sendToTrash(state, cardId);
+    events.push({ type: 'CARD_TRASHED', cardId });
+  }
+  state.pendingResolutionTrash = [];
   return events;
 }
 
