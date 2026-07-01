@@ -83,6 +83,7 @@ function broadcastState(room) {
             cardId: e.cardId,
             playedBy: e.playedBy,
             controlledBy: e.controlledBy,
+            resolving: !!e.resolving,
           })),
           trash: state.zones.trash,
           voidSize: state.zones.void.length,

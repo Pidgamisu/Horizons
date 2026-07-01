@@ -19,6 +19,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       dimmed: false,
       horizonIndex: null,
       horizonIsTop: false,
+      resolving: false,
       playable: false,
       w: CW,
       h: CH,
@@ -26,15 +27,17 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, resolving, playable, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
-    const border = targeted ? '2px solid #00e5ff'
+    const border = resolving ? '2px solid #ffb020'
+      : targeted ? '2px solid #00e5ff'
       : selected ? '2px solid #ff0099'
       : '1px solid rgba(255,255,255,0.10)'
 
-    const glow = targeted ? '0 0 14px rgba(0,229,255,0.55)'
+    const glow = resolving ? '0 0 16px rgba(255,176,32,0.6)'
+      : targeted ? '0 0 14px rgba(0,229,255,0.55)'
       : selected ? '0 0 12px rgba(255,0,153,0.6)'
       : onHorizon ? '0 4px 16px rgba(0,0,0,0.5)'
       : 'none'
@@ -73,7 +76,19 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
           />
         )}
 
-        {onHorizon && horizonIndex !== null && (
+        {onHorizon && resolving && (
+          <div style={{
+            position: 'absolute', top: 4, right: 4,
+            background: '#ffb020', color: '#1a1a2e',
+            fontSize: 9, fontWeight: 800,
+            padding: '2px 5px', borderRadius: 4,
+            letterSpacing: '0.04em',
+          }}>
+            RESOLVING
+          </div>
+        )}
+
+        {onHorizon && !resolving && horizonIndex !== null && (
           <div style={{
             position: 'absolute', top: 4, right: 4,
             background: horizonIsTop ? '#ff0099' : 'rgba(0,0,0,0.65)',

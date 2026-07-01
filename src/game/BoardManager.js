@@ -91,6 +91,7 @@ export class BoardManager {
         dimmed: false, w: CW, h: CH,
         horizonIndex: i,        // used for choice targeting
         horizonIsTop: i === 0,  // visual badge
+        resolving: !!entry.resolving, // this card's effect is currently resolving
       },
     }))
     // Create bottom-to-top so the top-of-horizon card (i=0) is drawn last and

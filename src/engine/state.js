@@ -92,6 +92,7 @@ export function createHorizonEntry(cardId, playedBy, meta = {}) {
     respondedToCardIndex: meta.respondedToCardIndex ?? null,
     respondedToCardType:  meta.respondedToCardType  ?? null,
     responsesLocked: meta.responsesLocked ?? false, // Injustice (67) — opponents can't action-respond to this entry
+    resolving: false,          // true while this card's own effect is resolving (still on the horizon)
   };
 }
 
