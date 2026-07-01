@@ -16,6 +16,8 @@ const STOP  = '44' // Stop           — action: trash a card on the horizon, co
 const DENY  = '69' // Deny Hostility — action: trash an action played in response to a point, cost 1
 const FILL1 = '45' // Dig for Ideas  — voided for energy
 const FILL2 = '53' // Sort           — voided for energy
+// A fresh draw shown when the hand refills at end of turn (any real card ids).
+const REFILL = ['01', '21', '46', '60', '82']
 
 // Build a full per-player projection with sensible tutorial defaults; callers
 // override just the fields that change between beats. The horizon is ordered
@@ -83,12 +85,12 @@ const BEATS = [
   {
     mode: 'auto', autoMs: 1200,
     state: proj({ horizon: [ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 1, active: 'p2', p1energy: 1, voidSize: 2 }),
-    narration: 'Your point card goes onto the **horizon**. It doesn’t score yet — first your opponent gets a chance to respond…',
+    narration: 'Your point card doesn’t score right away. Cards you play don’t resolve immediately — they wait on the **horizon**, the shared zone in the middle. While a card sits there, your opponent gets a chance to **respond** before it resolves…',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
-    narration: 'They played **Stop** to trash your point card! The horizon resolves **top-first**, so Stop would resolve before your point. You’ll need to answer it.',
+    narration: 'And they do! They played **Stop** onto the horizon to trash your point. The horizon resolves **top-first** (last in, first out), so Stop would resolve before your point — but because plays wait here, you get to answer back.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: DENY }, highlight: DENY,
@@ -114,12 +116,17 @@ const BEATS = [
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'With the horizon clear, your point card resolves — **you score a point!** 🎉',
+    narration: 'With the horizon clear, your point card finally resolves — **you score a point!** 🎉',
+  },
+  {
+    mode: 'continue',
+    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 5, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
+    narration: 'Notice your hand is empty — you voided and played everything. That’s fine: at the **end of each turn**, both players draw back up to **5 cards**. Your hand refills automatically, so you won’t run dry — here’s your fresh hand.',
   },
   {
     mode: 'done',
-    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'That’s the heart of Horizons: **void** cards for energy to fuel your plays, and remember the **horizon is last-in, first-out** — whoever answers the *final* threat wins the exchange. Reach **5 points** to win. You’re ready!',
+    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 5, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
+    narration: 'That’s Horizons: **void** cards for energy, then play them onto the **horizon**, where they wait for either player to **respond** before anything resolves — last in, first out, so whoever answers the *final* threat wins the exchange. Your hand refills to **5** each turn, and the first to **5 points** wins. You’re ready!',
   },
 ]
 
