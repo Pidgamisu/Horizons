@@ -38,7 +38,7 @@ Then open `http://localhost:5173` in two browser tabs (or two browsers).
 | Play a card | Select it, then click **Play** |
 | Void a card (+3 energy) | Select it, then click **Void** |
 | Pass priority | **Spacebar** or click **Pass** |
-| Respond to opponent | Click **Play** while opponent has something on the stack |
+| Respond to opponent | Click **Play** while opponent has something on the horizon |
 | Concede | Click **Concede** |
 
 When a choice is required (e.g. "trash 2 cards from your hand"), a prompt slides up from the bottom. Click cards in the prompt to select them, then confirm.
@@ -65,7 +65,7 @@ horizons-server/
     engine/
       state.js            ← GameState model, zone helpers, static effect queries
       validation.js       ← Play legality checks
-      game.js             ← Turn flow, priority, stack resolution
+      game.js             ← Turn flow, priority, horizon resolution
       choices.js          ← Player choice resolution (trash, target, etc.)
     effects/
       executor.js         ← Effect execution engine
@@ -98,9 +98,9 @@ planning/
 
 - **Goal:** 5 points to win
 - **Energy:** Void cards from your hand to gain 3 energy each
-- **Playing cards:** Pay energy cost; card goes on the stack
-- **Stack:** Last In, First Out (like MTG). Both players pass priority to resolve
-- **Point cards:** Can only be played when the stack is empty (on your turn)
+- **Playing cards:** Pay energy cost; card goes on the horizon
+- **Horizon:** Last In, First Out (like MTG). Both players pass priority to resolve
+- **Point cards:** Can only be played when the horizon is empty (on your turn)
 - **Action cards:** Can be played on your turn OR in response to opponent's cards
 - **End of turn:** Energy wiped, trash moves to void, draw back up to 5
 - **Priority clock:** 25 minutes each — clock runs while you hold priority

@@ -1,7 +1,8 @@
 # CLAUDE.md
 
 Guidance for working in this repo. Horizons is a two-player, real-time digital card game
-(MTG-style stack & priority) built on **tldraw v5** + **React** for the client and a
+(MTG-style stack & priority — the shared LIFO zone is called the **horizon** in this game)
+built on **tldraw v5** + **React** for the client and a
 **WebSocket** (`ws`) game server. Goal: first to 5 points wins.
 
 ## ⚠️ Repo layout vs. README
@@ -20,8 +21,8 @@ src/
                           (each player sees only their own hand)
   engine/               ← Pure game logic, no I/O — the authoritative rules engine
     state.js            ← GameState model, zones, deck/draw/trash helpers, static-effect queries
-    game.js             ← Turn flow, priority passing, stack resolution (startGame, playCard,
-                          passPriority, resolveTopOfStack, endTurn, voidCard)
+    game.js             ← Turn flow, priority passing, horizon resolution (startGame, playCard,
+                          passPriority, resolveTopOfHorizon, endTurn, voidCard)
     validation.js       ← Play-legality checks (validatePlay)
     choices.js          ← Resolving player choices (trash N, pick target, etc.) (resolveChoice)
   effects/
@@ -86,13 +87,13 @@ game in one and join via the shared room URL in the other.
 
 ## Core model (how a turn works)
 
-- **Zones:** deck, hand (per player), stack (shared, LIFO), trash, void.
+- **Zones:** deck, hand (per player), horizon (shared, LIFO), trash, void.
 - **Energy:** gained by *voiding* a card from hand (+3 each). Wiped at end of turn.
-- **Stack:** last-in-first-out. Playing a card pushes it; both players pass priority to resolve
-  the top entry. Point cards require an empty stack on your turn; action cards can be played in
-  response.
+- **Horizon:** last-in-first-out. Playing a card pushes it; both players pass priority to resolve
+  the top entry. Point cards require an empty horizon on your turn; action cards can be played in
+  response. (Internally the zone key is `state.zones.horizon`.)
 - **Static vs. triggered effects:** `cards.json` separates `effects` (triggered, run on resolve
-  via `executor.js`) from `staticEffects` (continuous, queried by `state.js` — e.g. `lockStack`).
+  via `executor.js`) from `staticEffects` (continuous, queried by `state.js` — e.g. `lockHorizon`).
 - **End of turn:** energy wiped, trash → void, draw back up to 5; 25-minute priority clock per player.
 
 ## Conventions

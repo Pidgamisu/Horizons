@@ -6,12 +6,12 @@ import { ALL_CARD_IDS } from '../data/cardDb.js';
 // registerTurnTrigger / endOfTurnTrash that resolve on their own). Single source
 // of truth shared by server.advancePendingChoices and the resolution engine.
 export const CHOICE_TRIGGER_TYPES = new Set([
-  'trashFromHandChoice', 'trashFromStackChoice', 'returnStackCardToHandChoice',
-  'stealFromStackChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
+  'trashFromHandChoice', 'trashFromHorizonChoice', 'returnHorizonCardToHandChoice',
+  'stealFromHorizonChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
   'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
-  'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromStackTarget',
+  'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromHorizonTarget',
   'lookAtTopN', 'chooseNumber', 'chooseCardToTrashFromRevealedHand',
-  'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget',
+  'moveFromHorizonToDeckTop', 'trashUnlessControllerPaysTarget',
 ]);
 
 /** Does a pending trigger require a player choice (vs. resolving on its own)? */
@@ -26,7 +26,7 @@ export function createGameState() {
     phase: 'waiting',          // 'waiting' | 'active' | 'ended'
     turn: 'p1',                // whose turn it is
     activePlayer: 'p1',        // who currently holds priority
-    priorityPassCount: 0,      // 0/1/2 — when 2, resolve top of stack
+    priorityPassCount: 0,      // 0/1/2 — when 2, resolve top of horizon
     turnNumber: 0,
     cardsPlayedThisTurn: [],   // [{ cardId, playedBy }] in order
     cardsDrawnThisTurn: { p1: 0, p2: 0 },
@@ -38,7 +38,7 @@ export function createGameState() {
 
     zones: {
       deck:  [],   // CardId[], index 0 = top
-      stack: [],   // StackEntry[], index 0 = top (last played)
+      horizon: [],   // HorizonEntry[], index 0 = top (last played)
       trash: [],   // CardId[]
       void:  [],   // CardId[]
     },
@@ -82,9 +82,9 @@ export function createTurnFlags() {
   };
 }
 
-// ─── Stack Entry Factory ──────────────────────────────────────────────────────
+// ─── Horizon Entry Factory ──────────────────────────────────────────────────────
 
-export function createStackEntry(cardId, playedBy, meta = {}) {
+export function createHorizonEntry(cardId, playedBy, meta = {}) {
   return {
     cardId,
     playedBy,
@@ -166,15 +166,15 @@ export function trashHand(state, playerId) {
   return count;
 }
 
-/** Remove a card from the stack by index. Does NOT send to trash — caller handles destination. */
-export function removeFromStack(state, stackIndex) {
-  const [entry] = state.zones.stack.splice(stackIndex, 1);
+/** Remove a card from the horizon by index. Does NOT send to trash — caller handles destination. */
+export function removeFromHorizon(state, horizonIndex) {
+  const [entry] = state.zones.horizon.splice(horizonIndex, 1);
   return entry;
 }
 
-/** Remove a card from the stack and send it to trash. */
-export function trashFromStack(state, stackIndex) {
-  const entry = removeFromStack(state, stackIndex);
+/** Remove a card from the horizon and send it to trash. */
+export function trashFromHorizon(state, horizonIndex) {
+  const entry = removeFromHorizon(state, horizonIndex);
   sendToTrash(state, entry.cardId);
   return entry;
 }
@@ -183,11 +183,11 @@ export function trashFromStack(state, stackIndex) {
 // "Can't beats can" — restrictions are checked here before any action proceeds.
 
 /** Is ALL card playing locked? (Unstoppable 00) */
-export function isStackLocked(state, forPlayer) {
-  return state.zones.stack.some(entry => {
-    const card = getStackEntryCard(entry);
+export function isHorizonLocked(state, forPlayer) {
+  return state.zones.horizon.some(entry => {
+    const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se =>
-      se.type === 'lockStack' &&
+      se.type === 'lockHorizon' &&
       (se.scope === 'allPlayers' || (se.scope === 'controller' && controllerOf(entry) === forPlayer))
     );
   });
@@ -195,17 +195,17 @@ export function isStackLocked(state, forPlayer) {
 
 /** Is drawing locked? (Dread 39) */
 export function isDrawLocked(state) {
-  return state.zones.stack.some(entry => {
-    const card = getStackEntryCard(entry);
+  return state.zones.horizon.some(entry => {
+    const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se => se.type === 'lockDraw');
   });
 }
 
-/** Get the active play cost modifier for a player from stack static effects. */
-export function getStackCostModifier(state, forPlayer) {
+/** Get the active play cost modifier for a player from horizon static effects. */
+export function getHorizonCostModifier(state, forPlayer) {
   let delta = 0;
-  for (const entry of state.zones.stack) {
-    const card = getStackEntryCard(entry);
+  for (const entry of state.zones.horizon) {
+    const card = getHorizonEntryCard(entry);
     for (const se of card.staticEffects ?? []) {
       if (se.type === 'modifyPlayCost') {
         const isOpponent = controllerOf(entry) !== forPlayer;
@@ -219,8 +219,8 @@ export function getStackCostModifier(state, forPlayer) {
 /** Is play-from-trash allowed? (Consult the Past 38, Brought Back 72) */
 export function canPlayFromTrash(state, playerId) {
   if (state.turnFlags.playFromTrash) return true;
-  return state.zones.stack.some(entry => {
-    const card = getStackEntryCard(entry);
+  return state.zones.horizon.some(entry => {
+    const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se =>
       se.type === 'allowPlayFromTrash' && controllerOf(entry) === playerId
     );
@@ -229,8 +229,8 @@ export function canPlayFromTrash(state, playerId) {
 
 /** Does With the Sky (28) allow opponent point response right now? */
 export function opponentPointResponseAllowed(state) {
-  return state.zones.stack.some(entry => {
-    const card = getStackEntryCard(entry);
+  return state.zones.horizon.some(entry => {
+    const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se => se.type === 'allowOpponentPointResponse');
   });
 }
@@ -239,17 +239,17 @@ export function opponentPointResponseAllowed(state) {
 
 import { getCard } from '../data/cardDb.js';
 
-function getStackEntryCard(entry) {
+function getHorizonEntryCard(entry) {
   return getCard(entry.cardId);
 }
 
 /**
- * Does a stack entry satisfy a stack-targeting filter
+ * Does a horizon entry satisfy a horizon-targeting filter
  * ('any' | 'action' | 'point' | 'actionPlayedInResponseToPoint')?
  * Shared by the executor (to decide whether a choice has any legal target)
  * and resolveChoice (to validate the player's pick).
  */
-export function stackEntryMatchesFilter(entry, filter) {
+export function horizonEntryMatchesFilter(entry, filter) {
   if (!filter || filter === 'any') return true;
   const card = getCard(entry.cardId);
   if (filter === 'actionPlayedInResponseToPoint') {
@@ -258,17 +258,17 @@ export function stackEntryMatchesFilter(entry, filter) {
   return card.type === filter; // 'action' | 'point'
 }
 
-/** Is there at least one legal target on the stack for a given filter? */
-export function stackHasTarget(state, filter) {
-  return state.zones.stack.some(e => stackEntryMatchesFilter(e, filter));
+/** Is there at least one legal target on the horizon for a given filter? */
+export function horizonHasTarget(state, filter) {
+  return state.zones.horizon.some(e => horizonEntryMatchesFilter(e, filter));
 }
 
 export function computeActualCost(state, cardId, playerId, context = {}) {
   const card = getCard(cardId);
   let cost = card.energyCost;
 
-  // Stack-based modifiers (Efficiency 15, Glacial Pace 19)
-  cost += getStackCostModifier(state, playerId);
+  // Horizon-based modifiers (Efficiency 15, Glacial Pace 19)
+  cost += getHorizonCostModifier(state, playerId);
 
   // Turn flag modifier (Possess Love 83)
   cost += state.turnFlags.allCardsCostLess;
@@ -277,7 +277,7 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
   for (const mod of card.costModifiers ?? []) {
     switch (mod.type) {
       case 'discountPerCard': {
-        const zone = mod.zone === 'trash' ? state.zones.trash : state.zones.stack;
+        const zone = mod.zone === 'trash' ? state.zones.trash : state.zones.horizon;
         const count = mod.filter === 'any'
           ? zone.length
           : zone.filter(id => {

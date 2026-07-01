@@ -1,18 +1,18 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  computeActualCost, isStackLocked, canPlayFromTrash,
+  computeActualCost, isHorizonLocked, canPlayFromTrash,
   opponentPointResponseAllowed, opponent, controllerOf,
 } from './state.js';
 
 /**
  * Returns null if the play is legal, or an error string if not.
- * context = { fromTrash?: bool, respondingToStackIndex?: number }
+ * context = { fromTrash?: bool, respondingToHorizonIndex?: number }
  */
 export function validatePlay(state, playerId, cardId, context = {}) {
   const card = getCard(cardId);
   const player = state.players[playerId];
   const isOwnTurn = state.turn === playerId;
-  const stackEmpty = state.zones.stack.length === 0;
+  const horizonEmpty = state.zones.horizon.length === 0;
 
   // ── Source zone check ────────────────────────────────────────────────────
   const inHand = player.hand.includes(cardId);
@@ -26,7 +26,7 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   // ── Global lock (Unstoppable 00, Erase Reason 11) ────────────────────────
-  if (isStackLocked(state, playerId)) return 'Cards cannot be played while this card is on the stack.';
+  if (isHorizonLocked(state, playerId)) return 'Cards cannot be played while this card is on the horizon.';
   if (player.lockedFromPlaying) return 'You cannot play any more cards this turn.';
 
   // ── Opponent lock (Stifle Speech 52) ─────────────────────────────────────
@@ -35,16 +35,16 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     return 'You cannot play any more cards this turn.';
   }
 
-  // ── Turn / stack timing rules ─────────────────────────────────────────────
+  // ── Turn / horizon timing rules ─────────────────────────────────────────────
   if (card.type === 'point') {
-    // Check if card has responseOnly restriction first — if so, skip the proactive stack-empty check
+    // Check if card has responseOnly restriction first — if so, skip the proactive horizon-empty check
     const isResponseOnly = card.playRestrictions?.some(r => r.type === 'responseOnly');
 
     if (!isResponseOnly) {
-      // Point cards need empty stack to play proactively on own turn
-      if (isOwnTurn && !stackEmpty) {
+      // Point cards need empty horizon to play proactively on own turn
+      if (isOwnTurn && !horizonEmpty) {
         const canRespond = checkPointResponsePermission(state, playerId, context);
-        if (!canRespond) return 'Point cards can only be played when the stack is empty.';
+        if (!canRespond) return 'Point cards can only be played when the horizon is empty.';
       }
       // Opponent playing a point card — only allowed via With the Sky / Blinding Flash
       if (!isOwnTurn) {
@@ -56,22 +56,22 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   if (card.type === 'action') {
-    // Actions: own turn (stack empty) OR response to an opponent's card.
-    // The empty-stack + opponent's-turn case is the opponent's end-of-turn
+    // Actions: own turn (horizon empty) OR response to an opponent's card.
+    // The empty-horizon + opponent's-turn case is the opponent's end-of-turn
     // window — you can't sneak an action in there.
-    if (!isOwnTurn && stackEmpty) {
+    if (!isOwnTurn && horizonEmpty) {
       return 'You can only play action cards on your turn or in response to an opponent\'s card.';
     }
     // You can't respond to your own card — let it resolve first. Responses are
-    // only legal against a card the opponent controls on top of the stack. This
+    // only legal against a card the opponent controls on top of the horizon. This
     // also constrains granted play-from-trash (Consult the Past 38, Brought
     // Back 72): the grant lets you play from the trash, but timing still applies
     // — you may only do so proactively or in response to the opponent's card.
-    if (!stackEmpty && controllerOf(state.zones.stack[0]) === playerId) {
+    if (!horizonEmpty && controllerOf(state.zones.horizon[0]) === playerId) {
       return 'You cannot respond to your own card; let it resolve first.';
     }
     // Injustice (67) — can't play an action in response to a protected action.
-    const top = state.zones.stack[0];
+    const top = state.zones.horizon[0];
     if (top?.responsesLocked && controllerOf(top) !== playerId) {
       return 'That action card is protected from action responses.';
     }
@@ -82,9 +82,9 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     switch (restriction.type) {
       case 'responseOnly': {
         // Must be played in response to the specified type
-        if (stackEmpty) return `${card.name} can only be played in response.`;
+        if (horizonEmpty) return `${card.name} can only be played in response.`;
         if (restriction.filter !== 'any') {
-          const topCard = getCard(state.zones.stack[0].cardId);
+          const topCard = getCard(state.zones.horizon[0].cardId);
           if (topCard.type !== restriction.filter) {
             return `${card.name} can only be played in response to ${restriction.filter} cards.`;
           }
@@ -111,7 +111,7 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   // ── Additional costs must be payable (Sneak 08, Vitalize 25) ──────────────
-  // Treated like energy: if you can't pay, you can't put the card on the stack.
+  // Treated like energy: if you can't pay, you can't put the card on the horizon.
   const handCosts = (card.additionalCosts ?? []).filter(
     c => c.type === 'trashFromHand' || c.type === 'putHandCardOnDeckTop'
   );
@@ -128,14 +128,14 @@ export function validatePlay(state, playerId, cardId, context = {}) {
 }
 
 function checkPointResponsePermission(state, playerId, context) {
-  // With the Sky (28) on stack — opponent may play point cards
+  // With the Sky (28) on horizon — opponent may play point cards
   if (opponentPointResponseAllowed(state)) return true;
 
   // Blinding Flash (51) active for this player — may play point vs actions
   if (state.players[playerId].pointResponseToActions) {
-    // Check the top of stack is an action card
-    if (state.zones.stack.length > 0) {
-      const topCard = getCard(state.zones.stack[0].cardId);
+    // Check the top of horizon is an action card
+    if (state.zones.horizon.length > 0) {
+      const topCard = getCard(state.zones.horizon[0].cardId);
       if (topCard.type === 'action') return true;
     }
   }

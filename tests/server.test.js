@@ -130,9 +130,9 @@ describe('Game actions over WebSocket', () => {
     expect(err.code).toBe('NOT_YOUR_PRIORITY');
   });
 
-  test('passing on an empty stack ends the turn (opponent has no response to give)', async () => {
+  test('passing on an empty horizon ends the turn (opponent has no response to give)', async () => {
     const { p1 } = await startTestGame();
-    // p1 passes with an empty stack on its own turn. p2's resulting priority is
+    // p1 passes with an empty horizon on its own turn. p2's resulting priority is
     // a dead end-of-turn window (nothing it could possibly play), so it is
     // auto-skipped and the turn ends on this single pass.
     p1.send({ type: 'PASS_PRIORITY' });
@@ -142,19 +142,19 @@ describe('Game actions over WebSocket', () => {
     expect(after.state.activePlayer).toBe('p2');
   });
 
-  test('played card appears on stack for both players', async () => {
+  test('played card appears on horizon for both players', async () => {
     const { p1, p2, p1State } = await startTestGame();
     const zeroCost = ['53', '56', '65', '66'];
     const card = p1State.state.players.p1.hand.find(id => zeroCost.includes(id));
     if (!card) return;
-    // p2's window is live regardless of its hand: p1's card is on the stack for
+    // p2's window is live regardless of its hand: p1's card is on the horizon for
     // it to respond to, so priority moves to p2.
 
     p1.send({ type: 'PLAY_CARD', cardId: card });
     const [s1, s2] = await Promise.all([p1.nextState(), p2.nextState()]);
-    expect(s1.state.zones.stack).toHaveLength(1);
-    expect(s1.state.zones.stack[0].cardId).toBe(card);
-    expect(s2.state.zones.stack[0].cardId).toBe(card);
+    expect(s1.state.zones.horizon).toHaveLength(1);
+    expect(s1.state.zones.horizon[0].cardId).toBe(card);
+    expect(s2.state.zones.horizon[0].cardId).toBe(card);
     expect(s1.state.activePlayer).toBe('p2');
   });
 
@@ -185,7 +185,7 @@ describe('Game actions over WebSocket', () => {
     expect(s3.state.players.p1.energy).toBe(9);
     expect(s3.state.players.p1.handSize).toBe(2);
 
-    // End turn: p1 passes on an empty stack. p2's end-of-turn window is dead, so
+    // End turn: p1 passes on an empty horizon. p2's end-of-turn window is dead, so
     // it is auto-skipped and the turn ends on this single pass.
     p1.send({ type: 'PASS_PRIORITY' });
     const endState = await p1.nextState();

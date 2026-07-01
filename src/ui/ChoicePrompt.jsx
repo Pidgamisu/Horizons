@@ -50,7 +50,7 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
   )
 }
 
-export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy = 0, onRespond }) {
+export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnergy = 0, onRespond }) {
   const [selected, setSelected] = useState([])
 
   const toggle = (id) => {
@@ -80,8 +80,8 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
       onRespond({ cardIds: selected })
     } else if (type === 'putFromTrashToHand' || type === 'putFromTrashToDeckBottom') {
       onRespond({ cardIds: selected })
-    } else if (['trashFromStack', 'returnToControllerHand', 'stealFromStack', 'gainControl', 'moveFromStackToDeckTop', 'trashUnlessControllerPaysTarget', 'controllerMovesCardFromStackTarget'].includes(type)) {
-      onRespond({ stackIndex: parseInt(selected[0]) })
+    } else if (['trashFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl', 'moveFromHorizonToDeckTop', 'trashUnlessControllerPaysTarget', 'controllerMovesCardFromHorizonTarget'].includes(type)) {
+      onRespond({ horizonIndex: parseInt(selected[0]) })
     } else if (type === 'optional') {
       onRespond({ accept: true })
     } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToTrashFromRevealedHand' || type === 'opponentChoosesOne') {
@@ -128,16 +128,16 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
   let isFreePlayChoice = false
   let isDestinationChoice = false
 
-  if (type === 'controllerMovesCardFromStackTarget') {
+  if (type === 'controllerMovesCardFromHorizonTarget') {
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
-    title = `Choose a ${filterLabel} on the stack`
+    title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller will move it to the top or bottom of the deck'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Choose'
   }
 
-  else if (type === 'controllerMovesCardFromStack') {
+  else if (type === 'controllerMovesCardFromHorizon') {
     isDestinationChoice = true
     title = `Move ${cardName(choice.targetCardId)} to the deck`
     subtitle = 'Top or bottom?'
@@ -192,9 +192,9 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
 
   else if (type === 'trashUnlessControllerPaysTarget') {
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
-    title = `Choose a ${filterLabel} on the stack`
+    title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller may pay the ransom to save it'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Target'
   }
@@ -261,11 +261,11 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
     canConfirm = selected.length === (count ?? 1)
   }
 
-  else if (type === 'trashFromStack' || type === 'trashFromStackChoice') {
+  else if (type === 'trashFromHorizon' || type === 'trashFromHorizonChoice') {
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
-    title = `Trash a ${filterLabel} from the stack`
+    title = `Trash a ${filterLabel} from the horizon`
     subtitle = 'Select a card to trash'
-    cards = stackCards
+    cards = horizonCards
       .filter(e => filter === 'any' || true) // server enforces type
       .map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
@@ -273,33 +273,33 @@ export function ChoicePrompt({ choice, myHand, stackCards, trashCards, myEnergy 
   }
 
   else if (type === 'returnToControllerHand') {
-    title = 'Return a card from the stack'
+    title = 'Return a card from the horizon'
     subtitle = 'Choose a card to return to its controller\'s hand'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Return'
   }
 
-  else if (type === 'moveFromStackToDeckTop') {
-    title = 'Put a card from the stack on top of the deck'
-    subtitle = 'Choose a card on the stack'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+  else if (type === 'moveFromHorizonToDeckTop') {
+    title = 'Put a card from the horizon on top of the deck'
+    subtitle = 'Choose a card on the horizon'
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Put on Deck'
   }
 
-  else if (type === 'stealFromStack') {
-    title = 'Take a point card from the stack'
+  else if (type === 'stealFromHorizon') {
+    title = 'Take a point card from the horizon'
     subtitle = 'Choose a point card to put into your hand'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Take'
   }
 
   else if (type === 'gainControl') {
-    title = 'Gain control of a card on the stack'
+    title = 'Gain control of a card on the horizon'
     subtitle = 'Choose a card'
-    cards = stackCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
     canConfirm = selected.length === 1
     confirmLabel = 'Take Control'
   }

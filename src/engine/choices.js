@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  drawCards, trashCardFromHand, sendToTrash, trashFromStack,
-  removeFromStack, opponent, controllerOf, stackEntryMatchesFilter,
+  drawCards, trashCardFromHand, sendToTrash, trashFromHorizon,
+  removeFromHorizon, opponent, controllerOf, horizonEntryMatchesFilter,
 } from '../engine/state.js';
 
 /**
@@ -40,16 +40,16 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'trashFromStack': {
-      // payload: { stackIndex: number }
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+    case 'trashFromHorizon': {
+      // payload: { horizonIndex: number }
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      const trashed = trashFromStack(state, stackIndex);
-      events.push({ type: 'CARD_TRASHED_FROM_STACK', cardId: trashed.cardId });
+      const trashed = trashFromHorizon(state, horizonIndex);
+      events.push({ type: 'CARD_TRASHED_FROM_HORIZON', cardId: trashed.cardId });
 
       // Execute thenGrant if present (Metamorphosis 61, Reinstate 84, etc.)
       if (choice.thenGrant) {
@@ -63,56 +63,56 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'trashAllFromStack': {
+    case 'trashAllFromHorizon': {
       // No player input needed — auto-resolve
       const trashed = [];
-      while (state.zones.stack.length > 0) {
-        const e = state.zones.stack.shift();
+      while (state.zones.horizon.length > 0) {
+        const e = state.zones.horizon.shift();
         sendToTrash(state, e.cardId);
         trashed.push(e.cardId);
       }
-      events.push({ type: 'STACK_CLEARED', cards: trashed, count: trashed.length });
+      events.push({ type: 'HORIZON_CLEARED', cards: trashed, count: trashed.length });
       break;
     }
 
     case 'returnToControllerHand': {
-      // payload: { stackIndex: number }
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+      // payload: { horizonIndex: number }
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      const removed = removeFromStack(state, stackIndex);
+      const removed = removeFromHorizon(state, horizonIndex);
       const returnTo = controllerOf(removed);
       state.players[returnTo].hand.push(removed.cardId);
       events.push({ type: 'CARD_RETURNED_TO_HAND', cardId: removed.cardId, player: returnTo });
       break;
     }
 
-    case 'moveFromStackToDeckTop': {
-      // payload: { stackIndex: number }  — Regret (41)
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+    case 'moveFromHorizonToDeckTop': {
+      // payload: { horizonIndex: number }  — Regret (41)
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      const removed = removeFromStack(state, stackIndex);
+      const removed = removeFromHorizon(state, horizonIndex);
       state.zones.deck.unshift(removed.cardId);
       events.push({ type: 'CARD_TO_DECK', cardId: removed.cardId, destination: 'deckTop' });
       break;
     }
 
-    case 'stealFromStack': {
-      // payload: { stackIndex: number }  — Steal Intensity (86)
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+    case 'stealFromHorizon': {
+      // payload: { horizonIndex: number }  — Steal Intensity (86)
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      const removed = removeFromStack(state, stackIndex);
+      const removed = removeFromHorizon(state, horizonIndex);
       state.players[playerId].hand.push(removed.cardId);
       events.push({ type: 'CARD_STOLEN_TO_HAND', cardId: removed.cardId, player: playerId });
       break;
@@ -167,11 +167,11 @@ export function resolveChoice(state, playerId, payload) {
     }
 
     case 'gainControl': {
-      // payload: { stackIndex: number }  — Change of Luck (58), Reverse (42)
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+      // payload: { horizonIndex: number }  — Change of Luck (58), Reverse (42)
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       entry.controlledBy = playerId;
@@ -185,11 +185,11 @@ export function resolveChoice(state, playerId, payload) {
     }
 
     case 'trashUnlessControllerPaysTarget': {
-      // payload: { stackIndex } — the caster chooses which stack card to target.
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+      // payload: { horizonIndex } — the caster chooses which horizon card to target.
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       const ransom = choice.ransom;
@@ -198,7 +198,7 @@ export function resolveChoice(state, playerId, payload) {
       state.pendingChoice = {
         type: 'trashUnlessControllerPays',
         player: owner,
-        targetIndex: stackIndex,
+        targetIndex: horizonIndex,
         targetCardId: entry.cardId,
         ransom,
         ransomCost: ransom?.type === 'payEnergy' ? resolveRansomCost(state, ransom) : null,
@@ -212,14 +212,14 @@ export function resolveChoice(state, playerId, payload) {
       // The targeted card's controller (choice.player) decides. The target was
       // chosen by the engine and stored as choice.targetIndex.
       const { pay } = payload;
-      const stackIndex = choice.targetIndex;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
+      const horizonIndex = choice.targetIndex;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
       const ransom = choice.ransom;
 
       if (!pay) {
-        const trashed = trashFromStack(state, stackIndex);
-        events.push({ type: 'CARD_TRASHED_FROM_STACK', cardId: trashed.cardId, reason: 'ransom_declined' });
+        const trashed = trashFromHorizon(state, horizonIndex);
+        events.push({ type: 'CARD_TRASHED_FROM_HORIZON', cardId: trashed.cardId, reason: 'ransom_declined' });
         break;
       }
 
@@ -335,35 +335,35 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'controllerMovesCardFromStackTarget': {
-      // payload: { stackIndex } — Journey (57): caster picks which action to move.
-      const { stackIndex } = payload;
-      const entry = state.zones.stack[stackIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      if (!stackEntryMatchesFilter(entry, choice.filter)) {
+    case 'controllerMovesCardFromHorizonTarget': {
+      // payload: { horizonIndex } — Journey (57): caster picks which action to move.
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
       // Step 2: that card's controller chooses the destination.
       state.pendingChoice = {
-        type: 'controllerMovesCardFromStack',
+        type: 'controllerMovesCardFromHorizon',
         player: controllerOf(entry),
-        targetIndex: stackIndex,
+        targetIndex: horizonIndex,
         targetCardId: entry.cardId,
         destinations: choice.destinations ?? ['deckTop', 'deckBottom'],
       };
-      events.push({ type: 'STACK_MOVE_TARGETED', cardId: entry.cardId, controller: controllerOf(entry) });
+      events.push({ type: 'HORIZON_MOVE_TARGETED', cardId: entry.cardId, controller: controllerOf(entry) });
       return { events, error: null }; // suspend for the controller's decision
     }
 
-    case 'controllerMovesCardFromStack': {
+    case 'controllerMovesCardFromHorizon': {
       // payload: { destination: 'deckTop' | 'deckBottom' }  — Journey (57)
       const { destination } = payload;
       if (!(choice.destinations ?? ['deckTop', 'deckBottom']).includes(destination)) {
         error = 'Must choose a valid destination.'; break;
       }
-      const entry = state.zones.stack[choice.targetIndex];
-      if (!entry) { error = 'Invalid stack index.'; break; }
-      const removed = removeFromStack(state, choice.targetIndex);
+      const entry = state.zones.horizon[choice.targetIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      const removed = removeFromHorizon(state, choice.targetIndex);
       if (destination === 'deckTop') {
         state.zones.deck.unshift(removed.cardId);
       } else {
@@ -401,7 +401,7 @@ export function resolveChoice(state, playerId, payload) {
       // payload: { play: boolean }  — Predict (54) follow-up
       if (payload.play) {
         const { cardId } = choice;
-        // Play the card for 0 energy — put it on stack
+        // Play the card for 0 energy — put it on horizon
         state.players[playerId].hand.push(cardId); // temp add to hand
         events.push({ type: 'FREE_PLAY_CONFIRMED', cardId, player: playerId });
         // Caller (server) will handle the actual playCard call
@@ -503,7 +503,7 @@ export function resolveChoice(state, playerId, payload) {
 export function resolveRansomCost(state, ransom) {
   if (typeof ransom.amount === 'number') return ransom.amount;
   if (ransom.amount === 'countInTrash:any') return state.zones.trash.length;
-  if (ransom.amount === 'countOnStack:any') return state.zones.stack.length;
+  if (ransom.amount === 'countOnHorizon:any') return state.zones.horizon.length;
   return 0;
 }
 

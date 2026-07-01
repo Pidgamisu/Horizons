@@ -1,13 +1,13 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  drawCards, trashCardFromHand, trashHand, trashFromStack,
-  sendToTrash, removeFromStack, shuffle, opponent, controllerOf,
-  stackHasTarget,
+  drawCards, trashCardFromHand, trashHand, trashFromHorizon,
+  sendToTrash, removeFromHorizon, shuffle, opponent, controllerOf,
+  horizonHasTarget,
 } from '../engine/state.js';
 
 /**
  * Execute all effects of a card when it resolves.
- * entry = the StackEntry that just resolved.
+ * entry = the HorizonEntry that just resolved.
  * Returns an array of event objects describing what happened (for broadcast).
  */
 export function executeEffects(state, entry) {
@@ -34,7 +34,7 @@ export function executeEffects(state, entry) {
 }
 
 /**
- * Execute onPlayEffects — triggered when the card hits the stack, not on resolution.
+ * Execute onPlayEffects — triggered when the card hits the horizon, not on resolution.
  */
 export function executeOnPlayEffects(state, entry) {
   const card = getCard(entry.cardId);
@@ -128,32 +128,32 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'trashFromStack': {
-      // No legal target on the (remaining) stack → skip instead of prompting an
+    case 'trashFromHorizon': {
+      // No legal target on the (remaining) horizon → skip instead of prompting an
       // impossible choice that would hardlock the game.
-      if (!stackHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashFromStack', filter: effect.filter });
+      if (!horizonHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashFromHorizon', filter: effect.filter });
         break;
       }
       state.pendingTriggers.push({
-        type: 'trashFromStackChoice',
+        type: 'trashFromHorizonChoice',
         player: controller,
         filter: effect.filter,
         thenGrant: effect.thenGrant ?? null,
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashFromStack', filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashFromHorizon', filter: effect.filter });
       break;
     }
 
-    case 'trashAllFromStack': {
+    case 'trashAllFromHorizon': {
       const trashed = [];
-      while (state.zones.stack.length > 0) {
-        const e = state.zones.stack.shift();
+      while (state.zones.horizon.length > 0) {
+        const e = state.zones.horizon.shift();
         sendToTrash(state, e.cardId);
         trashed.push(e.cardId);
       }
       ctx.cardsJustTrashed = (ctx.cardsJustTrashed ?? 0) + trashed.length;
-      events.push({ type: 'STACK_CLEARED', cards: trashed });
+      events.push({ type: 'HORIZON_CLEARED', cards: trashed });
       break;
     }
 
@@ -192,34 +192,34 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'returnToControllerHand': {
-      if (!stackHasTarget(state, effect.filter)) {
+      if (!horizonHasTarget(state, effect.filter)) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'returnToControllerHand', filter: effect.filter });
         break;
       }
-      state.pendingTriggers.push({ type: 'returnStackCardToHandChoice', player: controller, filter: effect.filter });
+      state.pendingTriggers.push({ type: 'returnHorizonCardToHandChoice', player: controller, filter: effect.filter });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'returnToControllerHand', filter: effect.filter });
       break;
     }
 
-    case 'moveFromStackToHand': {
-      // Steal Intensity (86) — puts a point card on stack into your own hand
-      if (!stackHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromStackToHand', filter: effect.filter });
+    case 'moveFromHorizonToHand': {
+      // Steal Intensity (86) — puts a point card on horizon into your own hand
+      if (!horizonHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromHorizonToHand', filter: effect.filter });
         break;
       }
-      state.pendingTriggers.push({ type: 'stealFromStackChoice', player: controller, filter: effect.filter });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'stealFromStack', filter: effect.filter });
+      state.pendingTriggers.push({ type: 'stealFromHorizonChoice', player: controller, filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'stealFromHorizon', filter: effect.filter });
       break;
     }
 
-    case 'moveFromStackToDeckTop': {
-      // Regret (41) — controller picks a card on the stack to put on top of the deck
-      if (!stackHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromStackToDeckTop', filter: effect.filter });
+    case 'moveFromHorizonToDeckTop': {
+      // Regret (41) — controller picks a card on the horizon to put on top of the deck
+      if (!horizonHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveFromHorizonToDeckTop', filter: effect.filter });
         break;
       }
-      state.pendingTriggers.push({ type: 'moveFromStackToDeckTop', player: controller, filter: effect.filter });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'moveFromStackToDeckTop', filter: effect.filter });
+      state.pendingTriggers.push({ type: 'moveFromHorizonToDeckTop', player: controller, filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'moveFromHorizonToDeckTop', filter: effect.filter });
       break;
     }
 
@@ -246,20 +246,20 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'controllerMovesCardFromStack': {
-      // Journey (57): caster picks an action on the stack; step 2 lets THAT
+    case 'controllerMovesCardFromHorizon': {
+      // Journey (57): caster picks an action on the horizon; step 2 lets THAT
       // card's controller choose to put it on the top or bottom of the deck.
-      if (!stackHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'controllerMovesCardFromStack', filter: effect.filter });
+      if (!horizonHasTarget(state, effect.filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'controllerMovesCardFromHorizon', filter: effect.filter });
         break;
       }
       state.pendingTriggers.push({
-        type: 'controllerMovesCardFromStackTarget',
+        type: 'controllerMovesCardFromHorizonTarget',
         player: controller,
         filter: effect.filter,
         destinations: effect.destinations ?? ['deckTop', 'deckBottom'],
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'controllerMovesCardFromStackTarget', filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'controllerMovesCardFromHorizonTarget', filter: effect.filter });
       break;
     }
 
@@ -306,9 +306,9 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
     case 'trashUnlessControllerPays': {
       // Drown in Fog (59), Chains (74), Poke (87), Overconfidence (71).
-      // Step 1: the caster picks which stack card to target. Step 2 (set up when
+      // Step 1: the caster picks which horizon card to target. Step 2 (set up when
       // this resolves) lets THAT card's controller pay the ransom or lose it.
-      if (!stackHasTarget(state, effect.filter)) {
+      if (!horizonHasTarget(state, effect.filter)) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'trashUnlessControllerPays', filter: effect.filter });
         break;
       }
@@ -323,7 +323,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'moveSelf': {
-      // The card being resolved (already removed from stack before this runs)
+      // The card being resolved (already removed from horizon before this runs)
       if (effect.to === 'deckTop') {
         state.zones.deck.unshift(entry.cardId);
         events.push({ type: 'CARD_TO_DECK_TOP', card: entry.cardId });
@@ -334,21 +334,21 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'swapStackPositions': {
+    case 'swapHorizonPositions': {
       // Forever Borrow (36): swap this card's position with the responded-to card
-      const selfIdx = state.zones.stack.findIndex(e => e === entry);
+      const selfIdx = state.zones.horizon.findIndex(e => e === entry);
       const targetIdx = entry.respondedToCardIndex;
       if (selfIdx !== -1 && targetIdx !== null && targetIdx !== -1) {
-        const temp = state.zones.stack[selfIdx];
-        state.zones.stack[selfIdx] = state.zones.stack[targetIdx];
-        state.zones.stack[targetIdx] = temp;
-        events.push({ type: 'STACK_POSITIONS_SWAPPED', indexA: selfIdx, indexB: targetIdx });
+        const temp = state.zones.horizon[selfIdx];
+        state.zones.horizon[selfIdx] = state.zones.horizon[targetIdx];
+        state.zones.horizon[targetIdx] = temp;
+        events.push({ type: 'HORIZON_POSITIONS_SWAPPED', indexA: selfIdx, indexB: targetIdx });
       }
       break;
     }
 
     case 'gainControl': {
-      if (!stackHasTarget(state, effect.filter)) {
+      if (!horizonHasTarget(state, effect.filter)) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'gainControl', filter: effect.filter });
         break;
       }
@@ -480,9 +480,9 @@ function resolvePlayers(spec, controller, opp) {
 function resolveAmount(state, amount, ctx) {
   if (typeof amount === 'number') return amount;
   if (amount === 'cardsJustTrashed') return ctx.cardsJustTrashed ?? 0;
-  if (amount === 'highestCostOnStack') {
-    if (state.zones.stack.length === 0) return 0;
-    return Math.max(...state.zones.stack.map(e => getCard(e.cardId).energyCost));
+  if (amount === 'highestCostOnHorizon') {
+    if (state.zones.horizon.length === 0) return 0;
+    return Math.max(...state.zones.horizon.map(e => getCard(e.cardId).energyCost));
   }
   if (amount === 'distinctEnergyCostsInTrash') {
     return new Set(state.zones.trash.map(id => getCard(id).energyCost)).size;
@@ -493,8 +493,8 @@ function resolveAmount(state, amount, ctx) {
       ? state.zones.trash.length
       : state.zones.trash.filter(id => getCard(id).type === filter).length;
   }
-  if (typeof amount === 'string' && amount.startsWith('countOnStack:')) {
-    return state.zones.stack.length;
+  if (typeof amount === 'string' && amount.startsWith('countOnHorizon:')) {
+    return state.zones.horizon.length;
   }
   return 0;
 }

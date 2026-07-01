@@ -19,17 +19,17 @@ import { cardName, cardImageSrc } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
 
-// Events where a card is removed from the stack before resolving (= countered):
+// Events where a card is removed from the horizon before resolving (= countered):
 // trashed, bounced to hand, stolen, moved to the deck, or trashed by a trigger.
-const STACK_REMOVAL_EVENTS = new Set([
-  'CARD_TRASHED_FROM_STACK',
+const HORIZON_REMOVAL_EVENTS = new Set([
+  'CARD_TRASHED_FROM_HORIZON',
   'CARD_RETURNED_TO_HAND',
   'CARD_STOLEN_TO_HAND',
   'CARD_TO_DECK',
   'CARD_TRASHED_BY_TRIGGER',
 ])
 
-function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackCardClick, onCardHover, onZoneClick, onCardHold, onCardHoldEnd }) {
+function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizonCardClick, onCardHover, onZoneClick, onCardHold, onCardHoldEnd }) {
   const editor = useEditor()
   const boardRef = useRef(null)
   const suppressClickRef = useRef(false)
@@ -98,12 +98,12 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onStackC
       const { cardId, zone } = shape.props
       if (zone === 'trash') onZoneClick('trash')
       else if (zone === 'hand') onCardClick(cardId)
-      else if (zone === 'stack') onStackCardClick(cardId, editor)
+      else if (zone === 'horizon') onHorizonCardClick(cardId, editor)
     }
 
     container.addEventListener('click', handleClick)
     return () => container.removeEventListener('click', handleClick)
-  }, [editor, onCardClick, onStackCardClick, onZoneClick])
+  }, [editor, onCardClick, onHorizonCardClick, onZoneClick])
 
   // Press-and-hold a face-up card to preview it enlarged. A short hold timer
   // distinguishes a hold from a click; releasing ends the preview and suppresses
@@ -210,9 +210,9 @@ export default function App() {
     }
     const onEvents = ({ detail }) => {
       for (const ev of detail.events) {
-        // Any effect that removes a card from the stack before it resolves = countered.
-        if (STACK_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
-        if (ev.type === 'STACK_CLEARED') addToast(`Stack cleared — ${ev.cards?.length ?? 0} trashed`)
+        // Any effect that removes a card from the horizon before it resolves = countered.
+        if (HORIZON_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
+        if (ev.type === 'HORIZON_CLEARED') addToast(`Horizon cleared — ${ev.cards?.length ?? 0} trashed`)
         if (ev.type === 'HAND_REVEALED') {
           const me = client.playerId
           const opp = me === 'p1' ? 'p2' : 'p1'
@@ -224,7 +224,7 @@ export default function App() {
           }
         }
         if (ev.type === 'CONTROL_GAINED') addToast('Gained control of a card')
-        if (ev.type === 'STACK_POSITIONS_SWAPPED') addToast('Stack order swapped!')
+        if (ev.type === 'HORIZON_POSITIONS_SWAPPED') addToast('Horizon order swapped!')
         if (ev.type === 'GAME_OVER') {
           addToast(ev.winner === myPlayerId ? '🎉 You win!' : 'You lose.', ev.winner === myPlayerId ? 'success' : 'error')
         }
@@ -259,19 +259,19 @@ export default function App() {
     setSelectedCard(prev => prev === cardCode ? null : cardCode)
   }, [])
 
-  const handleStackCardClick = useCallback((cardCode, editor) => {
+  const handleHorizonCardClick = useCallback((cardCode, editor) => {
     const choice = client.pendingChoice
     if (!choice || choice.player !== myPlayerId) return
-    const stackChoiceTypes = ['trashFromStack', 'trashFromStackChoice', 'returnToControllerHand',
-      'returnStackCardToHandChoice', 'stealFromStack', 'stealFromStackChoice',
+    const horizonChoiceTypes = ['trashFromHorizon', 'trashFromHorizonChoice', 'returnToControllerHand',
+      'returnHorizonCardToHandChoice', 'stealFromHorizon', 'stealFromHorizonChoice',
       'gainControl', 'gainControlChoice']
-    if (!stackChoiceTypes.includes(choice.type)) return
-    const stackShapes = editor.getCurrentPageShapes()
-      .filter(s => s.type === 'horizons-card' && s.props.zone === 'stack')
+    if (!horizonChoiceTypes.includes(choice.type)) return
+    const horizonShapes = editor.getCurrentPageShapes()
+      .filter(s => s.type === 'horizons-card' && s.props.zone === 'horizon')
       .sort((a, b) => a.y - b.y)
-    const idx = stackShapes.findIndex(s => s.props.cardId === cardCode)
+    const idx = horizonShapes.findIndex(s => s.props.cardId === cardCode)
     if (idx === -1) return
-    client.choose({ stackIndex: idx })
+    client.choose({ horizonIndex: idx })
     setSelectedCard(null)
   }, [client, myPlayerId])
 
@@ -390,7 +390,7 @@ export default function App() {
             myPlayerId={myPlayerId}
             selectedCard={selectedCard}
             onCardClick={handleCardClick}
-            onStackCardClick={handleStackCardClick}
+            onHorizonCardClick={handleHorizonCardClick}
             onCardHover={handleCardHover}
             onZoneClick={handleZoneClick}
             onCardHold={handleCardHold}
@@ -426,7 +426,7 @@ export default function App() {
         <ChoicePrompt
           choice={pendingChoice}
           myHand={myState?.hand ?? []}
-          stackCards={gameState?.zones?.stack ?? []}
+          horizonCards={gameState?.zones?.horizon ?? []}
           trashCards={gameState?.zones?.trash ?? []}
           myEnergy={myState?.energy ?? 0}
           onRespond={(payload) => { gameClient.choose(payload); setSelectedCard(null) }}

@@ -17,8 +17,8 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       selected: false,
       targeted: false,
       dimmed: false,
-      stackIndex: null,
-      stackIsTop: false,
+      horizonIndex: null,
+      horizonIsTop: false,
       playable: false,
       w: CW,
       h: CH,
@@ -26,8 +26,8 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, stackIndex, stackIsTop, playable, w, h } = shape.props
-    const onStack = zone === 'stack'
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, w, h } = shape.props
+    const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
     const border = targeted ? '2px solid #00e5ff'
@@ -36,7 +36,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
 
     const glow = targeted ? '0 0 14px rgba(0,229,255,0.55)'
       : selected ? '0 0 12px rgba(255,0,153,0.6)'
-      : onStack ? '0 4px 16px rgba(0,0,0,0.5)'
+      : onHorizon ? '0 4px 16px rgba(0,0,0,0.5)'
       : 'none'
 
     // Clicks are resolved by the editor (see App.jsx via editor.getShapeAtPoint),
@@ -73,17 +73,17 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
           />
         )}
 
-        {onStack && stackIndex !== null && (
+        {onHorizon && horizonIndex !== null && (
           <div style={{
             position: 'absolute', top: 4, right: 4,
-            background: stackIsTop ? '#ff0099' : 'rgba(0,0,0,0.65)',
-            color: stackIsTop ? '#fff' : 'rgba(255,255,255,0.55)',
+            background: horizonIsTop ? '#ff0099' : 'rgba(0,0,0,0.65)',
+            color: horizonIsTop ? '#fff' : 'rgba(255,255,255,0.55)',
             fontSize: 9, fontWeight: 800,
             padding: '2px 5px', borderRadius: 4,
             letterSpacing: '0.04em',
-            border: stackIsTop ? 'none' : '1px solid rgba(255,255,255,0.12)',
+            border: horizonIsTop ? 'none' : '1px solid rgba(255,255,255,0.12)',
           }}>
-            {stackIsTop ? 'TOP' : `#${stackIndex + 1}`}
+            {horizonIsTop ? 'TOP' : `#${horizonIndex + 1}`}
           </div>
         )}
 

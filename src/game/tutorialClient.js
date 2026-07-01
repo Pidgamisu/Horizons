@@ -1,5 +1,5 @@
 /**
- * TutorialClient — a scripted, on-rails client that teaches the stack + priority
+ * TutorialClient — a scripted, on-rails client that teaches the horizon + priority
  * exchange without an engine or a second player. It mirrors the public surface
  * of GameClient (same methods + emitted events) so App.jsx and the board/HUD/
  * ActionBar render it exactly like a real game.
@@ -12,17 +12,17 @@
  */
 
 const POINT = '09' // Ambition       — point card, cost 5
-const STOP  = '44' // Stop           — action: trash a card on the stack, cost 3
+const STOP  = '44' // Stop           — action: trash a card on the horizon, cost 3
 const DENY  = '69' // Deny Hostility — action: trash an action played in response to a point, cost 1
 const FILL1 = '45' // Dig for Ideas  — voided for energy
 const FILL2 = '53' // Sort           — voided for energy
 
 // Build a full per-player projection with sensible tutorial defaults; callers
-// override just the fields that change between beats. The stack is ordered
+// override just the fields that change between beats. The horizon is ordered
 // newest-first (index 0 = top), matching the engine (push = unshift, resolve =
 // shift) and how BoardManager renders it.
 function proj({
-  stack = [], p1hand = [], p2handSize = 0, active = 'p1',
+  horizon = [], p1hand = [], p2handSize = 0, active = 'p1',
   p1points = 0, p1energy = 0, p2energy = 3, trash = [], voidSize = 0, turnNumber = 1,
 }) {
   const entry = (e) => ({ cardId: e.cardId, playedBy: e.playedBy, controlledBy: e.playedBy })
@@ -39,15 +39,15 @@ function proj({
         timerSeconds: 1500, lockedFromPlaying: false,
       },
     },
-    zones: { deckSize: 40, stack: stack.map(entry), trash, voidSize },
+    zones: { deckSize: 40, horizon: horizon.map(entry), trash, voidSize },
     pendingChoice: null,
-    cardsPlayedThisTurn: stack.length,
+    cardsPlayedThisTurn: horizon.length,
   }
 }
 
-const ON_STACK_POINT = { cardId: POINT, playedBy: 'p1' }
-const ON_STACK_STOP  = { cardId: STOP,  playedBy: 'p2' }
-const ON_STACK_DENY  = { cardId: DENY,  playedBy: 'p1' }
+const ON_HORIZON_POINT = { cardId: POINT, playedBy: 'p1' }
+const ON_HORIZON_STOP  = { cardId: STOP,  playedBy: 'p2' }
+const ON_HORIZON_DENY  = { cardId: DENY,  playedBy: 'p1' }
 
 // The scripted beats, in order. mode drives how a beat advances:
 //   'continue' — wait for the player to click Continue
@@ -82,44 +82,44 @@ const BEATS = [
   },
   {
     mode: 'auto', autoMs: 1200,
-    state: proj({ stack: [ON_STACK_POINT], p1hand: [DENY], p2handSize: 1, active: 'p2', p1energy: 1, voidSize: 2 }),
-    narration: 'Your point card goes onto the **stack**. It doesn’t score yet — first your opponent gets a chance to respond…',
+    state: proj({ horizon: [ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 1, active: 'p2', p1energy: 1, voidSize: 2 }),
+    narration: 'Your point card goes onto the **horizon**. It doesn’t score yet — first your opponent gets a chance to respond…',
   },
   {
     mode: 'continue',
-    state: proj({ stack: [ON_STACK_STOP, ON_STACK_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
-    narration: 'They played **Stop** to trash your point card! The stack resolves **top-first**, so Stop would resolve before your point. You’ll need to answer it.',
+    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
+    narration: 'They played **Stop** to trash your point card! The horizon resolves **top-first**, so Stop would resolve before your point. You’ll need to answer it.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: DENY }, highlight: DENY,
-    state: proj({ stack: [ON_STACK_STOP, ON_STACK_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
+    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
     narration: 'Counter their Stop with **Deny Hostility** — it trashes an action played in response to a point card. Click it, then **Play**.',
   },
   {
     mode: 'auto', autoMs: 1100,
-    state: proj({ stack: [ON_STACK_DENY, ON_STACK_STOP, ON_STACK_POINT], p1hand: [], p2handSize: 0, active: 'p2', p1energy: 0, p2energy: 0, voidSize: 2 }),
-    narration: 'Deny Hostility lands on **top** of the stack. Your opponent has no answer and passes priority…',
+    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p2', p1energy: 0, p2energy: 0, voidSize: 2 }),
+    narration: 'Deny Hostility lands on **top** of the horizon. Your opponent has no answer and passes priority…',
   },
   {
     mode: 'action', expect: { action: 'pass' },
-    state: proj({ stack: [ON_STACK_DENY, ON_STACK_STOP, ON_STACK_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, voidSize: 2 }),
+    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, voidSize: 2 }),
     narration: 'Now **you** pass too. When both players pass, the top card resolves. Hit **Pass** (or press Space).',
   },
   {
     mode: 'auto', autoMs: 1500,
-    events: [{ type: 'CARD_TRASHED_FROM_STACK', cardId: STOP }],
-    state: proj({ stack: [ON_STACK_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, trash: [STOP, DENY], voidSize: 2 }),
+    events: [{ type: 'CARD_TRASHED_FROM_HORIZON', cardId: STOP }],
+    state: proj({ horizon: [ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, trash: [STOP, DENY], voidSize: 2 }),
     narration: 'Deny Hostility resolves and trashes their **Stop**. Your point card survives — and it’s next to resolve.',
   },
   {
     mode: 'continue',
-    state: proj({ stack: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'With the stack clear, your point card resolves — **you score a point!** 🎉',
+    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
+    narration: 'With the horizon clear, your point card resolves — **you score a point!** 🎉',
   },
   {
     mode: 'done',
-    state: proj({ stack: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'That’s the heart of Horizons: **void** cards for energy to fuel your plays, and remember the **stack is last-in, first-out** — whoever answers the *final* threat wins the exchange. Reach **5 points** to win. You’re ready!',
+    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
+    narration: 'That’s the heart of Horizons: **void** cards for energy to fuel your plays, and remember the **horizon is last-in, first-out** — whoever answers the *final* threat wins the exchange. Reach **5 points** to win. You’re ready!',
   },
 ]
 

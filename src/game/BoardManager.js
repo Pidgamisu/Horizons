@@ -7,7 +7,7 @@ const GAP = 10
 const ZONES = {
   opponentHand: { cx: 0, cy: -340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'opponent-hand' },
   myHand:       { cx: 0, cy:  340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'hand' },
-  stack:        { cx: -220, cy: 0, w: CW + 40, h: 460,  label: 'Stack', zoneType: 'stack' },
+  horizon:        { cx: -220, cy: 0, w: CW + 40, h: 460,  label: 'Horizon', zoneType: 'horizon' },
   trash:        { cx:  20,  cy: 0, w: CW + 40, h: CH + 40, label: 'Trash', zoneType: 'trash' },
   deck:         { cx:  180, cy: -100, w: CW + 40, h: CH + 40, label: 'Deck', zoneType: 'deck' },
   void:         { cx:  180, cy:  100, w: CW + 40, h: CH + 40, label: 'Void', zoneType: 'void' },
@@ -32,7 +32,7 @@ export class BoardManager {
       !(state.pendingChoice && state.pendingChoice.player === myPlayerId)
     this.editor.run(() => {
       this._syncZones(state)
-      this._syncStack(state.zones?.stack ?? [])
+      this._syncHorizon(state.zones?.horizon ?? [])
       this._syncHand(state.players?.[myPlayerId]?.hand ?? [], canAct)
       this._syncOpponentHand(state.players?.[opp]?.handSize ?? 0)
       this._syncTrash(state.zones?.trash ?? [])
@@ -66,34 +66,34 @@ export class BoardManager {
     }
   }
 
-  // ── Stack ─────────────────────────────────────────────────────────────────────
+  // ── Horizon ─────────────────────────────────────────────────────────────────────
 
-  _syncStack(entries) {
-    this._clearPrefix('card-stack-')
+  _syncHorizon(entries) {
+    this._clearPrefix('card-horizon-')
     if (!entries.length) return
 
-    const z = ZONES.stack
+    const z = ZONES.horizon
     // Overlap the stacked cards (pitch < card height) and center the pile
     // vertically so it stays in the band between the two hands and never
-    // collides with them. Top of the stack (i=0) is the newest entry.
+    // collides with them. Top of the horizon (i=0) is the newest entry.
     const PITCH = 80
     const totalH = (entries.length - 1) * PITCH + CH
     const startY = z.cy - totalH / 2
     const shapes = entries.map((entry, i) => ({
-      id: sid(`card-stack-${i}`),
+      id: sid(`card-horizon-${i}`),
       type: 'horizons-card',
       isLocked: true,
       x: z.cx - CW / 2,
       y: startY + i * PITCH,
       props: {
-        cardId: entry.cardId, faceUp: true, zone: 'stack',
+        cardId: entry.cardId, faceUp: true, zone: 'horizon',
         owner: entry.playedBy, selected: false, targeted: false,
         dimmed: false, w: CW, h: CH,
-        stackIndex: i,        // used for choice targeting
-        stackIsTop: i === 0,  // visual badge
+        horizonIndex: i,        // used for choice targeting
+        horizonIsTop: i === 0,  // visual badge
       },
     }))
-    // Create bottom-to-top so the top-of-stack card (i=0) is drawn last and
+    // Create bottom-to-top so the top-of-horizon card (i=0) is drawn last and
     // therefore overlaps the cards below it.
     this.editor.createShapes(shapes.reverse())
   }
@@ -172,13 +172,13 @@ export class BoardManager {
       this._setAllTargeted(false)
       return
     }
-    const stackChoiceTypes = ['trashFromStack','trashFromStackChoice','returnToControllerHand',
-                              'returnStackCardToHandChoice','stealFromStack','stealFromStackChoice',
+    const horizonChoiceTypes = ['trashFromHorizon','trashFromHorizonChoice','returnToControllerHand',
+                              'returnHorizonCardToHandChoice','stealFromHorizon','stealFromHorizonChoice',
                               'gainControl','gainControlChoice','trashUnlessControllerPays']
-    if (stackChoiceTypes.includes(choice.type)) {
+    if (horizonChoiceTypes.includes(choice.type)) {
       const updates = this.editor.getCurrentPageShapes()
         .filter(s => s.type === 'horizons-card')
-        .map(s => ({ shape: s, want: s.props.zone === 'stack' }))
+        .map(s => ({ shape: s, want: s.props.zone === 'horizon' }))
         .filter(({ shape, want }) => shape.props.targeted !== want)
         .map(({ shape, want }) => ({ id: shape.id, type: 'horizons-card', props: { targeted: want } }))
       if (updates.length) this.editor.updateShapes(updates)

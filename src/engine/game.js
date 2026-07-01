@@ -1,6 +1,6 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  createGameState, createStackEntry, createTurnFlags,
+  createGameState, createHorizonEntry, createTurnFlags,
   drawCards, sendToTrash, opponent, controllerOf, computeActualCost,
   isChoiceTrigger,
 } from './state.js';
@@ -65,10 +65,10 @@ export function playCard(state, playerId, cardId, context = {}) {
     hand.splice(hand.indexOf(cardId), 1);
   }
 
-  // Build stack entry
-  const entry = createStackEntry(cardId, playerId, {
-    respondedToCardIndex: state.zones.stack.length > 0 ? 0 : null,
-    respondedToCardType:  state.zones.stack.length > 0 ? getCard(state.zones.stack[0].cardId).type : null,
+  // Build horizon entry
+  const entry = createHorizonEntry(cardId, playerId, {
+    respondedToCardIndex: state.zones.horizon.length > 0 ? 0 : null,
+    respondedToCardType:  state.zones.horizon.length > 0 ? getCard(state.zones.horizon[0].cardId).type : null,
   });
 
   // Injustice (67): if this player's next action is protected, lock responses
@@ -78,13 +78,13 @@ export function playCard(state, playerId, cardId, context = {}) {
     state.turnFlags.protectNextSelfAction = null;
   }
 
-  // Place on top of stack
-  state.zones.stack.unshift(entry);
+  // Place on top of horizon
+  state.zones.horizon.unshift(entry);
 
   // Track play
   state.cardsPlayedThisTurn.push({ cardId, playedBy: playerId });
 
-  events.push({ type: 'CARD_PLAYED', player: playerId, cardId, stackSize: state.zones.stack.length });
+  events.push({ type: 'CARD_PLAYED', player: playerId, cardId, horizonSize: state.zones.horizon.length });
 
   // Fire on-play effects (Insanity 18, Erase Reason 11, Invest 27)
   const onPlayEvents = executeOnPlayEffects(state, entry);
@@ -106,15 +106,15 @@ export function playCard(state, playerId, cardId, context = {}) {
 
 /**
  * A player only ever holds priority in two situations:
- *   1. Their own main phase — their turn with an empty stack.
- *   2. There's an opponent-controlled card on top of the stack to respond to.
+ *   1. Their own main phase — their turn with an empty horizon.
+ *   2. There's an opponent-controlled card on top of the horizon to respond to.
  * Every other window is "dead": there's no way to act, so the player should be
  * skipped rather than handed a pass-only prompt.
  */
 export function isLivePriorityWindow(state, playerId) {
-  const stack = state.zones.stack;
-  if (state.turn === playerId && stack.length === 0) return true;        // own main phase
-  if (stack.length > 0 && controllerOf(stack[0]) !== playerId) return true; // opponent's card to respond to
+  const horizon = state.zones.horizon;
+  if (state.turn === playerId && horizon.length === 0) return true;        // own main phase
+  if (horizon.length > 0 && controllerOf(horizon[0]) !== playerId) return true; // opponent's card to respond to
   return false;
 }
 
@@ -126,9 +126,9 @@ export function passPriority(state, playerId) {
   state.priorityPassCount++;
 
   if (state.priorityPassCount >= 2) {
-    // Both passed — resolve top of stack or end turn
-    if (state.zones.stack.length > 0) {
-      const resolveEvents = resolveTopOfStack(state);
+    // Both passed — resolve top of horizon or end turn
+    if (state.zones.horizon.length > 0) {
+      const resolveEvents = resolveTopOfHorizon(state);
       events.push(...resolveEvents);
       if (state.winner) return events;
       // After resolution, active turn player gets priority
@@ -136,7 +136,7 @@ export function passPriority(state, playerId) {
       state.activePlayer = state.turn;
       events.push({ type: 'PRIORITY_RETURNED', to: state.turn });
     } else {
-      // Stack empty — end turn
+      // Horizon empty — end turn
       const endEvents = endTurn(state);
       events.push(...endEvents);
     }
@@ -149,14 +149,14 @@ export function passPriority(state, playerId) {
   return events;
 }
 
-// ─── Stack Resolution ─────────────────────────────────────────────────────────
+// ─── Horizon Resolution ─────────────────────────────────────────────────────────
 
-export function resolveTopOfStack(state) {
-  if (state.zones.stack.length === 0) return [];
+export function resolveTopOfHorizon(state) {
+  if (state.zones.horizon.length === 0) return [];
   const events = [];
 
   // Remove from top
-  const entry = state.zones.stack.shift();
+  const entry = state.zones.horizon.shift();
   const card = getCard(entry.cardId);
 
   events.push({ type: 'CARD_RESOLVING', cardId: entry.cardId, controller: controllerOf(entry) });
@@ -166,10 +166,10 @@ export function resolveTopOfStack(state) {
   events.push(...effectEvents);
 
   // Send to trash (unless effect moved it — moveSelf effects handle their own destination).
-  const selfMoved = card.effects?.some(e => e.type === 'moveSelf' || e.type === 'swapStackPositions');
+  const selfMoved = card.effects?.some(e => e.type === 'moveSelf' || e.type === 'swapHorizonPositions');
   if (!selfMoved) {
     // A card only reaches the trash once it has FULLY taken effect. If its
-    // effect spawned a player choice (Stop 44 → trashFromStack, Dig for Ideas 45
+    // effect spawned a player choice (Stop 44 → trashFromHorizon, Dig for Ideas 45
     // → putFromTrashToHand, …) that choice resolves asynchronously, so defer the
     // trash until the chain drains (see flushResolutionTrash). Otherwise the card
     // would be in the trash while its own effect is still resolving — letting
@@ -195,7 +195,7 @@ export function resolveTopOfStack(state) {
  * Trash any cards that finished resolving while a player choice was outstanding.
  * Called once the choice chain drains (no pending choice) so a resolved card
  * reaches the trash only after its effect is fully complete — and before the
- * next card on the stack starts resolving.
+ * next card on the horizon starts resolving.
  */
 export function flushResolutionTrash(state) {
   if (state.pendingResolutionTrash.length === 0) return [];
@@ -211,8 +211,8 @@ export function flushResolutionTrash(state) {
 // ─── End of Turn ──────────────────────────────────────────────────────────────
 
 export function endTurn(state) {
-  if (state.zones.stack.length > 0) {
-    return [{ type: 'ERROR', code: 'STACK_NOT_EMPTY', message: 'Stack must be empty to end the turn.' }];
+  if (state.zones.horizon.length > 0) {
+    return [{ type: 'ERROR', code: 'HORIZON_NOT_EMPTY', message: 'Horizon must be empty to end the turn.' }];
   }
 
   const events = [];
@@ -303,10 +303,10 @@ export function voidCard(state, playerId, cardId) {
 function checkPlayTriggers(state, newEntry, playedBy) {
   const events = [];
 
-  for (const stackEntry of state.zones.stack) {
-    if (stackEntry === newEntry) continue;
-    const card = getCard(stackEntry.cardId);
-    const entryController = controllerOf(stackEntry);
+  for (const horizonEntry of state.zones.horizon) {
+    if (horizonEntry === newEntry) continue;
+    const card = getCard(horizonEntry.cardId);
+    const entryController = controllerOf(horizonEntry);
 
     for (const se of card.staticEffects ?? []) {
       if (se.type !== 'trigger') continue;
@@ -321,11 +321,11 @@ function checkPlayTriggers(state, newEntry, playedBy) {
       if (on === 'nthCardPlayedThisTurn' && se.n === state.cardsPlayedThisTurn.length) {
         // Trip (37) — trash itself
         if (effect.type === 'trashSelf') {
-          const idx = state.zones.stack.indexOf(stackEntry);
+          const idx = state.zones.horizon.indexOf(horizonEntry);
           if (idx !== -1) {
-            state.zones.stack.splice(idx, 1);
-            sendToTrash(state, stackEntry.cardId);
-            events.push({ type: 'CARD_TRASHED_BY_TRIGGER', cardId: stackEntry.cardId });
+            state.zones.horizon.splice(idx, 1);
+            sendToTrash(state, horizonEntry.cardId);
+            events.push({ type: 'CARD_TRASHED_BY_TRIGGER', cardId: horizonEntry.cardId });
           }
         }
       }

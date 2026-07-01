@@ -79,7 +79,7 @@ function broadcastState(room) {
         },
         zones: {
           deckSize: state.zones.deck.length,
-          stack: state.zones.stack.map(e => ({
+          horizon: state.zones.horizon.map(e => ({
             cardId: e.cardId,
             playedBy: e.playedBy,
             controlledBy: e.controlledBy,
@@ -146,9 +146,9 @@ export function advancePendingChoices(state) {
   // Map trigger type → choice type
   const typeMap = {
     trashFromHandChoice:           'trashFromHand',
-    trashFromStackChoice:          'trashFromStack',
-    returnStackCardToHandChoice:   'returnToControllerHand',
-    stealFromStackChoice:          'stealFromStack',
+    trashFromHorizonChoice:          'trashFromHorizon',
+    returnHorizonCardToHandChoice:   'returnToControllerHand',
+    stealFromHorizonChoice:          'stealFromHorizon',
     gainControlChoice:             'gainControl',
     putFromTrashToHandChoice:      'putFromTrashToHand',
     optionalEffectChoice:          'optional',
@@ -156,7 +156,7 @@ export function advancePendingChoices(state) {
     lookAtTopN:                    'lookAtTopN',
     chooseNumber:                  'chooseNumber',
     opponentChoosesOne:            'opponentChoosesOne',
-    controllerMovesCardFromStack:  'controllerMovesCardFromStack',
+    controllerMovesCardFromHorizon:  'controllerMovesCardFromHorizon',
     revealUntilType:               'revealUntilType',
     chooseCardToTrashFromRevealedHand: 'chooseCardToTrashFromRevealedHand',
     putHandCardOnDeckTop:          'putHandCardOnDeckTop',
@@ -222,7 +222,7 @@ function handleMessage(ws, room, playerId, msg) {
       }
       events = choiceEvents;
 
-      // A confirmed "play for 0" puts the card on the stack immediately.
+      // A confirmed "play for 0" puts the card on the horizon immediately.
       for (const ev of choiceEvents) {
         if (ev.type === 'FREE_PLAY_CONFIRMED') {
           events.push(...playCard(state, ev.player, ev.cardId, { free: true }));
@@ -265,15 +265,15 @@ function handleMessage(ws, room, playerId, msg) {
 
   // A resolving card whose effect spawned a choice was held out of the trash
   // until that choice chain drained. Now that no choice is pending, complete the
-  // trash — before autoSkip resolves the next card on the stack.
+  // trash — before autoSkip resolves the next card on the horizon.
   if (!state.pendingChoice) {
     events.push(...flushResolutionTrash(state));
   }
 
   // Auto-skip dead priority windows: a player should only hold priority on their
-  // own main phase (their turn, empty stack) or to respond to an opponent's card
-  // on the stack. In any other window there's nothing they could do, so pass on
-  // their behalf — which may resolve the stack or end the turn, cascading into
+  // own main phase (their turn, empty horizon) or to respond to an opponent's card
+  // on the horizon. In any other window there's nothing they could do, so pass on
+  // their behalf — which may resolve the horizon or end the turn, cascading into
   // the next window. Stops as soon as a player can act, a choice surfaces, or
   // the game ends.
   autoSkipDeadPriority(state, events);

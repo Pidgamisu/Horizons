@@ -126,13 +126,13 @@ describe('Voiding cards', () => {
 // ─── Playing Cards ────────────────────────────────────────────────────────────
 
 describe('Playing cards', () => {
-  test('playing a card puts it on the stack and passes priority', () => {
+  test('playing a card puts it on the horizon and passes priority', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53'); // Sort: action, cost 0
     const events = playCard(state, 'p1', '53');
     expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.zones.stack).toHaveLength(1);
-    expect(state.zones.stack[0].cardId).toBe('53');
+    expect(state.zones.horizon).toHaveLength(1);
+    expect(state.zones.horizon[0].cardId).toBe('53');
     expect(state.activePlayer).toBe('p2');
   });
 
@@ -153,7 +153,7 @@ describe('Playing cards', () => {
     expect(state.players.p1.energy).toBe(2);
   });
 
-  test('point card cannot be played when stack is not empty', () => {
+  test('point card cannot be played when horizon is not empty', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53'); // Sort: action cost 0
     giveCard(state, 'p1', '04'); // Snatch: point cost 6
@@ -161,7 +161,7 @@ describe('Playing cards', () => {
     playCard(state, 'p1', '53');
     // now p2 holds priority — pass back to p1
     passPriority(state, 'p2');
-    // p1 tries to play a point card with something on the stack
+    // p1 tries to play a point card with something on the horizon
     const events = playCard(state, 'p1', '04');
     expect(eventTypes(events)).toContain('ERROR');
   });
@@ -180,10 +180,10 @@ describe('Playing cards', () => {
     giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
     setEnergy(state, 'p2', 3);
     playCard(state, 'p1', '53');
-    // p2 now holds priority with something on stack — can respond
+    // p2 now holds priority with something on horizon — can respond
     const events = playCard(state, 'p2', '45');
     expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.zones.stack).toHaveLength(2);
+    expect(state.zones.horizon).toHaveLength(2);
   });
 
   test('cannot respond to your own card with another action', () => {
@@ -194,7 +194,7 @@ describe('Playing cards', () => {
     setEnergy(state, 'p1', 20);
     setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '55');   // p1's action on the stack, priority → p2
+    playCard(state, 'p1', '55');   // p1's action on the horizon, priority → p2
 
     // the opponent CAN respond to it
     expect(validatePlay(state, 'p2', '45')).toBe(null);
@@ -205,7 +205,7 @@ describe('Playing cards', () => {
     expect(validatePlay(state, 'p1', '65')).not.toBe(null);
     const events = playCard(state, 'p1', '65');
     expect(eventTypes(events)).toContain('ERROR');
-    expect(state.zones.stack).toHaveLength(1);
+    expect(state.zones.horizon).toHaveLength(1);
   });
 
   test('isLivePriorityWindow: only your main phase or an opponent\'s card on top', () => {
@@ -213,27 +213,27 @@ describe('Playing cards', () => {
     giveCard(state, 'p1', '55'); // Lost at Sea (action)
     setEnergy(state, 'p1', 20);
 
-    // p1's turn, empty stack → p1's main phase is live; p2 (non-turn, empty
-    // stack end-of-turn window) is dead regardless of what it holds.
+    // p1's turn, empty horizon → p1's main phase is live; p2 (non-turn, empty
+    // horizon end-of-turn window) is dead regardless of what it holds.
     expect(isLivePriorityWindow(state, 'p1')).toBe(true);
     expect(isLivePriorityWindow(state, 'p2')).toBe(false);
 
-    playCard(state, 'p1', '55'); // p1's card on the stack
+    playCard(state, 'p1', '55'); // p1's card on the horizon
     // p2 has an opponent's card to respond to → live; p1 has only its own → dead
     expect(isLivePriorityWindow(state, 'p2')).toBe(true);
     expect(isLivePriorityWindow(state, 'p1')).toBe(false);
   });
 
-  test('cannot respond on the opponent\'s end-of-turn empty-stack window', () => {
+  test('cannot respond on the opponent\'s end-of-turn empty-horizon window', () => {
     const { state } = freshGame();
     giveCard(state, 'p2', '45'); // Dig for Ideas: action
     setEnergy(state, 'p2', 9);
 
-    // p1's turn, empty stack: p1 passes → priority to p2 (end-of-turn window)
+    // p1's turn, empty horizon: p1 passes → priority to p2 (end-of-turn window)
     passPriority(state, 'p1');
     expect(state.activePlayer).toBe('p2');
     expect(state.turn).toBe('p1');
-    expect(state.zones.stack).toHaveLength(0);
+    expect(state.zones.horizon).toHaveLength(0);
 
     // p2 (non-turn player) cannot sneak in an action
     expect(validatePlay(state, 'p2', '45')).not.toBe(null);
@@ -279,7 +279,7 @@ describe('A card takes full effect before it is trashed', () => {
     expect(state.players.p1.hand).toContain('10');
     expect(state.players.p1.hand).not.toContain('45');
     expect(state.zones.trash).toContain('45');
-    expect(state.zones.stack).toHaveLength(0);
+    expect(state.zones.horizon).toHaveLength(0);
   });
 
   test('Stop (44): can trash a card its own caster controls, then goes to the trash', () => {
@@ -289,29 +289,29 @@ describe('A card takes full effect before it is trashed', () => {
     giveCard(state, 'p1', '44'); // Stop (cost 3)
     setEnergy(state, 'p1', 20); setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '01'); // stack: [01(p1)]
-    playCard(state, 'p2', '82'); // stack: [82(p2), 01(p1)]
-    playCard(state, 'p1', '44'); // Stop in response → stack: [44(p1), 82(p2), 01(p1)]
+    playCard(state, 'p1', '01'); // horizon: [01(p1)]
+    playCard(state, 'p2', '82'); // horizon: [82(p2), 01(p1)]
+    playCard(state, 'p1', '44'); // Stop in response → horizon: [44(p1), 82(p2), 01(p1)]
     passPriority(state, 'p2');
-    passPriority(state, 'p1');    // Stop resolves → trashFromStack choice for p1
+    passPriority(state, 'p1');    // Stop resolves → trashFromHorizon choice for p1
 
     advancePendingChoices(state);
-    expect(state.pendingChoice?.type).toBe('trashFromStack');
-    // Stop has left the stack but has NOT yet reached the trash.
+    expect(state.pendingChoice?.type).toBe('trashFromHorizon');
+    // Stop has left the horizon but has NOT yet reached the trash.
     expect(state.zones.trash).not.toContain('44');
 
-    const idx = state.zones.stack.findIndex(e => e.cardId === '01'); // p1's own point
-    respond(state, 'p1', { stackIndex: idx });
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '01'); // p1's own point
+    respond(state, 'p1', { horizonIndex: idx });
 
     expect(state.zones.trash).toContain('01'); // own card trashed
     expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
   });
 });
 
-// ─── Priority & Stack Resolution ──────────────────────────────────────────────
+// ─── Priority & Horizon Resolution ──────────────────────────────────────────────
 
-describe('Priority and stack resolution', () => {
-  test('both passing resolves top of stack', () => {
+describe('Priority and horizon resolution', () => {
+  test('both passing resolves top of horizon', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '56'); // Debilitate: action, 0 cost, no player choice
     playCard(state, 'p1', '56');
@@ -319,27 +319,27 @@ describe('Priority and stack resolution', () => {
     const events = passPriority(state, 'p1');
     expect(eventTypes(events)).toContain('CARD_RESOLVING');
     expect(eventTypes(events)).toContain('CARD_TRASHED');
-    expect(state.zones.stack).toHaveLength(0);
+    expect(state.zones.horizon).toHaveLength(0);
   });
 
-  test('stack resolves top-down (LIFO)', () => {
+  test('horizon resolves top-down (LIFO)', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53'); // Sort: action cost 0
     giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
     setEnergy(state, 'p2', 3);
 
-    playCard(state, 'p1', '53'); // stack: [53]
-    playCard(state, 'p2', '45'); // stack: [45, 53]
+    playCard(state, 'p1', '53'); // horizon: [53]
+    playCard(state, 'p2', '45'); // horizon: [45, 53]
     passPriority(state, 'p1');
     const events = passPriority(state, 'p2'); // resolves top = 45
 
     const resolvingEvent = events.find(e => e.type === 'CARD_RESOLVING');
     expect(resolvingEvent.cardId).toBe('45'); // top resolves first
-    expect(state.zones.stack).toHaveLength(1); // 53 still pending
-    expect(state.zones.stack[0].cardId).toBe('53');
+    expect(state.zones.horizon).toHaveLength(1); // 53 still pending
+    expect(state.zones.horizon[0].cardId).toBe('53');
   });
 
-  test('after stack resolution active turn player gets priority', () => {
+  test('after horizon resolution active turn player gets priority', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53');
     playCard(state, 'p1', '53');
@@ -348,7 +348,7 @@ describe('Priority and stack resolution', () => {
     expect(state.activePlayer).toBe('p1'); // p1's turn, gets priority back
   });
 
-  test('empty stack + both pass = end turn', () => {
+  test('empty horizon + both pass = end turn', () => {
     const { state } = freshGame();
     passPriority(state, 'p1');
     const events = passPriority(state, 'p2');
@@ -475,12 +475,12 @@ describe('Cost modifiers', () => {
     expect(state.players.p1.energy).toBe(1); // 4 - 3 = 1
   });
 
-  test('Overwhelm (17): costs 1 less per card on stack, response only', () => {
+  test('Overwhelm (17): costs 1 less per card on horizon, response only', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '17'); // Overwhelm: point cost 7, 1 less per stack card
+    giveCard(state, 'p2', '17'); // Overwhelm: point cost 7, 1 less per horizon card
     setEnergy(state, 'p2', 9);
-    playCard(state, 'p1', '53'); // stack has 1 card
+    playCard(state, 'p1', '53'); // horizon has 1 card
     // cost = 7 - 1 = 6
     const events = playCard(state, 'p2', '17');
     expect(eventTypes(events)).not.toContain('ERROR');
@@ -507,7 +507,7 @@ describe('Cost modifiers', () => {
 // ─── Static Effects ───────────────────────────────────────────────────────────
 
 describe('Static effects', () => {
-  test('Unstoppable (00): no cards can be played while on stack', () => {
+  test('Unstoppable (00): no cards can be played while on horizon', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '00'); // Unstoppable: point cost 7
     giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
@@ -519,23 +519,23 @@ describe('Static effects', () => {
     expect(events[0].message).toMatch(/cannot be played/i);
   });
 
-  test('Paranoia (23): controller cannot play cards while on stack', () => {
+  test('Paranoia (23): controller cannot play cards while on horizon', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '23'); // Paranoia: point cost 4, controller locked
     giveCard(state, 'p1', '53'); // Sort: action cost 0
     giveCard(state, 'p2', '45'); // Dig for Ideas
     setEnergy(state, 'p1', 9);
     setEnergy(state, 'p2', 3);
-    playCard(state, 'p1', '23'); // Paranoia on stack, p2 gets priority
+    playCard(state, 'p1', '23'); // Paranoia on horizon, p2 gets priority
     // p2 CAN play immediately (Paranoia only locks its controller, p1)
     const p2events = playCard(state, 'p2', '45');
     expect(eventTypes(p2events)).not.toContain('ERROR');
-    // Resolve stack fully, then p1 tries to play while Paranoia still on stack
-    // (reset to test p1 lock: put Paranoia back on stack manually)
+    // Resolve horizon fully, then p1 tries to play while Paranoia still on horizon
+    // (reset to test p1 lock: put Paranoia back on horizon manually)
     // Instead test p1 lock by checking after p2 plays and p1 gets priority
     passPriority(state, 'p1'); // p2 gets priority
     passPriority(state, 'p2'); // resolves p2's card (45), p1 gets priority
-    // Paranoia still on stack — p1 tries Sort
+    // Paranoia still on horizon — p1 tries Sort
     const lockEvents = playCard(state, 'p1', '53');
     expect(eventTypes(lockEvents)).toContain('ERROR');
   });
@@ -574,23 +574,23 @@ describe('Special card interactions', () => {
     const { state } = freshGame();
     giveCard(state, 'p2', '06'); // Strafe: point cost 5, response to actions only
     setEnergy(state, 'p2', 9);
-    // Try to play when stack is empty (own turn) — should fail
+    // Try to play when horizon is empty (own turn) — should fail
     // But it's p1's turn, so p2 can only respond
     // First, get p2 priority by p1 playing an action
     giveCard(state, 'p1', '53');
     playCard(state, 'p1', '53');
-    // Now p2 has priority with an action on the stack — valid
+    // Now p2 has priority with an action on the horizon — valid
     const events = playCard(state, 'p2', '06');
     expect(eventTypes(events)).not.toContain('ERROR');
   });
 
-  test('Insanity (18): hand is trashed when card hits stack', () => {
+  test('Insanity (18): hand is trashed when card hits horizon', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '18'); // Insanity: point cost 3
     setEnergy(state, 'p1', 9);
     const handSizeBefore = state.players.p1.hand.length;
     playCard(state, 'p1', '18');
-    // Hand (excluding Insanity itself which moved to stack) should be empty
+    // Hand (excluding Insanity itself which moved to horizon) should be empty
     expect(state.players.p1.hand).toHaveLength(0);
     expect(state.zones.trash.length).toBe(handSizeBefore - 1); // minus Insanity itself
   });
@@ -609,7 +609,7 @@ describe('Special card interactions', () => {
     giveCard(state, 'p1', '29'); // Sow: point cost 5
     giveCard(state, 'p2', '53'); // Sort: action cost 0
     setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '29'); // Sow on stack, priority to p2
+    playCard(state, 'p1', '29'); // Sow on horizon, priority to p2
     const energyBefore_p1 = state.players.p1.energy;
     const energyBefore_p2 = state.players.p2.energy;
     const events = playCard(state, 'p2', '53');
@@ -628,36 +628,36 @@ describe('Special card interactions', () => {
     setEnergy(state, 'p2', 9);
 
     // Players alternate responses (each onto the OPPONENT's card) so Trip stays
-    // on the stack while four cards get played this turn.
-    playCard(state, 'p1', '37'); // card 1, Trip (point) on stack, priority → p2
+    // on the horizon while four cards get played this turn.
+    playCard(state, 'p1', '37'); // card 1, Trip (point) on horizon, priority → p2
     playCard(state, 'p2', '53'); // card 2, responds to Trip
     playCard(state, 'p1', '65'); // card 3, responds to Sort
     // Playing the 4th card should trigger Trip to trash itself
     const events = playCard(state, 'p2', '56'); // card 4, responds to Enlightenment
     expect(eventTypes(events)).toContain('CARD_TRASHED_BY_TRIGGER');
-    // Trip (37) should no longer be on the stack
-    expect(state.zones.stack.map(e => e.cardId)).not.toContain('37');
+    // Trip (37) should no longer be on the horizon
+    expect(state.zones.horizon.map(e => e.cardId)).not.toContain('37');
   });
 });
 
-// ─── Stack-targeting choices ────────────────────────────────────────────────────
+// ─── Horizon-targeting choices ────────────────────────────────────────────────────
 
-describe('Stack-targeting choices', () => {
-  // Regression: stack-choice triggers must tag the chooser via `player`, not
+describe('Horizon-targeting choices', () => {
+  // Regression: horizon-choice triggers must tag the chooser via `player`, not
   // `chooser`. With the wrong field the choice has no `player`, so the server
   // shows "waiting for opponent" to both players and no one can select a card.
-  test('trashFromStack tags the choosing player on the trigger', () => {
+  test('trashFromHorizon tags the choosing player on the trigger', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '44'); // Stop: action, trashFromStack any
+    giveCard(state, 'p2', '44'); // Stop: action, trashFromHorizon any
     setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '53'); // stack: [53], p2 has priority
-    playCard(state, 'p2', '44'); // p2 responds: stack [44, 53]
+    playCard(state, 'p1', '53'); // horizon: [53], p2 has priority
+    playCard(state, 'p2', '44'); // p2 responds: horizon [44, 53]
     passPriority(state, 'p1');
-    passPriority(state, 'p2');   // Stop resolves → trashFromStack choice for p2
+    passPriority(state, 'p2');   // Stop resolves → trashFromHorizon choice for p2
 
-    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromStackChoice');
+    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice');
     expect(trigger).not.toBe(undefined);
     expect(trigger.player).toBe('p2');
   });
@@ -789,7 +789,7 @@ describe('Consult the Past (38)', () => {
     setEnergy(state, 'p1', 9);
     setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '38'); // Consult on the stack, priority → p2
+    playCard(state, 'p1', '38'); // Consult on the horizon, priority → p2
     expect(canPlayFromTrash(state, 'p1')).toBe(true);
     expect(canPlayFromTrash(state, 'p2')).toBe(false);
 
@@ -799,7 +799,7 @@ describe('Consult the Past (38)', () => {
     const ev = playCard(state, 'p1', '53', { fromTrash: true });
     expect(ev.some(e => e.type === 'ERROR')).toBe(false);
     expect(state.zones.trash).not.toContain('53');
-    expect(state.zones.stack[0].cardId).toBe('53');
+    expect(state.zones.horizon[0].cardId).toBe('53');
   });
 
   test('still enforces timing — cannot play from trash onto your own Consult', () => {
@@ -808,7 +808,7 @@ describe('Consult the Past (38)', () => {
     state.zones.trash.push('53'); // an action in the trash
     setEnergy(state, 'p1', 9);
 
-    playCard(state, 'p1', '38'); // Consult on the stack, priority → p2
+    playCard(state, 'p1', '38'); // Consult on the horizon, priority → p2
     passPriority(state, 'p2');   // priority returns to p1, own Consult on top
 
     // the grant is active, but timing forbids responding to your own card
@@ -826,7 +826,7 @@ describe('Choice effects with insufficient resources', () => {
     state.players.p2.hand = [];     // empty
     setEnergy(state, 'p1', 9);
 
-    playCard(state, 'p1', '12');    // point on stack
+    playCard(state, 'p1', '12');    // point on horizon
     passPriority(state, 'p2');
     passPriority(state, 'p1');      // resolves: grant point + each player trashes
 
@@ -881,19 +881,19 @@ describe('Additional cost affordability', () => {
 
 describe('Free play for 0', () => {
   // Mimic the server: when a choice emits FREE_PLAY_CONFIRMED, the card is
-  // played onto the stack for free.
+  // played onto the horizon for free.
   function completeFreePlay(state, events) {
     for (const ev of events) {
       if (ev.type === 'FREE_PLAY_CONFIRMED') playCard(state, ev.player, ev.cardId, { free: true });
     }
   }
 
-  function trashFromStackTo(state, chooser, cardId) {
-    const t = state.pendingTriggers.find(x => x.type === 'trashFromStackChoice');
-    state.pendingChoice = { ...t, type: 'trashFromStack' };
+  function trashFromHorizonTo(state, chooser, cardId) {
+    const t = state.pendingTriggers.find(x => x.type === 'trashFromHorizonChoice');
+    state.pendingChoice = { ...t, type: 'trashFromHorizon' };
     state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
-    const idx = state.zones.stack.findIndex(e => e.cardId === cardId);
-    return resolveChoice(state, chooser, { stackIndex: idx });
+    const idx = state.zones.horizon.findIndex(e => e.cardId === cardId);
+    return resolveChoice(state, chooser, { horizonIndex: idx });
   }
 
   test('Metamorphosis (61): trashed card\'s controller may play a point from hand for 0', () => {
@@ -903,12 +903,12 @@ describe('Free play for 0', () => {
     giveCard(state, 'p2', '61'); // Metamorphosis
     setEnergy(state, 'p1', 9); setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '04');  // point on stack
+    playCard(state, 'p1', '04');  // point on horizon
     playCard(state, 'p2', '61');  // Metamorphosis in response
     passPriority(state, 'p1');
     passPriority(state, 'p2');    // Metamorphosis resolves → trash choice for p2
 
-    const r1 = trashFromStackTo(state, 'p2', '04'); // p2 trashes p1's point
+    const r1 = trashFromHorizonTo(state, 'p2', '04'); // p2 trashes p1's point
     expect(r1.error).toBe(null);
     // thenGrant must surface (not be nulled) for p1, the trashed card's controller
     expect(state.pendingChoice?.type).toBe('mayPlayFromHand');
@@ -919,7 +919,7 @@ describe('Free play for 0', () => {
     expect(r2.error).toBe(null);
     completeFreePlay(state, r2.events);
 
-    expect(state.zones.stack[0].cardId).toBe('01');         // played onto the stack
+    expect(state.zones.horizon[0].cardId).toBe('01');         // played onto the horizon
     expect(state.players.p1.energy).toBe(energyBefore);     // for free
     expect(state.players.p1.hand).not.toContain('01');
   });
@@ -932,12 +932,12 @@ describe('Free play for 0', () => {
     state.zones.deck = state.zones.deck.filter(id => id !== '01');
     state.zones.deck.unshift('01'); // Sprint on top of the deck
 
-    playCard(state, 'p1', '53');  // action on stack
+    playCard(state, 'p1', '53');  // action on horizon
     playCard(state, 'p2', '84');  // Reinstate in response
     passPriority(state, 'p1');
     passPriority(state, 'p2');    // Reinstate resolves → trash choice for p2
 
-    const r1 = trashFromStackTo(state, 'p2', '53');
+    const r1 = trashFromHorizonTo(state, 'p2', '53');
     expect(r1.error).toBe(null);
     expect(state.pendingChoice?.type).toBe('mayPlayTopOfDeck');
     expect(state.pendingChoice.cardId).toBe('01'); // top card revealed
@@ -946,11 +946,11 @@ describe('Free play for 0', () => {
     expect(r2.error).toBe(null);
     completeFreePlay(state, r2.events);
 
-    expect(state.zones.stack[0].cardId).toBe('01'); // top card played for free
+    expect(state.zones.horizon[0].cardId).toBe('01'); // top card played for free
     expect(state.zones.deck).not.toContain('01');
   });
 
-  test('Predict (54): playing the guessed card puts it on the stack', () => {
+  test('Predict (54): playing the guessed card puts it on the horizon', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '54'); // Predict
     setEnergy(state, 'p1', 9);
@@ -970,7 +970,7 @@ describe('Free play for 0', () => {
     const r = resolveChoice(state, 'p1', { play: true });
     expect(r.error).toBe(null);
     completeFreePlay(state, r.events);
-    expect(state.zones.stack[0].cardId).toBe('53'); // played onto the stack
+    expect(state.zones.horizon[0].cardId).toBe('53'); // played onto the horizon
   });
 });
 
@@ -994,22 +994,22 @@ describe('Injustice (67)', () => {
 
     // p1 plays the protected action A
     playCard(state, 'p1', '55');
-    expect(state.zones.stack[0].responsesLocked).toBe(true);
+    expect(state.zones.horizon[0].responsesLocked).toBe(true);
     expect(state.turnFlags.protectNextSelfAction).toBe(null); // consumed
 
     // p2 cannot play an action in response to A
     expect(validatePlay(state, 'p2', '45')).not.toBe(null);
-    // p1 also cannot stack another action onto its own card
+    // p1 also cannot horizon another action onto its own card
     expect(validatePlay(state, 'p1', '65')).not.toBe(null);
 
-    // let A resolve (p2 passes, then p1 passes), clearing the stack
+    // let A resolve (p2 passes, then p1 passes), clearing the horizon
     passPriority(state, 'p2');
     passPriority(state, 'p1');
-    expect(state.zones.stack).toHaveLength(0);
+    expect(state.zones.horizon).toHaveLength(0);
 
     // p1 plays a second action B (not protected)
     playCard(state, 'p1', '65');
-    expect(state.zones.stack[0].responsesLocked).toBe(false);
+    expect(state.zones.horizon[0].responsesLocked).toBe(false);
 
     // now p2 CAN respond with an action (only the next action was protected)
     expect(validatePlay(state, 'p2', '45')).toBe(null);
@@ -1206,8 +1206,8 @@ describe('trashUnlessControllerPays', () => {
     giveCard(state, 'p2', counterId);
     setEnergy(state, 'p2', casterEnergy);
     setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '53');         // stack: [53] (p1's)
-    playCard(state, 'p2', counterId);    // stack: [counter, 53]
+    playCard(state, 'p1', '53');         // horizon: [53] (p1's)
+    playCard(state, 'p2', counterId);    // horizon: [counter, 53]
     passPriority(state, 'p1');
     passPriority(state, 'p2');           // counter resolves → caster (p2) targets
 
@@ -1216,8 +1216,8 @@ describe('trashUnlessControllerPays', () => {
     if (t1) {
       state.pendingChoice = { ...t1, type: 'trashUnlessControllerPaysTarget' };
       state.pendingTriggers = state.pendingTriggers.filter(t => t !== t1);
-      const idx = state.zones.stack.findIndex(e => e.cardId === '53');
-      resolveChoice(state, 'p2', { stackIndex: idx }); // → step 2 choice for p1
+      const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
+      resolveChoice(state, 'p2', { horizonIndex: idx }); // → step 2 choice for p1
     }
     return { state, trigger: state.pendingChoice };
   }
@@ -1233,7 +1233,7 @@ describe('trashUnlessControllerPays', () => {
     const { state } = setupCounter('87');
     const { error } = resolveChoice(state, 'p1', { pay: false });
     expect(error).toBe(null);
-    expect(state.zones.stack.find(e => e.cardId === '53')).toBe(undefined);
+    expect(state.zones.horizon.find(e => e.cardId === '53')).toBe(undefined);
     expect(state.zones.trash).toContain('53');
   });
 
@@ -1243,7 +1243,7 @@ describe('trashUnlessControllerPays', () => {
     const { error } = resolveChoice(state, 'p1', { pay: true });
     expect(error).toBe(null);
     expect(state.players.p1.energy).toBe(before - 1); // Poke ransom = 1 energy
-    expect(state.zones.stack.find(e => e.cardId === '53')).not.toBe(undefined); // survived
+    expect(state.zones.horizon.find(e => e.cardId === '53')).not.toBe(undefined); // survived
   });
 
   test('Overconfidence (71): paying puts a trash card on the deck bottom', () => {
@@ -1259,56 +1259,56 @@ describe('trashUnlessControllerPays', () => {
     expect(state.zones.trash).not.toContain('22');
     expect(state.zones.deck[state.zones.deck.length - 1]).toBe('22'); // bottom
     expect(state.zones.deck.length).toBe(deckLenBefore + 1);
-    expect(state.zones.stack.find(e => e.cardId === '53')).not.toBe(undefined); // survived
+    expect(state.zones.horizon.find(e => e.cardId === '53')).not.toBe(undefined); // survived
   });
 });
 
-// ─── Regret (moveFromStackToDeckTop) ────────────────────────────────────────────
+// ─── Regret (moveFromHorizonToDeckTop) ────────────────────────────────────────────
 
-describe('Regret (41): moveFromStackToDeckTop', () => {
-  test('puts a chosen stack card on top of the deck', () => {
+describe('Regret (41): moveFromHorizonToDeckTop', () => {
+  test('puts a chosen horizon card on top of the deck', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action — will sit on the stack as the target
+    giveCard(state, 'p1', '53'); // Sort: action — will sit on the horizon as the target
     giveCard(state, 'p2', '41'); // Regret: action
     setEnergy(state, 'p2', 9);
 
-    playCard(state, 'p1', '53');  // stack: [53]
-    playCard(state, 'p2', '41');  // p2 responds: stack [41, 53]
+    playCard(state, 'p1', '53');  // horizon: [53]
+    playCard(state, 'p2', '41');  // p2 responds: horizon [41, 53]
     passPriority(state, 'p1');
     passPriority(state, 'p2');    // Regret resolves → choice for p2
 
-    const trigger = state.pendingTriggers.find(t => t.type === 'moveFromStackToDeckTop');
+    const trigger = state.pendingTriggers.find(t => t.type === 'moveFromHorizonToDeckTop');
     expect(trigger).not.toBe(undefined);
     expect(trigger.player).toBe('p2');
 
-    // surface + resolve: move card 53 (still on the stack) to the top of the deck
-    state.pendingChoice = { ...trigger, type: 'moveFromStackToDeckTop' };
+    // surface + resolve: move card 53 (still on the horizon) to the top of the deck
+    state.pendingChoice = { ...trigger, type: 'moveFromHorizonToDeckTop' };
     state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const idx = state.zones.stack.findIndex(e => e.cardId === '53');
-    const { error } = resolveChoice(state, 'p2', { stackIndex: idx });
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
+    const { error } = resolveChoice(state, 'p2', { horizonIndex: idx });
 
     expect(error).toBe(null);
     expect(state.zones.deck[0]).toBe('53');
-    expect(state.zones.stack.find(e => e.cardId === '53')).toBe(undefined);
+    expect(state.zones.horizon.find(e => e.cardId === '53')).toBe(undefined);
   });
 });
 
-// ─── Stack-target effects with no legal target ──────────────────────────────────
+// ─── Horizon-target effects with no legal target ──────────────────────────────────
 
-describe('Stack-target effects without a legal target', () => {
-  // Regression: a stack-targeting effect with no legal target must be skipped,
+describe('Horizon-target effects without a legal target', () => {
+  // Regression: a horizon-targeting effect with no legal target must be skipped,
   // not create an impossible choice that hardlocks the game.
   test('Deny Hostility (69) with no valid target is skipped, not stuck', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '69'); // Deny Hostility: trashFromStack actionPlayedInResponseToPoint
+    giveCard(state, 'p1', '69'); // Deny Hostility: trashFromHorizon actionPlayedInResponseToPoint
     setEnergy(state, 'p1', 3);
 
-    playCard(state, 'p1', '69'); // alone on the stack
+    playCard(state, 'p1', '69'); // alone on the horizon
     passPriority(state, 'p2');
-    const events = passPriority(state, 'p1'); // resolves with nothing else on the stack
+    const events = passPriority(state, 'p1'); // resolves with nothing else on the horizon
 
     expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
-    expect(state.pendingTriggers.find(t => t.type === 'trashFromStackChoice')).toBe(undefined);
+    expect(state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice')).toBe(undefined);
   });
 
   test('Deny Hostility (69) trashes an action played in response to a point', () => {
@@ -1319,20 +1319,20 @@ describe('Stack-target effects without a legal target', () => {
     setEnergy(state, 'p1', 20);
     setEnergy(state, 'p2', 20);
 
-    playCard(state, 'p1', '04'); // point on stack
+    playCard(state, 'p1', '04'); // point on horizon
     playCard(state, 'p2', '53'); // action in response to the point
     playCard(state, 'p1', '69'); // Deny Hostility in response
     passPriority(state, 'p2');
     passPriority(state, 'p1'); // Deny Hostility resolves → choice for p1
 
-    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromStackChoice');
+    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice');
     expect(trigger).not.toBe(undefined);
 
     // Mirror the server surfacing the trigger, then resolve it.
-    state.pendingChoice = { ...trigger, type: 'trashFromStack' };
+    state.pendingChoice = { ...trigger, type: 'trashFromHorizon' };
     state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const idx = state.zones.stack.findIndex(e => e.cardId === '53');
-    const { error } = resolveChoice(state, 'p1', { stackIndex: idx });
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
+    const { error } = resolveChoice(state, 'p1', { horizonIndex: idx });
 
     expect(error).toBe(null);
     expect(state.zones.trash).toContain('53');

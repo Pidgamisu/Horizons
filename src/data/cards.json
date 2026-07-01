@@ -4,12 +4,12 @@
     "name": "Unstoppable",
     "type": "point",
     "energyCost": 7,
-    "effectText": "While this is on the stack, players can't play cards.",
+    "effectText": "While this is on the horizon, players can't play cards.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
     "staticEffects": [
-      { "type": "lockStack", "scope": "allPlayers" }
+      { "type": "lockHorizon", "scope": "allPlayers" }
     ]
   },
   {
@@ -209,7 +209,7 @@
     "name": "Efficiency",
     "type": "point",
     "energyCost": 4,
-    "effectText": "While this is on the stack, cards your opponents play cost 1 energy less.",
+    "effectText": "While this is on the horizon, cards your opponents play cost 1 energy less.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -236,13 +236,13 @@
     "name": "Overwhelm",
     "type": "point",
     "energyCost": 7,
-    "effectText": "This costs 1 energy less for each card on the stack. You can only play this in response to actions.",
+    "effectText": "This costs 1 energy less for each card on the horizon. You can only play this in response to actions.",
     "playRestrictions": [
       { "type": "responseOnly", "filter": "action" }
     ],
     "additionalCosts": [],
     "costModifiers": [
-      { "type": "discountPerCard", "zone": "stack", "filter": "any", "amount": 1 }
+      { "type": "discountPerCard", "zone": "horizon", "filter": "any", "amount": 1 }
     ],
     "effects": [],
     "staticEffects": []
@@ -266,7 +266,7 @@
     "name": "Glacial Pace",
     "type": "point",
     "energyCost": 6,
-    "effectText": "While this is on the stack, cards your opponents play cost 1 energy more.",
+    "effectText": "While this is on the horizon, cards your opponents play cost 1 energy more.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -292,7 +292,7 @@
     "name": "Endure",
     "type": "point",
     "energyCost": 6,
-    "effectText": "While this is on the stack, whenever an opponent plays a card, draw a card.",
+    "effectText": "While this is on the horizon, whenever an opponent plays a card, draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -318,12 +318,12 @@
     "name": "Paranoia",
     "type": "point",
     "energyCost": 4,
-    "effectText": "While this is on the stack, you can't play cards.",
+    "effectText": "While this is on the horizon, you can't play cards.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
     "staticEffects": [
-      { "type": "lockStack", "scope": "controller" }
+      { "type": "lockHorizon", "scope": "controller" }
     ]
   },
   {
@@ -331,7 +331,7 @@
     "name": "Treasure Anew",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the stack, whenever a player plays a card, they draw a card.",
+    "effectText": "While this is on the horizon, whenever a player plays a card, they draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -399,7 +399,7 @@
     "name": "Sow",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the stack, whenever a player plays a card, each player gains 1 energy.",
+    "effectText": "While this is on the horizon, whenever a player plays a card, each player gains 1 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -412,7 +412,7 @@
     "name": "Reap",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the stack, whenever a player plays a card, each player trashes a card from their hand.",
+    "effectText": "While this is on the horizon, whenever a player plays a card, each player trashes a card from their hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -499,10 +499,10 @@
     "additionalCosts": [],
     "effects": [
       {
-        "type": "swapStackPositions",
+        "type": "swapHorizonPositions",
         "targetA": "respondedToCard",
         "targetB": "self",
-        "note": "Cards physically swap indices in the stack array. Controllers do not change. Priority windows are unaffected — resolution continues top-down from the new ordering."
+        "note": "Cards physically swap indices in the horizon array. Controllers do not change. Priority windows are unaffected — resolution continues top-down from the new ordering."
       }
     ],
     "staticEffects": []
@@ -512,7 +512,7 @@
     "name": "Trip",
     "type": "point",
     "energyCost": 4,
-    "effectText": "While this is on the stack, whenever a player plays the fourth card of the turn, trash this.",
+    "effectText": "While this is on the horizon, whenever a player plays the fourth card of the turn, trash this.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -525,7 +525,7 @@
     "name": "Consult the Past",
     "type": "point",
     "energyCost": 6,
-    "effectText": "While this is on the stack, you may play cards from the trash.",
+    "effectText": "While this is on the horizon, you may play cards from the trash.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -538,7 +538,7 @@
     "name": "Dread",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the stack, players can't draw cards.",
+    "effectText": "While this is on the horizon, players can't draw cards.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
@@ -551,11 +551,11 @@
     "name": "Bounce Back",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Return a point card on the stack to its controller's hand.",
+    "effectText": "Return a point card on the horizon to its controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "returnToControllerHand", "zone": "stack", "filter": "point", "chooser": "self" }
+      { "type": "returnToControllerHand", "zone": "horizon", "filter": "point", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -564,11 +564,11 @@
     "name": "Regret",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Put a card on the stack on top of the deck.",
+    "effectText": "Put a card on the horizon on top of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "moveFromStackToDeckTop", "filter": "any", "chooser": "self" }
+      { "type": "moveFromHorizonToDeckTop", "filter": "any", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -577,11 +577,11 @@
     "name": "Reverse",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Gain control of an action card on the stack. When it takes effect, return it to its initial controller's hand.",
+    "effectText": "Gain control of an action card on the horizon. When it takes effect, return it to its initial controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "gainControl", "zone": "stack", "filter": "action", "chooser": "self",
+      { "type": "gainControl", "zone": "horizon", "filter": "action", "chooser": "self",
         "onResolve": { "type": "returnToInitialControllerHand" } }
     ],
     "staticEffects": []
@@ -591,11 +591,11 @@
     "name": "Delusion",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Trash a point card on the stack.",
+    "effectText": "Trash a point card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "point", "chooser": "self" }
+      { "type": "trashFromHorizon", "filter": "point", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -604,11 +604,11 @@
     "name": "Stop",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a card on the stack.",
+    "effectText": "Trash a card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self" }
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -783,11 +783,11 @@
     "name": "Journey",
     "type": "action",
     "energyCost": 2,
-    "effectText": "The controller of an action card on the stack chooses to put it on the top or bottom of the deck.",
+    "effectText": "The controller of an action card on the horizon chooses to put it on the top or bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "controllerMovesCardFromStack", "filter": "action", "destinations": ["deckTop", "deckBottom"], "chooser": "targetController" }
+      { "type": "controllerMovesCardFromHorizon", "filter": "action", "destinations": ["deckTop", "deckBottom"], "chooser": "targetController" }
     ],
     "staticEffects": []
   },
@@ -796,11 +796,11 @@
     "name": "Change of Luck",
     "type": "action",
     "energyCost": 7,
-    "effectText": "Gain control of a card on the stack.",
+    "effectText": "Gain control of a card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "gainControl", "zone": "stack", "filter": "any", "chooser": "self" }
+      { "type": "gainControl", "zone": "horizon", "filter": "any", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -809,11 +809,11 @@
     "name": "Drown in Fog",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash a card on the stack unless its controller pays 1 energy for each card in the trash.",
+    "effectText": "Trash a card on the horizon unless its controller pays 1 energy for each card in the trash.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "any", "chooser": "self",
+      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "any", "chooser": "self",
         "ransom": { "type": "payEnergy", "amount": "countInTrash:any" } }
     ],
     "staticEffects": []
@@ -823,11 +823,11 @@
     "name": "Capture",
     "type": "action",
     "energyCost": 4,
-    "effectText": "Trash a point card on the stack. Draw a card.",
+    "effectText": "Trash a point card on the horizon. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "point", "chooser": "self" },
+      { "type": "trashFromHorizon", "filter": "point", "chooser": "self" },
       { "type": "draw", "count": 1, "player": "self" }
     ],
     "staticEffects": []
@@ -837,11 +837,11 @@
     "name": "Metamorphosis",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Trash a card on the stack. The controller of that card may play a point card from their hand for 0 energy.",
+    "effectText": "Trash a card on the horizon. The controller of that card may play a point card from their hand for 0 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self",
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self",
         "thenGrant": { "type": "mayPlayFromHand", "filter": "point", "cost": 0, "player": "trashedCardController" } }
     ],
     "staticEffects": []
@@ -851,11 +851,11 @@
     "name": "Reimagine",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Return a card on the stack to its controller's hand. You gain 3 energy.",
+    "effectText": "Return a card on the horizon to its controller's hand. You gain 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "returnToControllerHand", "zone": "stack", "filter": "any", "chooser": "self" },
+      { "type": "returnToControllerHand", "zone": "horizon", "filter": "any", "chooser": "self" },
       { "type": "gainEnergy", "amount": 3, "player": "self" }
     ],
     "staticEffects": []
@@ -891,13 +891,13 @@
     "name": "Enlightenment",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Trash a card from your hand. You may trash a card on the stack that shares the energy cost of the trashed card.",
+    "effectText": "Trash a card from your hand. You may trash a card on the horizon that shares the energy cost of the trashed card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       { "type": "trashFromHand", "count": 1, "chooser": "self", "trackCost": true },
       { "type": "optional", "effects": [
-        { "type": "trashFromStack", "filter": "matchesTrashedCost", "chooser": "self" }
+        { "type": "trashFromHorizon", "filter": "matchesTrashedCost", "chooser": "self" }
       ]}
     ],
     "staticEffects": []
@@ -907,11 +907,11 @@
     "name": "By Any Means",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Trash a card on the stack, then trash your hand.",
+    "effectText": "Trash a card on the horizon, then trash your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self" },
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" },
       { "type": "trashHand", "player": "self" }
     ],
     "staticEffects": []
@@ -935,14 +935,14 @@
     "name": "Unravel",
     "type": "action",
     "energyCost": 5,
-    "effectText": "This costs 1 energy less for each card on the stack. Trash all cards on the stack.",
+    "effectText": "This costs 1 energy less for each card on the horizon. Trash all cards on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "costModifiers": [
-      { "type": "discountPerCard", "zone": "stack", "filter": "any", "amount": 1 }
+      { "type": "discountPerCard", "zone": "horizon", "filter": "any", "amount": 1 }
     ],
     "effects": [
-      { "type": "trashAllFromStack" }
+      { "type": "trashAllFromHorizon" }
     ],
     "staticEffects": []
   },
@@ -951,11 +951,11 @@
     "name": "Deny Hostility",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the stack that was played in response to a point card.",
+    "effectText": "Trash an action card on the horizon that was played in response to a point card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "actionPlayedInResponseToPoint", "chooser": "self" }
+      { "type": "trashFromHorizon", "filter": "actionPlayedInResponseToPoint", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -964,14 +964,14 @@
     "name": "Icarus",
     "type": "action",
     "energyCost": 5,
-    "effectText": "You may play this for 0 energy if an opponent played three or more cards this turn. Trash a card on the stack.",
+    "effectText": "You may play this for 0 energy if an opponent played three or more cards this turn. Trash a card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "costModifiers": [
       { "type": "freeIfCondition", "condition": "opponentPlayedThreeOrMoreThisTurn" }
     ],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self" }
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" }
     ],
     "staticEffects": []
   },
@@ -980,11 +980,11 @@
     "name": "Overconfidence",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a card on the stack unless its controller puts a card from the trash at the bottom of the deck. Draw a card.",
+    "effectText": "Trash a card on the horizon unless its controller puts a card from the trash at the bottom of the deck. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "any", "chooser": "self",
+      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "any", "chooser": "self",
         "ransom": { "type": "putFromTrashToDeckBottom", "count": 1, "chooser": "targetController" } },
       { "type": "draw", "count": 1, "player": "self" }
     ],
@@ -1022,12 +1022,12 @@
     "name": "Chains",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the stack unless its controller pays 1 energy for each card on the stack.",
+    "effectText": "Trash an action card on the horizon unless its controller pays 1 energy for each card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "action", "chooser": "self",
-        "ransom": { "type": "payEnergy", "amount": "countOnStack:any" } }
+      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "action", "chooser": "self",
+        "ransom": { "type": "payEnergy", "amount": "countOnHorizon:any" } }
     ],
     "staticEffects": []
   },
@@ -1064,11 +1064,11 @@
     "name": "Reimburse",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a card on the stack. Each player draws a card.",
+    "effectText": "Trash a card on the horizon. Each player draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self" },
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" },
       { "type": "draw", "count": 1, "player": "both" }
     ],
     "staticEffects": []
@@ -1078,11 +1078,11 @@
     "name": "Burn Out",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a point on the stack. Gain energy equal to its cost.",
+    "effectText": "Trash a point on the horizon. Gain energy equal to its cost.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "point", "chooser": "self", "trackCost": true },
+      { "type": "trashFromHorizon", "filter": "point", "chooser": "self", "trackCost": true },
       { "type": "gainEnergy", "amount": "trashedCardCost", "player": "self" }
     ],
     "staticEffects": []
@@ -1092,11 +1092,11 @@
     "name": "Unwanted Gift",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action on the stack. That action's controller gains 3 energy.",
+    "effectText": "Trash an action on the horizon. That action's controller gains 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "action", "chooser": "self",
+      { "type": "trashFromHorizon", "filter": "action", "chooser": "self",
         "thenGrant": { "type": "gainEnergy", "amount": 3, "player": "trashedCardController" } }
     ],
     "staticEffects": []
@@ -1106,11 +1106,11 @@
     "name": "Abandon Hope",
     "type": "action",
     "energyCost": 4,
-    "effectText": "Trash all cards on the stack. Gain 1 energy for each card trashed this way.",
+    "effectText": "Trash all cards on the horizon. Gain 1 energy for each card trashed this way.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashAllFromStack", "trackCount": true },
+      { "type": "trashAllFromHorizon", "trackCount": true },
       { "type": "gainEnergy", "amount": "cardsJustTrashed", "player": "self" }
     ],
     "staticEffects": []
@@ -1134,11 +1134,11 @@
     "name": "Drain",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Gain energy equal to the highest energy cost on the stack.",
+    "effectText": "Gain energy equal to the highest energy cost on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "gainEnergy", "amount": "highestCostOnStack", "player": "self" }
+      { "type": "gainEnergy", "amount": "highestCostOnHorizon", "player": "self" }
     ],
     "staticEffects": []
   },
@@ -1160,11 +1160,11 @@
     "name": "Reinstate",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action on the stack. Its controller may play the top card of the deck for 0 energy.",
+    "effectText": "Trash an action on the horizon. Its controller may play the top card of the deck for 0 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "action", "chooser": "self",
+      { "type": "trashFromHorizon", "filter": "action", "chooser": "self",
         "thenGrant": { "type": "mayPlayTopOfDeck", "cost": 0, "player": "trashedCardController" } }
     ],
     "staticEffects": []
@@ -1174,11 +1174,11 @@
     "name": "Relapse",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash a card on the stack, then its controller draws two cards.",
+    "effectText": "Trash a card on the horizon, then its controller draws two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashFromStack", "filter": "any", "chooser": "self",
+      { "type": "trashFromHorizon", "filter": "any", "chooser": "self",
         "thenGrant": { "type": "draw", "count": 2, "player": "trashedCardController" } }
     ],
     "staticEffects": []
@@ -1188,11 +1188,11 @@
     "name": "Steal Intensity",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Put a point card on the stack into your hand.",
+    "effectText": "Put a point card on the horizon into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "moveFromStackToHand", "filter": "point", "chooser": "self", "destination": "selfHand" }
+      { "type": "moveFromHorizonToHand", "filter": "point", "chooser": "self", "destination": "selfHand" }
     ],
     "staticEffects": []
   },
@@ -1201,11 +1201,11 @@
     "name": "Poke",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the stack unless its controller pays 1 energy. Draw a card.",
+    "effectText": "Trash an action card on the horizon unless its controller pays 1 energy. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "stack", "filter": "action", "chooser": "self",
+      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "action", "chooser": "self",
         "ransom": { "type": "payEnergy", "amount": 1 } },
       { "type": "draw", "count": 1, "player": "self" }
     ],

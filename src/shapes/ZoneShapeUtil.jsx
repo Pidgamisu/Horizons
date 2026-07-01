@@ -28,12 +28,12 @@ export class ZoneShapeUtil extends BaseBoxShapeUtil {
       return <PileSlot kind={zoneType} label={label} count={count} w={w} h={h} />
     }
 
-    // Large container zones (hands, stack) — a clean framed area with a label.
-    // Aurora palette: your side pink, opponent aurora-green, the stack pink.
+    // Large container zones (hands, horizon) — a clean framed area with a label.
+    // Aurora palette: your side pink, opponent aurora-green, the horizon pink.
     const frame = {
       'hand':          { border: 'rgba(255,0,153,0.30)',  fill: 'rgba(255,0,153,0.045)' },
       'opponent-hand': { border: 'rgba(77,255,176,0.26)', fill: 'rgba(77,255,176,0.035)' },
-      'stack':         { border: 'rgba(255,0,153,0.34)',  fill: 'rgba(255,0,153,0.05)' },
+      'horizon':         { border: 'rgba(255,0,153,0.34)',  fill: 'rgba(255,0,153,0.05)' },
     }[zoneType] || { border: 'rgba(255,255,255,0.10)', fill: 'rgba(255,255,255,0.02)' }
 
     return (
