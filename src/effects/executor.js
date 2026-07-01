@@ -128,6 +128,20 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
+    case 'trashAnyNumberFromHand': {
+      // Reset Memory (88): the caster trashes any number of cards from their
+      // hand (including none), then draws that many plus a bonus. The trash +
+      // draw both happen when the choice resolves (see choices.js), so an empty
+      // hand still lets them draw the bonus.
+      state.pendingTriggers.push({
+        type: 'trashAnyNumberFromHandChoice',
+        player: controller,
+        drawPlus: effect.thenDrawPlus ?? 0,
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashAnyNumberFromHand' });
+      break;
+    }
+
     case 'trashFromHorizon': {
       // No legal target on the (remaining) horizon → skip instead of prompting an
       // impossible choice that would hardlock the game.

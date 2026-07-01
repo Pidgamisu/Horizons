@@ -6,7 +6,7 @@ import { ALL_CARD_IDS } from '../data/cardDb.js';
 // registerTurnTrigger / endOfTurnTrash that resolve on their own). Single source
 // of truth shared by server.advancePendingChoices and the resolution engine.
 export const CHOICE_TRIGGER_TYPES = new Set([
-  'trashFromHandChoice', 'trashFromHorizonChoice', 'returnHorizonCardToHandChoice',
+  'trashFromHandChoice', 'trashAnyNumberFromHandChoice', 'trashFromHorizonChoice', 'returnHorizonCardToHandChoice',
   'stealFromHorizonChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
   'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
   'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromHorizonTarget',

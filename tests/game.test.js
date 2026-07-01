@@ -35,6 +35,60 @@ function setEnergy(state, playerId, amount) {
 
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
+// ─── Reset Memory (88) ───────────────────────────────────────────────────────
+
+describe('Reset Memory (88): trash any number, draw that many plus one', () => {
+  function respond(state, player, payload) {
+    if (!state.pendingChoice) advancePendingChoices(state);
+    const res = resolveChoice(state, player, payload);
+    if (!state.pendingChoice) advancePendingChoices(state);
+    if (!state.pendingChoice) res.events.push(...flushResolutionTrash(state));
+    return res;
+  }
+
+  test('trashing two cards draws three (2 + 1)', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['88', '10', '20'];
+    state.turn = 'p1'; state.activePlayer = 'p1';
+    setEnergy(state, 'p1', 5);
+    state.zones.deck = ['30', '31', '32', '33', '34'];
+
+    playCard(state, 'p1', '88');   // Reset Memory (action, cost 2) onto horizon
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');     // resolves → trashAnyNumberFromHand choice
+
+    advancePendingChoices(state);
+    expect(state.pendingChoice?.type).toBe('trashAnyNumberFromHand');
+
+    respond(state, 'p1', { cardIds: ['10', '20'] });
+
+    expect(state.players.p1.hand).toEqual(['30', '31', '32']); // drew 2 + 1
+    expect(state.zones.trash).toContain('10');
+    expect(state.zones.trash).toContain('20');
+    expect(state.zones.trash).toContain('88'); // resolved, then trashed
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('trashing nothing still draws one', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['88', '10'];
+    state.turn = 'p1'; state.activePlayer = 'p1';
+    setEnergy(state, 'p1', 5);
+    state.zones.deck = ['30', '31'];
+
+    playCard(state, 'p1', '88');
+    passPriority(state, 'p2');
+    passPriority(state, 'p1');
+
+    respond(state, 'p1', { cardIds: [] });
+
+    expect(state.players.p1.hand).toContain('10');  // kept
+    expect(state.players.p1.hand).toContain('30');  // the bonus draw
+    expect(state.players.p1.hand).toHaveLength(2);
+    expect(state.zones.trash).toContain('88');
+  });
+});
+
 // ─── Client choice-prompt coverage ──────────────────────────────────────────────
 
 describe('Client prompt coverage', () => {

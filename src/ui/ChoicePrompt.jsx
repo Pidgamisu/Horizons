@@ -54,14 +54,16 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   const [selected, setSelected] = useState([])
 
   const toggle = (id) => {
+    // "Any number" choices (Reset Memory) allow an unbounded multi-select.
+    const anyNumber = choice.type === 'trashAnyNumberFromHand'
     const count = choice.count ?? 1
-    if (count === 1) {
+    if (!anyNumber && count === 1) {
       setSelected([id])
     } else {
       setSelected(prev =>
         prev.includes(id)
           ? prev.filter(x => x !== id)
-          : prev.length < count
+          : anyNumber || prev.length < count
             ? [...prev, id]
             : prev
       )
@@ -73,6 +75,9 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
 
     // Binary "pay the ransom" choice — no card selection needed.
     if (type === 'trashUnlessControllerPays') { onRespond({ pay: true }); return }
+
+    // "Any number" trash allows confirming with zero cards selected.
+    if (type === 'trashAnyNumberFromHand') { onRespond({ cardIds: selected }); setSelected([]); return }
 
     if (selected.length === 0) return
 
@@ -244,6 +249,17 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     cards = trashCards.map(id => ({ id, label: null }))
     canConfirm = selected.length === (count ?? 1)
     confirmLabel = 'Put on Deck Bottom'
+  }
+
+  else if (type === 'trashAnyNumberFromHand') {
+    const bonus = choice.drawPlus ?? 0
+    title = 'Trash any number of cards from your hand'
+    subtitle = `Then draw that many${bonus ? ` plus ${bonus}` : ''}. Select any number, or none.`
+    cards = myHand.map(id => ({ id, label: null }))
+    canConfirm = true // zero is a valid choice
+    confirmLabel = selected.length
+      ? `Trash ${selected.length} & draw ${selected.length + bonus}`
+      : `Trash none & draw ${bonus}`
   }
 
   else if (type === 'trashFromHand') {

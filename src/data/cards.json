@@ -1215,13 +1215,12 @@
     "id": "88",
     "name": "Reset Memory",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "Trash your hand, then draw that many cards.",
+    "energyCost": 2,
+    "effectText": "Trash any number of cards from your hand, then draw that many plus one.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
-      { "type": "trashHand", "player": "self", "trackCount": true },
-      { "type": "draw", "count": "cardsJustTrashed", "player": "self" }
+      { "type": "trashAnyNumberFromHand", "player": "self", "thenDrawPlus": 1 }
     ],
     "staticEffects": []
   },

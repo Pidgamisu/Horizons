@@ -40,6 +40,30 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
+    case 'trashAnyNumberFromHand': {
+      // Reset Memory (88): payload cardIds is any subset of the hand (possibly
+      // empty). Trash them, then draw that many plus the bonus (choice.drawPlus).
+      const { cardIds } = payload;
+      if (!Array.isArray(cardIds)) { error = 'Invalid selection.'; break; }
+      const unique = [...new Set(cardIds)];
+      for (const id of unique) {
+        if (!state.players[playerId].hand.includes(id)) {
+          error = `Card ${id} is not in your hand.`; break;
+        }
+      }
+      if (error) break;
+      for (const id of unique) {
+        trashCardFromHand(state, playerId, id);
+        events.push({ type: 'CARD_TRASHED_FROM_HAND', player: playerId, cardId: id });
+      }
+      const drawCount = unique.length + (choice.drawPlus ?? 0);
+      if (drawCount > 0) {
+        const drawn = drawCards(state, playerId, drawCount);
+        events.push({ type: 'CARDS_DRAWN', player: playerId, cards: drawn });
+      }
+      break;
+    }
+
     case 'trashFromHorizon': {
       // payload: { horizonIndex: number }
       const { horizonIndex } = payload;

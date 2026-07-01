@@ -146,6 +146,7 @@ export function advancePendingChoices(state) {
   // Map trigger type → choice type
   const typeMap = {
     trashFromHandChoice:           'trashFromHand',
+    trashAnyNumberFromHandChoice:  'trashAnyNumberFromHand',
     trashFromHorizonChoice:          'trashFromHorizon',
     returnHorizonCardToHandChoice:   'returnToControllerHand',
     stealFromHorizonChoice:          'stealFromHorizon',
