@@ -47,12 +47,18 @@ export class BoardManager {
       this._collectOpponentHand(state.players?.[opp]?.handSize ?? 0, desired)
       this._collectTrash(state.zones?.trash ?? [], desired)
 
-      this._reconcileCards(desired)
+      // Reconcile positions/props first and note which cards moved. The actual
+      // glide is kicked off LAST: bringToFront (restack) and updateShapes
+      // (targeting) both cancel any in-flight animation on a shape, so nothing
+      // that calls updateShapes may run after animateShapes.
+      const toAnimate = this._reconcileCards(desired)
       this._restackHorizon(horizonIds)
 
       this._updateZoneCount('deck', state.zones?.deckSize ?? 0)
       this._updateZoneCount('void', state.zones?.voidSize ?? 0)
       this._syncTargeting(state.pendingChoice, myPlayerId)
+
+      if (toAnimate.length) this.editor.animateShapes(toAnimate, ANIM)
     }, { history: 'ignore', ignoreShapeLock: true })
   }
 
@@ -216,7 +222,9 @@ export class BoardManager {
 
     if (toCreate.length) this.editor.createShapes(toCreate)
     if (toUpdate.length) this.editor.updateShapes(toUpdate)
-    if (toAnimate.length) this.editor.animateShapes(toAnimate, ANIM)
+    // Caller fires the animation last (see syncState) so restack/targeting can't
+    // cancel it.
+    return toAnimate
   }
 
   // Cards keep one shape for their whole life, so their z-order no longer follows
