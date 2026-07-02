@@ -362,7 +362,7 @@ describe('A card takes full effect before it is trashed', () => {
     expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
   });
 
-  test('Stop (44): may target itself while it resolves', () => {
+  test('Stop (44): cannot choose itself while it resolves', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', '01'); // Sprint (point) — p1's own card
     giveCard(state, 'p2', '82'); // Drain (action) — something to respond to
@@ -376,19 +376,22 @@ describe('A card takes full effect before it is trashed', () => {
     passPriority(state, 'p1');    // Stop resolves → trashFromHorizon choice for p1
 
     advancePendingChoices(state);
-    // The resolving Stop is a legal target for its own effect.
+    // Stop stays on the horizon (still visible) but isn't a legal target for itself.
     const stopEntry = state.zones.horizon.find(e => e.cardId === '44');
     expect(stopEntry !== undefined).toBe(true);
     expect(stopEntry.resolving).toBe(true);
     const stopIdx = state.zones.horizon.findIndex(e => e.cardId === '44');
 
-    respond(state, 'p1', { horizonIndex: stopIdx });
+    // Choosing Stop itself is rejected.
+    const bad = resolveChoice(state, 'p1', { horizonIndex: stopIdx });
+    expect(bad.error !== null).toBe(true);
+    expect(state.zones.trash).not.toContain('44');
 
-    // Stop trashed itself; it isn't double-trashed and the rest survive.
-    expect(state.zones.trash).toContain('44');
-    expect(state.zones.trash.filter(id => id === '44')).toHaveLength(1);
-    expect(state.zones.horizon.some(e => e.cardId === '82')).toBe(true);
-    expect(state.zones.horizon.some(e => e.cardId === '01')).toBe(true);
+    // Another card on the horizon is still a valid target.
+    const drainIdx = state.zones.horizon.findIndex(e => e.cardId === '82');
+    respond(state, 'p1', { horizonIndex: drainIdx });
+    expect(state.zones.trash).toContain('82'); // targeted card trashed
+    expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
   });
 });
 

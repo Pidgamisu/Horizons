@@ -119,6 +119,15 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
 
   const { type, count, filter } = choice
 
+  // Horizon cards offered as targets, keyed by their real horizon index. A card
+  // that is currently resolving stays on the horizon but can't be chosen by its
+  // own effect, so it's excluded here (the engine enforces this too).
+  const horizonTargets = () =>
+    horizonCards
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => !e.resolving)
+      .map(({ e, i }) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+
   // ── Render by choice type ──────────────────────────────────────────────────
 
   let title = 'Make a choice'
@@ -137,7 +146,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller will move it to the top or bottom of the deck'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Choose'
   }
@@ -199,7 +208,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller may pay the ransom to save it'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Target'
   }
@@ -281,9 +290,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Trash a ${filterLabel} from the horizon`
     subtitle = 'Select a card to trash'
-    cards = horizonCards
-      .filter(e => filter === 'any' || true) // server enforces type
-      .map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Trash'
   }
@@ -291,7 +298,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   else if (type === 'returnToControllerHand') {
     title = 'Return a card from the horizon'
     subtitle = 'Choose a card to return to its controller\'s hand'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Return'
   }
@@ -299,7 +306,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   else if (type === 'moveFromHorizonToDeckTop') {
     title = 'Put a card from the horizon on top of the deck'
     subtitle = 'Choose a card on the horizon'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Put on Deck'
   }
@@ -307,7 +314,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   else if (type === 'stealFromHorizon') {
     title = 'Take a point card from the horizon'
     subtitle = 'Choose a point card to put into your hand'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Take'
   }
@@ -315,7 +322,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   else if (type === 'gainControl') {
     title = 'Gain control of a card on the horizon'
     subtitle = 'Choose a card'
-    cards = horizonCards.map((e, i) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+    cards = horizonTargets()
     canConfirm = selected.length === 1
     confirmLabel = 'Take Control'
   }

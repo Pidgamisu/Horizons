@@ -251,6 +251,9 @@ function getHorizonEntryCard(entry) {
  * and resolveChoice (to validate the player's pick).
  */
 export function horizonEntryMatchesFilter(entry, filter) {
+  // A card can't be chosen by its own resolving effect — it stays on the horizon
+  // while it resolves (so it's still visible) but is not a legal target for itself.
+  if (entry.resolving) return false;
   if (!filter || filter === 'any') return true;
   const card = getCard(entry.cardId);
   if (filter === 'actionPlayedInResponseToPoint') {
