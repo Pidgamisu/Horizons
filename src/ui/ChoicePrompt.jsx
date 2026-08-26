@@ -83,13 +83,13 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
 
     if (type === 'duskFromHand') {
       onRespond({ cardIds: selected })
-    } else if (type === 'putFromDuskToHand' || type === 'putFromDuskToDeckBottom') {
+    } else if (type === 'putFromDuskToHand' || type === 'putFromDuskToDeckBottom' || type === 'putFromDuskToDeckTop') {
       onRespond({ cardIds: selected })
-    } else if (['duskFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl', 'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget', 'controllerMovesCardFromHorizonTarget'].includes(type)) {
+    } else if (['duskFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl', 'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget', 'controllerMovesCardFromHorizonTarget', 'putPointFromHorizonIntoZenith', 'moveOnHorizonToTop'].includes(type)) {
       onRespond({ horizonIndex: parseInt(selected[0]) })
     } else if (type === 'optional') {
       onRespond({ accept: true })
-    } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToDuskFromRevealedHand' || type === 'opponentChoosesOne') {
+    } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToDuskFromRevealedHand' || type === 'opponentChoosesOne' || type === 'putPointFromDuskIntoZenith') {
       onRespond({ cardId: selected[0] })
     } else if (type === 'lookAtTopN') {
       onRespond({ duskCardId: selected[0] })
@@ -275,6 +275,38 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
     cards = myHand.map(id => ({ id, label: null }))
     canConfirm = selected.length === count
     confirmLabel = 'To the dusk'
+  }
+
+  else if (type === 'putPointFromDuskIntoZenith') {
+    title = 'Put a point from the dusk into your zenith'
+    subtitle = 'It scores immediately — one point per card in your zenith'
+    cards = duskCards.filter(id => cardType(id) === 'point').map(id => ({ id, label: null }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'To my zenith'
+  }
+
+  else if (type === 'putPointFromHorizonIntoZenith') {
+    title = 'Put a point from the horizon into your zenith'
+    subtitle = 'It never rises — it is banked straight into your zenith'
+    cards = horizonTargets()
+    canConfirm = selected.length === 1
+    confirmLabel = 'To my zenith'
+  }
+
+  else if (type === 'moveOnHorizonToTop') {
+    title = 'Move a card to the top of the horizon'
+    subtitle = 'The card you choose will rise next'
+    cards = horizonTargets()
+    canConfirm = selected.length === 1
+    confirmLabel = 'Move to top'
+  }
+
+  else if (type === 'putFromDuskToDeckTop') {
+    title = `Put ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the dusk on top of the deck`
+    subtitle = 'It will be drawn next'
+    cards = duskCards.map(id => ({ id, label: null }))
+    canConfirm = selected.length === (count ?? 1)
+    confirmLabel = 'To deck top'
   }
 
   else if (type === 'putFromDuskToHand') {

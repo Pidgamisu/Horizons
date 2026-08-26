@@ -1,8 +1,8 @@
 import { getCard } from '../data/cardDb.js';
 import {
   drawCards, duskCardFromHand, duskHand, duskFromHorizon,
-  sendToDusk, removeFromHorizon, shuffle, opponent, controllerOf,
-  horizonHasTarget,
+  sendToDusk, sendToZenith, removeFromHorizon, shuffle, opponent, controllerOf,
+  horizonHasTarget, reshuffleDuskIntoDeck, pointsOf, bothTypesToDuskThisTurn,
 } from '../engine/state.js';
 
 /**
@@ -24,6 +24,21 @@ export function executeEffects(state, entry) {
     if (state.winner) break; // stop if game ended mid-effect
   }
 
+  return events;
+}
+
+/**
+ * Run an arbitrary list of effects for a player — used when a player accepts an
+ * optional effect (Synergy 007, Answer Fate 047), where the effects are carried
+ * on the choice rather than read off a card.
+ */
+export function executeEffectList(state, effects, controller, entry = null) {
+  const events = [];
+  const ctx = {};
+  for (const effect of effects ?? []) {
+    events.push(...executeEffect(state, effect, controller, entry, ctx));
+    if (state.winner) break;
+  }
   return events;
 }
 
@@ -147,7 +162,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'trashAllFromHorizon': {
+    case 'duskAllFromHorizon': {
       const trashed = [];
       while (state.zones.horizon.length > 0) {
         const e = state.zones.horizon.shift();
@@ -159,7 +174,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'trashTopOfDeck': {
+    case 'duskTopOfDeck': {
       for (let i = 0; i < (effect.count ?? 1); i++) {
         if (state.zones.deck.length === 0) break;
         const card = state.zones.deck.shift();
@@ -429,6 +444,176 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
+    // ── Zenith movement ───────────────────────────────────────────────────────
+
+    case 'putPointFromDuskIntoZenith': {
+      // Abstract Embrace (001) — bank a point card straight out of the dusk.
+      const points = state.zones.dusk.filter(id => getCard(id).type === 'point');
+      if (points.length === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'putPointFromDuskIntoZenith' });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'putPointFromDuskIntoZenithChoice',
+        player: controller,
+        candidates: points,
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putPointFromDuskIntoZenith' });
+      break;
+    }
+
+    case 'putPointFromHorizonIntoZenith': {
+      // Change of Luck (068) — a point on the horizon never rises; it is banked
+      // directly into your zenith instead.
+      if (!horizonHasTarget(state, 'point')) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'putPointFromHorizonIntoZenith' });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'putPointFromHorizonIntoZenithChoice',
+        player: controller,
+        filter: 'point',
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putPointFromHorizonIntoZenith' });
+      break;
+    }
+
+    // ── Horizon sweeps ────────────────────────────────────────────────────────
+
+    case 'duskTopOfHorizon': {
+      // Anxiety (073) — no choice: whatever is on top goes to the dusk.
+      if (state.zones.horizon.length === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskTopOfHorizon' });
+        break;
+      }
+      const top = state.zones.horizon.shift();
+      sendToDusk(state, top.cardId);
+      events.push({ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: top.cardId });
+      break;
+    }
+
+    case 'allHorizonToDeckBottom': {
+      // Settle (100) — everything waiting on the horizon goes under the deck.
+      const moved = [];
+      while (state.zones.horizon.length > 0) {
+        const e = state.zones.horizon.shift();
+        state.zones.deck.push(e.cardId);
+        moved.push(e.cardId);
+      }
+      events.push({ type: 'HORIZON_TO_DECK_BOTTOM', cards: moved });
+      break;
+    }
+
+    case 'moveOnHorizonToTop': {
+      // Honest Sentiment (104) — reorder the horizon so a chosen card rises next.
+      if (state.zones.horizon.length < 2) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'moveOnHorizonToTop' });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'moveOnHorizonToTopChoice',
+        player: controller,
+        filter: effect.filter ?? 'any',
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'moveOnHorizonToTop' });
+      break;
+    }
+
+    // ── Deck / dusk shuffling ─────────────────────────────────────────────────
+
+    case 'shuffleDuskIntoDeck': {
+      // Answer Fate (047) — a card-granted reshuffle. Card text beats the
+      // 2-player "no reshuffles" default, so this can genuinely push Sunset out.
+      const count = state.zones.dusk.length;
+      reshuffleDuskIntoDeck(state);
+      events.push({ type: 'DUSK_SHUFFLED_INTO_DECK', count });
+      break;
+    }
+
+    case 'putFromDuskToDeckTop': {
+      // Foreshadow (066) — pick a card out of the dusk to draw next.
+      const effective = Math.min(effect.count ?? 1, state.zones.dusk.length);
+      if (effective === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'putFromDuskToDeckTop' });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'putFromDuskToDeckTopChoice', player: controller, count: effective });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromDuskToDeckTop', count: effective });
+      break;
+    }
+
+    case 'shuffleHandsIntoDeckAndDraw': {
+      // Reset Memory (098) — both hands go back into the deck, then both redraw.
+      const n = effect.count ?? 5;
+      const returned = [...state.players.p1.hand, ...state.players.p2.hand];
+      state.players.p1.hand = [];
+      state.players.p2.hand = [];
+      state.zones.deck = shuffle([...state.zones.deck, ...returned]);
+      const d1 = drawCards(state, 'p1', n);
+      const d2 = drawCards(state, 'p2', n);
+      events.push({ type: 'HANDS_RESET', returned: returned.length, p1: d1.length, p2: d2.length });
+      break;
+    }
+
+    case 'revealTopNSplitByType': {
+      // Gamble (103) — reveal the top N; points to your hand, the rest to the dusk.
+      const n = effect.count ?? 4;
+      const revealed = state.zones.deck.splice(0, n);
+      const taken = [], discarded = [];
+      for (const id of revealed) {
+        if (getCard(id).type === 'point') {
+          state.players[controller].hand.push(id);
+          taken.push(id);
+        } else {
+          sendToDusk(state, id);
+          discarded.push(id);
+        }
+      }
+      events.push({ type: 'CARDS_REVEALED', cards: revealed });
+      events.push({ type: 'REVEAL_SPLIT', player: controller, toHand: taken, toDusk: discarded });
+      break;
+    }
+
+    // ── Energy and hands ──────────────────────────────────────────────────────
+
+    case 'drainOpponentEnergy': {
+      // Trickle Down Economics (027) — take whatever the opponent is holding.
+      const drained = state.players[opp].energy;
+      state.players[opp].energy = 0;
+      state.players[controller].energy += drained;
+      events.push({ type: 'ENERGY_DRAINED', from: opp, to: controller, amount: drained });
+      break;
+    }
+
+    case 'randomFromHandToDusk': {
+      // Cerebral Snuff (091) — random, so no choice is offered to anyone.
+      const target = effect.player === 'self' ? controller : opp;
+      const hand = state.players[target].hand;
+      const n = Math.min(effect.count ?? 1, hand.length);
+      const lost = [];
+      for (let i = 0; i < n; i++) {
+        const idx = Math.floor(Math.random() * hand.length);
+        const [id] = hand.splice(idx, 1);
+        sendToDusk(state, id);
+        lost.push(id);
+      }
+      events.push({ type: 'RANDOM_CARDS_TO_DUSK', player: target, cards: lost });
+      break;
+    }
+
+    case 'conditionalDraw': {
+      // Angst (020), Beget Advantage (034) — draw only if the condition holds.
+      const met = evaluateCardCondition(state, effect.condition, controller);
+      if (!met) {
+        events.push({ type: 'CONDITION_NOT_MET', condition: effect.condition });
+        break;
+      }
+      const target = resolvePlayers(effect.player, controller, opp);
+      const drawn = drawCards(state, target === 'both' ? controller : target, effect.count);
+      events.push({ type: 'CARDS_DRAWN', player: target, cards: drawn });
+      break;
+    }
+
     // Complex effects that need player interaction — all queued as pending choices
     case 'revealUntilType':
     case 'chooseNumber':
@@ -476,7 +661,26 @@ function resolveAmount(state, amount, ctx) {
   if (typeof amount === 'string' && amount.startsWith('countOnHorizon:')) {
     return state.zones.horizon.length;
   }
+  if (amount === 'distinctEnergyCostsOnHorizon') {   // Dividends (083)
+    return new Set(state.zones.horizon.map(e => getCard(e.cardId).energyCost)).size;
+  }
+  if (amount === 'threePerCardOnHorizon') {           // Share the Loot (085)
+    return state.zones.horizon.length * 3;
+  }
+  if (amount === 'trackedCost') {                     // Burn Out (088), Strobe Brightness (102)
+    return ctx.trackedCost ?? 0;
+  }
   return 0;
+}
+
+/** Conditions a card checks as it rises (as opposed to when it is played). */
+function evaluateCardCondition(state, condition, playerId) {
+  switch (condition) {
+    case 'bothTypesToDuskThisTurn': return bothTypesToDuskThisTurn(state);
+    case 'selfAtFourPoints':        return pointsOf(state, playerId) >= 4;
+    case 'opponentAtFourPoints':    return pointsOf(state, opponent(playerId)) >= 4;
+    default: return false;
+  }
 }
 
 function evaluateResolutionCondition(state, condition) {

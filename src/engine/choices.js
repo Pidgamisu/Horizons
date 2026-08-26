@@ -3,6 +3,7 @@ import {
   drawCards, duskCardFromHand, sendToDusk, duskFromHorizon,
   removeFromHorizon, opponent, controllerOf, horizonEntryMatchesFilter,
 } from '../engine/state.js';
+import { executeEffectList } from '../effects/executor.js';
 
 /**
  * Process a player's response to a CHOICE_REQUIRED prompt.
@@ -178,6 +179,59 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
+    case 'putPointFromDuskIntoZenith': {
+      // payload: { cardId: string } — Abstract Embrace (001)
+      const { cardId } = payload;
+      if (!state.zones.dusk.includes(cardId)) { error = 'That card is not in the dusk.'; break; }
+      if (getCard(cardId).type !== 'point') { error = 'Must choose a point card.'; break; }
+      state.zones.dusk.splice(state.zones.dusk.indexOf(cardId), 1);
+      state.players[playerId].zenith.push(cardId);
+      events.push({ type: 'CARD_TO_ZENITH', cardId, player: playerId });
+      break;
+    }
+
+    case 'putPointFromHorizonIntoZenith': {
+      // payload: { horizonIndex: number } — Change of Luck (068). The point never
+      // rises; it is banked straight into the chooser's zenith.
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      if (getCard(entry.cardId).type !== 'point') { error = 'Must choose a point card.'; break; }
+      removeFromHorizon(state, horizonIndex);
+      state.players[playerId].zenith.push(entry.cardId);
+      events.push({ type: 'CARD_TO_ZENITH', cardId: entry.cardId, player: playerId });
+      break;
+    }
+
+    case 'moveOnHorizonToTop': {
+      // payload: { horizonIndex: number } — Honest Sentiment (104)
+      const { horizonIndex } = payload;
+      const entry = state.zones.horizon[horizonIndex];
+      if (!entry) { error = 'Invalid horizon index.'; break; }
+      removeFromHorizon(state, horizonIndex);
+      state.zones.horizon.unshift(entry);
+      events.push({ type: 'HORIZON_CARD_MOVED_TO_TOP', cardId: entry.cardId, player: playerId });
+      break;
+    }
+
+    case 'putFromDuskToDeckTop': {
+      // payload: { cardIds: string[] } — Foreshadow (066)
+      const { cardIds } = payload;
+      if (!Array.isArray(cardIds) || cardIds.length !== (choice.count ?? 1)) {
+        error = `Must choose exactly ${choice.count ?? 1} card(s).`; break;
+      }
+      for (const id of cardIds) {
+        if (!state.zones.dusk.includes(id)) { error = `Card ${id} is not in the dusk.`; break; }
+      }
+      if (error) break;
+      for (const id of cardIds) {
+        state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
+        state.zones.deck.unshift(id);
+        events.push({ type: 'CARD_FROM_DUSK_TO_DECK_TOP', cardId: id, player: playerId });
+      }
+      break;
+    }
+
     case 'putHandCardOnDeckTop': {
       // payload: { cardId: string }
       const { cardId } = payload;
@@ -273,8 +327,10 @@ export function resolveChoice(state, playerId, payload) {
     case 'optional': {
       // payload: { accept: boolean }
       if (payload.accept) {
-        // Queue the sub-effects as the next choices
-        events.push({ type: 'OPTIONAL_ACCEPTED', pendingEffects: choice.effects });
+        // Run what they accepted. Sub-effects that need a choice of their own
+        // queue normally and surface on the next advancePendingChoices pass.
+        events.push({ type: 'OPTIONAL_ACCEPTED' });
+        events.push(...executeEffectList(state, choice.effects, playerId));
       } else {
         events.push({ type: 'OPTIONAL_DECLINED' });
       }

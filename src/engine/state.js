@@ -12,6 +12,8 @@ export const CHOICE_TRIGGER_TYPES = new Set([
   'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromHorizonTarget',
   'lookAtTopN', 'chooseNumber', 'chooseCardToDuskFromRevealedHand',
   'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget',
+  'putPointFromDuskIntoZenithChoice', 'putPointFromHorizonIntoZenithChoice',
+  'moveOnHorizonToTopChoice', 'putFromDuskToDeckTopChoice',
 ]);
 
 /** Does a pending trigger require a player choice (vs. resolving on its own)? */
@@ -30,6 +32,7 @@ export function createGameState() {
     turnNumber: 0,
     cardsPlayedThisTurn: [],   // [{ cardId, playedBy }] in order
     cardsDrawnThisTurn: { p1: 0, p2: 0 },
+    cardsToDuskThisTurn: [],   // CardId[] — everything that entered the dusk this turn (Delve 003, Angst 020)
 
     players: {
       p1: createPlayerState(),
@@ -53,6 +56,9 @@ export function createGameState() {
 
     // Pending end-of-turn triggers
     pendingTriggers: [],
+
+    // The choice a player is currently being asked to make, if any.
+    pendingChoice: null,
 
     winner: null,
   };
@@ -183,7 +189,14 @@ export function sendToDusk(state, cardId) {
     state.zones.deck.push(cardId); // bottom of deck
   } else {
     state.zones.dusk.push(cardId);
+    state.cardsToDuskThisTurn.push(cardId);
   }
+}
+
+/** Did both a point and an action reach the dusk this turn? (Delve 003, Angst 020) */
+export function bothTypesToDuskThisTurn(state) {
+  const types = new Set(state.cardsToDuskThisTurn.map(id => getCard(id).type));
+  return types.has("point") && types.has("action");
 }
 
 /** Put a player's whole hand into the dusk. Returns count. */
@@ -216,8 +229,11 @@ export function isHorizonLocked(state, forPlayer) {
   return state.zones.horizon.some(entry => {
     const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se =>
-      se.type === 'lockHorizon' &&
-      (se.scope === 'allPlayers' || (se.scope === 'controller' && controllerOf(entry) === forPlayer))
+      se.type === 'lockHorizon' && (
+        se.scope === 'allPlayers' ||
+        (se.scope === 'controller' && controllerOf(entry) === forPlayer) ||
+        (se.scope === 'opponents' && controllerOf(entry) !== forPlayer)
+      )
     );
   });
 }
@@ -306,6 +322,10 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
   for (const mod of card.costModifiers ?? []) {
     switch (mod.type) {
       case 'discountPerCard': {
+        if (mod.zone === 'zeniths') {
+          cost -= (pointsOf(state, 'p1') + pointsOf(state, 'p2')) * mod.amount;
+          break;
+        }
         const zone = mod.zone === 'dusk' ? state.zones.dusk : state.zones.horizon;
         const count = mod.filter === 'any'
           ? zone.length
@@ -336,6 +356,14 @@ function evaluateCondition(state, condition, playerId, context) {
   switch (condition) {
     case 'anyPlayerAtFourPoints':
       return pointsOf(state, 'p1') >= 4 || pointsOf(state, 'p2') >= 4;
+    case 'opponentAtFourPoints':      // Mercy (014)
+      return pointsOf(state, opponent(playerId)) >= 4;
+    case 'selfAtFourPoints':          // Beget Advantage (034)
+      return pointsOf(state, playerId) >= 4;
+    case 'bothTypesToDuskThisTurn':   // Delve (003)
+      return bothTypesToDuskThisTurn(state);
+    case 'revealThreePointsFromHand': // Dawn (049)
+      return state.players[playerId].hand.filter(id => getCard(id).type === 'point').length >= 3;
     case 'playedBothTypesThisTurn': {
       const types = new Set(state.cardsPlayedThisTurn.map(p => getCard(p.cardId).type));
       return types.has('point') && types.has('action');

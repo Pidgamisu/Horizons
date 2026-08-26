@@ -91,6 +91,11 @@ export function validatePlay(state, playerId, cardId, context = {}) {
         }
         break;
       }
+      case 'notOnYourTurn':
+        // Strafe (006) — a point that may only be played on the opponent's turn.
+        if (isOwnTurn) return `${card.name} cannot be played during your turn.`;
+        break;
+
       case 'mustBeFirstCardThisTurn':
         if (state.cardsPlayedThisTurn.length > 0) {
           return `${card.name} must be the first card you play this turn.`;

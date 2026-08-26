@@ -163,6 +163,10 @@ export function advancePendingChoices(state) {
     revealUntilType:               'revealUntilType',
     chooseCardToDuskFromRevealedHand: 'chooseCardToDuskFromRevealedHand',
     putHandCardOnDeckTop:          'putHandCardOnDeckTop',
+    putPointFromDuskIntoZenithChoice:    'putPointFromDuskIntoZenith',
+    putPointFromHorizonIntoZenithChoice: 'putPointFromHorizonIntoZenith',
+    moveOnHorizonToTopChoice:            'moveOnHorizonToTop',
+    putFromDuskToDeckTopChoice:          'putFromDuskToDeckTop',
   };
 
   state.pendingChoice = {

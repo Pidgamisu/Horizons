@@ -8,7 +8,12 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "lockHorizon",
+        "scope": "opponents"
+      }
+    ]
   },
   {
     "id": "001",
@@ -18,7 +23,12 @@
     "effectText": "When this rises, put a point from the dusk into your zenith.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "putPointFromDuskIntoZenith",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -29,7 +39,13 @@
     "effectText": "When this rises, you gain 4 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "gainEnergy",
+        "amount": 4,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -40,6 +56,13 @@
     "effectText": "This costs 2 energy less if an action and a point went into the dusk this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "discountIfCondition",
+        "condition": "bothTypesToDuskThisTurn",
+        "amount": 2
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -51,7 +74,13 @@
     "effectText": "When this rises, draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -62,6 +91,13 @@
     "effectText": "If you played an action and a point this turn, this costs 4 energy less.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "discountIfCondition",
+        "condition": "playedBothTypesThisTurn",
+        "amount": 4
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -71,7 +107,15 @@
     "type": "point",
     "energyCost": 5,
     "effectText": "You can play this in response to an opponent's action.\nYou can't play this during your turn.",
-    "playRestrictions": [],
+    "playRestrictions": [
+      {
+        "type": "responseOnly",
+        "filter": "action"
+      },
+      {
+        "type": "notOnYourTurn"
+      }
+    ],
     "additionalCosts": [],
     "effects": [],
     "staticEffects": []
@@ -84,7 +128,23 @@
     "effectText": "When this rises, you may put a card from your hand into the dusk. If you do, draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "optional",
+        "effects": [
+          {
+            "type": "duskFromHand",
+            "count": 1,
+            "player": "self"
+          },
+          {
+            "type": "draw",
+            "count": 1,
+            "player": "self"
+          }
+        ]
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -94,7 +154,12 @@
     "energyCost": 2,
     "effectText": "As an additional cost, put a card from your hand on top of the deck.",
     "playRestrictions": [],
-    "additionalCosts": [],
+    "additionalCosts": [
+      {
+        "type": "putHandCardOnDeckTop",
+        "count": 1
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -107,7 +172,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "putIntoDuskFromNonHorizon",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "both"
+        }
+      }
+    ]
   },
   {
     "id": "010",
@@ -118,7 +193,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "leavesHorizon",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "opponent"
+        }
+      }
+    ]
   },
   {
     "id": "011",
@@ -126,8 +211,17 @@
     "type": "point",
     "energyCost": 0,
     "effectText": "You can only play this if it's the first card of the turn. When you play this, you can't play any more cards this turn.",
-    "playRestrictions": [],
+    "playRestrictions": [
+      {
+        "type": "mustBeFirstCardThisTurn"
+      }
+    ],
     "additionalCosts": [],
+    "onPlayEffects": [
+      {
+        "type": "lockSelfFromPlaying"
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -139,7 +233,13 @@
     "effectText": "When this rises, each player puts a card from their hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHand",
+        "count": 1,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -150,7 +250,18 @@
     "effectText": "When this rises, each player puts a card from their hand into the dusk, then draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHand",
+        "count": 1,
+        "player": "both"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -161,6 +272,13 @@
     "effectText": "This costs 3 energy less if an opponent has four or more points in their zenith.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "discountIfCondition",
+        "condition": "opponentAtFourPoints",
+        "amount": 3
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -173,7 +291,13 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "modifyPlayCost",
+        "target": "opponent",
+        "amount": -2
+      }
+    ]
   },
   {
     "id": "016",
@@ -183,7 +307,12 @@
     "effectText": "When this rises, reveal a player's hand, then put a card from it in the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "chooseCardToDuskFromRevealedHand",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -192,8 +321,21 @@
     "type": "point",
     "energyCost": 7,
     "effectText": "This costs 1 energy less for each card on the horizon.\nYou can only play this in response to actions.",
-    "playRestrictions": [],
+    "playRestrictions": [
+      {
+        "type": "responseOnly",
+        "filter": "action"
+      }
+    ],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "discountPerCard",
+        "zone": "horizon",
+        "filter": "any",
+        "amount": 1
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -205,6 +347,12 @@
     "effectText": "When you put this on the horizon, put your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "onPlayEffects": [
+      {
+        "type": "duskHand",
+        "player": "self"
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -217,7 +365,13 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "modifyPlayCost",
+        "target": "opponent",
+        "amount": 2
+      }
+    ]
   },
   {
     "id": "020",
@@ -227,7 +381,14 @@
     "effectText": "When this rises, draw two cards if an action and a point went into the dusk this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "conditionalDraw",
+        "condition": "bothTypesToDuskThisTurn",
+        "count": 2,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -239,7 +400,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "opponentPlaysCard",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "controller"
+        }
+      }
+    ]
   },
   {
     "id": "022",
@@ -249,7 +420,13 @@
     "effectText": "When this rises, each player draws two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -261,7 +438,12 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "lockHorizon",
+        "scope": "controller"
+      }
+    ]
   },
   {
     "id": "024",
@@ -272,7 +454,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "opponentPlaysCard",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "both"
+        }
+      }
+    ]
   },
   {
     "id": "025",
@@ -282,7 +474,12 @@
     "effectText": "When this rises, put a card from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "putFromDuskToHand",
+        "count": 1
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -291,7 +488,12 @@
     "type": "point",
     "energyCost": 4,
     "effectText": "You can only play this if you have exactly 4 energy.",
-    "playRestrictions": [],
+    "playRestrictions": [
+      {
+        "type": "exactEnergy",
+        "amount": 4
+      }
+    ],
     "additionalCosts": [],
     "effects": [],
     "staticEffects": []
@@ -304,6 +506,12 @@
     "effectText": "When you put this on the horizon, each opponent loses all leftover energy. You gain that much energy.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "onPlayEffects": [
+      {
+        "type": "drainOpponentEnergy",
+        "player": "self"
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -316,7 +524,12 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "allowOpponentPointResponse",
+        "onlyWhileTop": true
+      }
+    ]
   },
   {
     "id": "029",
@@ -327,7 +540,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "anyPlayerPlaysCard",
+        "effect": {
+          "type": "gainEnergy",
+          "amount": 1,
+          "player": "both"
+        }
+      }
+    ]
   },
   {
     "id": "030",
@@ -338,7 +561,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "anyPlayerPlaysCard",
+        "effect": {
+          "type": "duskFromHand",
+          "count": 1,
+          "player": "both"
+        }
+      }
+    ]
   },
   {
     "id": "031",
@@ -348,6 +581,13 @@
     "effectText": "This costs 3 energy less if you drew two or more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "discountIfCondition",
+        "condition": "drewTwoOrMoreThisTurn",
+        "amount": 3
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -359,7 +599,17 @@
     "effectText": "When this rises, put your hand into the dusk, then draw three cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskHand",
+        "player": "self"
+      },
+      {
+        "type": "draw",
+        "count": 3,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -370,7 +620,12 @@
     "effectText": "When this rises, each player reveals their hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "revealHand",
+        "target": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -381,7 +636,14 @@
     "effectText": "When this rises, if you have four or more points in your zenith, draw three cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "conditionalDraw",
+        "condition": "selfAtFourPoints",
+        "count": 3,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -392,7 +654,13 @@
     "effectText": "When this rises, choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest into an opponent's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "revealUntilType",
+        "putChosen": "hand",
+        "putRest": "opponentHand"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -401,8 +669,19 @@
     "type": "point",
     "energyCost": 7,
     "effectText": "You can only play this in response to actions. When you do, gain control of that action.",
-    "playRestrictions": [],
+    "playRestrictions": [
+      {
+        "type": "responseOnly",
+        "filter": "action"
+      }
+    ],
     "additionalCosts": [],
+    "onPlayEffects": [
+      {
+        "type": "gainControlOfRespondedCard",
+        "onRise": "returnToInitialControllerHand"
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -415,7 +694,16 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "nthCardPlayedThisTurn",
+        "n": 4,
+        "effect": {
+          "type": "duskSelf"
+        }
+      }
+    ]
   },
   {
     "id": "038",
@@ -426,7 +714,13 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "allowPlayFromDusk",
+        "filter": "action",
+        "surcharge": 2
+      }
+    ]
   },
   {
     "id": "039",
@@ -437,7 +731,11 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "lockDraw"
+      }
+    ]
   },
   {
     "id": "040",
@@ -448,7 +746,16 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "leavesHorizonWithoutRising",
+        "effect": {
+          "type": "moveSelf",
+          "to": "deckBottom"
+        }
+      }
+    ]
   },
   {
     "id": "041",
@@ -459,7 +766,17 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "leavesHorizonWithoutRising",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "both"
+        }
+      }
+    ]
   },
   {
     "id": "042",
@@ -469,7 +786,13 @@
     "effectText": "When this rises, each player gains 4 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "gainEnergy",
+        "amount": 4,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -481,7 +804,12 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "setActionCostZero",
+        "target": "controller"
+      }
+    ]
   },
   {
     "id": "044",
@@ -492,7 +820,15 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "opponentRespondsToThis",
+        "effect": {
+          "type": "duskSelf"
+        }
+      }
+    ]
   },
   {
     "id": "045",
@@ -501,9 +837,19 @@
     "energyCost": 5,
     "effectText": "As an additional cost, pay any amount of energy. While this is on the horizon, cards your opponents play cost that much more.",
     "playRestrictions": [],
-    "additionalCosts": [],
+    "additionalCosts": [
+      {
+        "type": "payAnyAmount"
+      }
+    ],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "modifyPlayCost",
+        "target": "opponent",
+        "amount": "paidAmount"
+      }
+    ]
   },
   {
     "id": "046",
@@ -514,7 +860,25 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "leavesHorizon",
+        "effect": {
+          "type": "branchOnRose",
+          "ifRose": {
+            "type": "draw",
+            "count": 1,
+            "player": "controller"
+          },
+          "ifNot": {
+            "type": "duskFromHand",
+            "count": 1,
+            "player": "controller"
+          }
+        }
+      }
+    ]
   },
   {
     "id": "047",
@@ -524,7 +888,16 @@
     "effectText": "When this rises, you may shuffle the dusk into the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "optional",
+        "effects": [
+          {
+            "type": "shuffleDuskIntoDeck"
+          }
+        ]
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -534,7 +907,12 @@
     "energyCost": 3,
     "effectText": "As an additional cost, put six cards from the dusk to the bottom of the deck.",
     "playRestrictions": [],
-    "additionalCosts": [],
+    "additionalCosts": [
+      {
+        "type": "putFromDuskToDeckBottom",
+        "count": 6
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -546,6 +924,12 @@
     "effectText": "This costs 0 energy if you reveal three points from your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
+    "costModifiers": [
+      {
+        "type": "freeIfCondition",
+        "condition": "revealThreePointsFromHand"
+      }
+    ],
     "effects": [],
     "staticEffects": []
   },
@@ -557,7 +941,12 @@
     "effectText": "Return a point on the horizon to its controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "returnToControllerHand",
+        "filter": "point"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -568,7 +957,12 @@
     "effectText": "Put a card on the horizon on top of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "moveFromHorizonToDeckTop",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -579,7 +973,13 @@
     "effectText": "Gain control of an action on the horizon. When it rises, return it to its initial controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "gainControl",
+        "filter": "action",
+        "onResolve": "returnToInitialControllerHand"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -590,7 +990,12 @@
     "effectText": "Put a point on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "point"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -601,7 +1006,12 @@
     "effectText": "Put a card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -612,7 +1022,12 @@
     "effectText": "Put a card from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "putFromDuskToHand",
+        "count": 1
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -623,7 +1038,17 @@
     "effectText": "Reveal the top four cards of the deck and choose an opponent. They put one of the cards into their hand, then the rest into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "revealTopN",
+        "count": 4
+      },
+      {
+        "type": "opponentChoosesOne",
+        "putChosen": "chooserHand",
+        "putRest": "casterHand"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -634,7 +1059,13 @@
     "effectText": "Put two cards of an opponent's choice from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "opponentChoosesFromDusk",
+        "count": 2,
+        "putTo": "casterHand"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -644,8 +1075,21 @@
     "energyCost": 0,
     "effectText": "As an additional cost, pay any amount of energy. Put a card on the horizon into the dusk unless its controller pays that much energy.",
     "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [],
+    "additionalCosts": [
+      {
+        "type": "payAnyAmount"
+      }
+    ],
+    "effects": [
+      {
+        "type": "duskUnlessControllerPays",
+        "filter": "any",
+        "ransom": {
+          "type": "energy",
+          "amount": "paidAmount"
+        }
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -656,7 +1100,17 @@
     "effectText": "Draw two cards, then put a card from your hand on top of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "self"
+      },
+      {
+        "type": "putHandCardOnDeckTop",
+        "count": 1
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -667,7 +1121,19 @@
     "effectText": "Each player gains 1 energy. Draw a card at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "gainEnergy",
+        "amount": 1,
+        "player": "both"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self",
+        "timing": "endOfTurn"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -678,7 +1144,16 @@
     "effectText": "You may play points in response to actions this turn. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "allowSelfPointResponseToActions"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -689,7 +1164,11 @@
     "effectText": "Opponents can't play any more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "lockOpponentFromPlaying"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -700,7 +1179,18 @@
     "effectText": "Draw two cards, then put two cards from your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "self"
+      },
+      {
+        "type": "duskFromHand",
+        "count": 2,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -711,7 +1201,18 @@
     "effectText": "Whenever a card you control leaves the horizon this turn and didn't rise, draw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "registerTrigger",
+        "on": "selfCardLeavesHorizonWithoutRising",
+        "duration": "turn",
+        "effect": {
+          "type": "draw",
+          "count": 2,
+          "player": "controller"
+        }
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -722,7 +1223,21 @@
     "effectText": "This costs 1 energy less for each point in each player's zenith.\nDraw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "costModifiers": [
+      {
+        "type": "discountPerCard",
+        "zone": "zeniths",
+        "filter": "any",
+        "amount": 1
+      }
+    ],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -733,7 +1248,18 @@
     "effectText": "Put a card from the dusk on top of the deck. Draw a card at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "putFromDuskToDeckTop",
+        "count": 1
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self",
+        "timing": "endOfTurn"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -744,7 +1270,16 @@
     "effectText": "The controller of an action on the horizon chooses to put it on the top or bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "controllerMovesCardFromHorizon",
+        "filter": "action",
+        "destinations": [
+          "deckTop",
+          "deckBottom"
+        ]
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -755,7 +1290,12 @@
     "effectText": "Put a point on the horizon into your zenith.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "putPointFromHorizonIntoZenith",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -766,7 +1306,16 @@
     "effectText": "Put a card on the horizon into the dusk unless its controller pays 1 energy for each card in the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskUnlessControllerPays",
+        "filter": "any",
+        "ransom": {
+          "type": "energy",
+          "amount": "countInDusk:any"
+        }
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -777,7 +1326,17 @@
     "effectText": "Put a point on the horizon into the dusk. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "point"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -788,7 +1347,13 @@
     "effectText": "Put a card on the horizon into the dusk. The next card its controller plays this turn costs 0 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any",
+        "thenGrant": "targetControllerNextCardFree"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -799,7 +1364,17 @@
     "effectText": "Return a card on the horizon to its controller's hand. You gain 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "returnToControllerHand",
+        "filter": "any"
+      },
+      {
+        "type": "gainEnergy",
+        "amount": 3,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -810,7 +1385,11 @@
     "effectText": "Put the top card of the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskTopOfHorizon"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -821,7 +1400,13 @@
     "effectText": "Choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest at the bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "revealUntilType",
+        "putChosen": "hand",
+        "putRest": "deckBottom"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -832,7 +1417,12 @@
     "effectText": "Put a card from your hand into the dusk. You may put a card on the horizon that shares that card's energy cost into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHandThenMatchCostOnHorizon",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -843,7 +1433,16 @@
     "effectText": "Put a card on the horizon into the dusk, then put your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any"
+      },
+      {
+        "type": "duskHand",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -854,7 +1453,16 @@
     "effectText": "Opponents can't play actions in response to the next action you play this turn. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "lockOpponentActionResponse"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -865,7 +1473,19 @@
     "effectText": "This costs 1 energy less for each card on the horizon.\nPut all cards on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "costModifiers": [
+      {
+        "type": "discountPerCard",
+        "zone": "horizon",
+        "filter": "any",
+        "amount": 1
+      }
+    ],
+    "effects": [
+      {
+        "type": "duskAllFromHorizon"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -876,7 +1496,12 @@
     "effectText": "Put an action on the horizon into the dusk if it was played in response to a point.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "actionPlayedInResponseToPoint"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -887,7 +1512,18 @@
     "effectText": "This costs 0 energy if an opponent played 3 or more cards this turn.\nPut a card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "costModifiers": [
+      {
+        "type": "freeIfCondition",
+        "condition": "opponentPlayedThreeOrMoreThisTurn"
+      }
+    ],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -898,7 +1534,16 @@
     "effectText": "Put a card on the horizon into the dusk unless its controller puts three cards of your choice from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskUnlessControllerPays",
+        "filter": "any",
+        "ransom": {
+          "type": "giveFromDuskToCaster",
+          "count": 3
+        }
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -910,7 +1555,18 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": []
+    "staticEffects": [
+      {
+        "type": "trigger",
+        "on": "leavesHorizon",
+        "effect": {
+          "type": "draw",
+          "count": 1,
+          "player": "controller",
+          "timing": "endOfTurn"
+        }
+      }
+    ]
   },
   {
     "id": "083",
@@ -920,7 +1576,13 @@
     "effectText": "Draw cards equal to the number of different energy costs on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": "distinctEnergyCostsOnHorizon",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -931,7 +1593,16 @@
     "effectText": "Put an action on the horizon into the dusk unless its controller pays 1 energy for each card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskUnlessControllerPays",
+        "filter": "action",
+        "ransom": {
+          "type": "energy",
+          "amount": "countOnHorizon:any"
+        }
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -942,7 +1613,13 @@
     "effectText": "You gain 3 energy for each card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "gainEnergy",
+        "amount": "threePerCardOnHorizon",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -953,7 +1630,19 @@
     "effectText": "Draw four cards. At the start of the next turn, put four cards from your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 4,
+        "player": "self"
+      },
+      {
+        "type": "duskFromHand",
+        "count": 4,
+        "player": "self",
+        "timing": "endOfTurn"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -964,7 +1653,17 @@
     "effectText": "Put a card on the horizon into the dusk. Each player draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -975,7 +1674,18 @@
     "effectText": "Put a point on the horizon into the dusk. You gain energy equal to its cost.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "point",
+        "trackCost": true
+      },
+      {
+        "type": "gainEnergy",
+        "amount": "trackedCost",
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -986,7 +1696,13 @@
     "effectText": "Put an action on the horizon into the dusk. Its controller gains 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "action",
+        "thenGrant": "targetControllerGains3"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -997,7 +1713,11 @@
     "effectText": "Put each card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskAllFromHorizon"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1008,7 +1728,13 @@
     "effectText": "Each opponent puts a random card from their hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "randomFromHandToDusk",
+        "player": "opponent",
+        "count": 1
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1019,7 +1745,13 @@
     "effectText": "Put a point on the horizon into dusk. Its controller can't play any more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "point",
+        "thenGrant": "lockTargetController"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1030,7 +1762,13 @@
     "effectText": "Choose an opponent. You and that player each draw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "both"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1041,7 +1779,12 @@
     "effectText": "Put a card on the horizon into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "moveFromHorizonToHand",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1052,7 +1795,13 @@
     "effectText": "Put a card on the horizon into the dusk, then its controller draws two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskFromHorizon",
+        "filter": "any",
+        "thenGrant": "targetControllerDrawsTwo"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1063,7 +1812,12 @@
     "effectText": "Put a point on the horizon into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "moveFromHorizonToHand",
+        "filter": "point"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1074,7 +1828,21 @@
     "effectText": "Put an action on the horizon into the dusk unless its controller pays 1 energy.\nDraw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "duskUnlessControllerPays",
+        "filter": "action",
+        "ransom": {
+          "type": "energy",
+          "amount": 1
+        }
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1085,7 +1853,12 @@
     "effectText": "Shuffle each player's hand into the deck, then each player draws 5 cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "shuffleHandsIntoDeckAndDraw",
+        "count": 5
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1096,7 +1869,14 @@
     "effectText": "Draw two cards at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "draw",
+        "count": 2,
+        "player": "self",
+        "timing": "endOfTurn"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1107,7 +1887,11 @@
     "effectText": "Put each card on the horizon to the bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "allHorizonToDeckBottom"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1118,7 +1902,16 @@
     "effectText": "Return two cards on the horizon controlled by different players to their controller's hand. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "returnTwoDifferentControllers"
+      },
+      {
+        "type": "draw",
+        "count": 1,
+        "player": "self"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1129,7 +1922,19 @@
     "effectText": "Return a card on the horizon to its controller's hand. You gain energy equal to its cost at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "returnToControllerHand",
+        "filter": "any",
+        "trackCost": true
+      },
+      {
+        "type": "gainEnergy",
+        "amount": "trackedCost",
+        "player": "self",
+        "timing": "endOfTurn"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1140,7 +1945,14 @@
     "effectText": "Reveal the top 4 cards of the deck. Put all points from among them into your hand, and the rest into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "revealTopNSplitByType",
+        "count": 4,
+        "pointsTo": "hand",
+        "restTo": "dusk"
+      }
+    ],
     "staticEffects": []
   },
   {
@@ -1151,7 +1963,12 @@
     "effectText": "Move a card on the horizon to the top of the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
+    "effects": [
+      {
+        "type": "moveOnHorizonToTop",
+        "filter": "any"
+      }
+    ],
     "staticEffects": []
   }
 ]

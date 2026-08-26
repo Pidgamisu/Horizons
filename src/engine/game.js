@@ -277,6 +277,7 @@ export function endTurn(state) {
   // 6. Reset per-turn state
   state.cardsPlayedThisTurn = [];
   state.cardsDrawnThisTurn = { p1: 0, p2: 0 };
+  state.cardsToDuskThisTurn = [];
   state.turnFlags = createTurnFlags();
   state.players.p1.lockedFromPlaying = false;
   state.players.p2.lockedFromPlaying = false;

@@ -2,21 +2,27 @@ import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import {
   createGameState, createHorizonEntry, initDeck, drawCards, opponent, pointsOf,
+  computeActualCost, sendToDusk,
 } from '../src/engine/state.js';
 import {
   startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
   checkSunset, isLivePriorityWindow,
 } from '../src/engine/game.js';
 import { validatePlay } from '../src/engine/validation.js';
+import { resolveChoice } from '../src/engine/choices.js';
+import { executeOnPlayEffects } from '../src/effects/executor.js';
+import { advancePendingChoices } from '../src/server.js';
 import { ALL_CARD_IDS, getCard } from '../src/data/cardDb.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Card ids are ordered: 000–049 are points, 050–104 are actions.
-const POINT = '000';
-const POINT_B = '001';
-const ACTION = '050';
-const ACTION_B = '051';
+// Card ids are ordered: 000–049 are points, 050–104 are actions. These are
+// deliberately plain cards — no static effects that would change play legality.
+const POINT = '002';    // Momentum       — gain 4 energy
+const POINT_B = '004';  // Inquire        — draw a card
+const ACTION = '050';   // Bounce Back    — return a point on the horizon
+const ACTION_B = '051'; // Regret         — put a card on top of the deck
+const LOCK_POINT = '000'; // Pretty Privilege — opponents cannot play cards
 
 function freshGame() {
   const state = createGameState();
@@ -213,6 +219,20 @@ describe('Play timing', () => {
     giveCard(state, 'p2', ACTION);
     setEnergy(state, 'p2', 20);
     expect(validatePlay(state, 'p2', ACTION)).toMatch(/only play action cards/);
+  });
+
+  test('Pretty Privilege locks opponents out but not its own controller', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', LOCK_POINT);
+    giveCard(state, 'p1', ACTION);
+    giveCard(state, 'p2', ACTION_B);
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    playCard(state, 'p1', LOCK_POINT);
+
+    expect(validatePlay(state, 'p2', ACTION_B)).toMatch(/cannot be played/);
+    // The controller is unaffected by their own lock.
+    expect(validatePlay(state, 'p1', ACTION)).not.toMatch(/Cards cannot be played/);
   });
 
   test('you cannot play a card you cannot pay for', () => {
@@ -563,5 +583,175 @@ describe('Whole-game integrity', () => {
     const zenithCards = [...state.players.p1.zenith, ...state.players.p2.zenith];
     expect(zenithCards.every(id => getCard(id).type === 'point')).toBe(true);
     expect(zenithCards.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Card effects ─────────────────────────────────────────────────────────────
+
+describe('Card effects', () => {
+  // Drive a card's text by putting it on the horizon and letting it rise.
+  function rise(state, cardId, player = 'p1') {
+    state.zones.horizon.unshift(createHorizonEntry(cardId, player));
+    const events = riseTopOfHorizon(state);
+    advancePendingChoices(state);
+    return events;
+  }
+
+  test('Abstract Embrace (001) banks a point out of the dusk into your zenith', () => {
+    const { state } = freshGame();
+    state.zones.dusk = ['002', '050'];
+    rise(state, '001');
+    expect(state.pendingChoice.type).toBe('putPointFromDuskIntoZenith');
+    resolveChoice(state, 'p1', { cardId: '002' });
+    expect(state.players.p1.zenith).toContain('002');
+    expect(state.zones.dusk).not.toContain('002');
+  });
+
+  test('Abstract Embrace (001) is skipped when the dusk holds no point', () => {
+    const { state } = freshGame();
+    state.zones.dusk = ['050', '051'];
+    const events = rise(state, '001');
+    expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
+    expect(state.pendingChoice).toBeNull();
+  });
+
+  test('Change of Luck (068) banks a point from the horizon without it rising', () => {
+    const { state } = freshGame();
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    rise(state, '068');
+    expect(state.pendingChoice.type).toBe('putPointFromHorizonIntoZenith');
+    resolveChoice(state, 'p1', { horizonIndex: 0 });
+    expect(state.players.p1.zenith).toContain('002');
+    expect(state.players.p2.zenith).not.toContain('002');
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('Trickle Down Economics (027) takes the opponent leftover energy', () => {
+    const { state } = freshGame();
+    state.players.p1.energy = 2;
+    state.players.p2.energy = 7;
+    const entry = createHorizonEntry('027', 'p1');
+    state.zones.horizon.unshift(entry);
+    executeOnPlayEffects(state, entry);
+    expect(state.players.p2.energy).toBe(0);
+    expect(state.players.p1.energy).toBe(9);
+  });
+
+  test('Anxiety (073) dusks the top of the horizon with no choice', () => {
+    const { state } = freshGame();
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    rise(state, '073');
+    expect(state.zones.dusk).toContain('002');
+    expect(state.pendingChoice).toBeNull();
+  });
+
+  test('Settle (100) puts the whole horizon on the bottom of the deck', () => {
+    const { state } = freshGame();
+    const deckBefore = state.zones.deck.length;
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('004', 'p1'));
+    rise(state, '100');
+    expect(state.zones.horizon).toHaveLength(0);
+    expect(state.zones.deck).toHaveLength(deckBefore + 2);
+  });
+
+  test('Answer Fate (047) reshuffles the dusk even though 2p normally gets none', () => {
+    const { state } = freshGame();
+    state.zones.deck = [];
+    state.zones.dusk = ['002', '004', '050'];
+    state.reshufflesRemaining = 0;
+    rise(state, '047');
+    expect(state.pendingChoice.type).toBe('optional');
+    resolveChoice(state, 'p1', { accept: true });
+    expect(state.zones.dusk).toHaveLength(0);
+    expect(state.zones.deck).toHaveLength(3);
+  });
+
+  test('Cerebral Snuff (091) dusks a random card from the opponent hand', () => {
+    const { state } = freshGame();
+    const before = state.players.p2.hand.length;
+    rise(state, '091');
+    expect(state.players.p2.hand).toHaveLength(before - 1);
+    // The risen action lands in the dusk too, so that is two cards.
+    expect(state.zones.dusk).toHaveLength(2);
+    expect(state.zones.dusk).toContain('091');
+  });
+
+  test('Delve (003) costs 2 less once both a point and an action reached the dusk', () => {
+    const { state } = freshGame();
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    sendToDusk(state, '002');
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    sendToDusk(state, '050');
+    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+  });
+
+  test('Light Guidance (065) costs 1 less per point in either zenith', () => {
+    const { state } = freshGame();
+    expect(computeActualCost(state, '065', 'p1')).toBe(5);
+    state.players.p1.zenith = ['002', '004'];
+    state.players.p2.zenith = ['006'];
+    expect(computeActualCost(state, '065', 'p1')).toBe(2);
+  });
+
+  test('Strafe (006) cannot be played on your own turn even with a legal target', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '006');
+    setEnergy(state, 'p1', 20);
+    // An opponent action on top would normally satisfy its response-only clause.
+    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p2'));
+    expect(validatePlay(state, 'p1', '006')).toMatch(/cannot be played during your turn/);
+  });
+
+  test('Strafe (006) can be played in response on the opponent turn', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p2', '006');
+    setEnergy(state, 'p2', 20);
+    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p1'));
+    expect(validatePlay(state, 'p2', '006')).toBeNull();
+  });
+
+  test('Paranoia (023) locks its own controller, not the opponent', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', '023');
+    giveCard(state, 'p1', ACTION);
+    giveCard(state, 'p2', ACTION_B);
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    playCard(state, 'p1', '023');
+    expect(validatePlay(state, 'p1', ACTION)).toMatch(/Cards cannot be played/);
+    expect(validatePlay(state, 'p2', ACTION_B)).toBeNull();
+  });
+
+  test('every card in the set executes without an unhandled effect', () => {
+    // Mirrors cards-sweep.mjs: the engine must have a case for every effect the
+    // card data uses, or the card silently does nothing in a real game.
+    const unhandled = new Set();
+    for (const id of ALL_CARD_IDS) {
+      const { state } = freshGame();
+      state.players.p1.energy = 20;
+      state.zones.dusk.push('002', '050');
+      state.zones.horizon.push(createHorizonEntry('005', 'p2', { respondedToCardType: 'point' }));
+      const entry = createHorizonEntry(id, 'p1', { respondedToCardIndex: 0, respondedToCardType: 'point' });
+      state.zones.horizon.unshift(entry);
+      let events = [];
+      try {
+        events = [...executeOnPlayEffects(state, entry), ...riseTopOfHorizon(state)];
+      } catch (err) {
+        unhandled.add(`${id} threw: ${err.message}`);
+      }
+      for (const ev of events) {
+        if (ev.type === 'UNHANDLED_EFFECT') unhandled.add(`${id}:${ev.effectType}`);
+      }
+    }
+    // The four multi-step cards still to be built are listed explicitly so this
+    // test fails the moment any OTHER card regresses.
+    const remaining = [
+      '036:gainControlOfRespondedCard',
+      '057:opponentChoosesFromDusk',
+      '075:duskFromHandThenMatchCostOnHorizon',
+      '101:returnTwoDifferentControllers',
+    ];
+    expect([...unhandled].sort()).toEqual(remaining.sort());
   });
 });

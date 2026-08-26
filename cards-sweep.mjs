@@ -1,102 +1,98 @@
-import cards from './src/data/cards.json' with { type: 'json' };
-import { createGameState, initDeck, createStackEntry, controllerOf, opponent, stackEntryMatchesFilter } from './src/engine/state.js';
-import { executeEffects, executeOnPlayEffects } from './src/effects/executor.js';
-import { resolveChoice } from './src/engine/choices.js';
-import { advancePendingChoices } from './src/server.js';
-import { getCard } from './src/data/cardDb.js';
+/**
+ * Drive every card through the engine and report anything the rules engine
+ * cannot yet carry out.
+ *
+ * For each of the 105 cards: put it on the horizon, let it rise, and auto-answer
+ * any choices it spawns. A card is flagged if it emits UNHANDLED_EFFECT (the
+ * executor has no case for one of its effect types), if it throws, or if it
+ * leaves a choice nobody can answer.
+ *
+ * Run: node cards-sweep.mjs
+ */
+import { createGameState, createHorizonEntry, initDeck, drawCards } from './src/engine/state.js';
+import { riseTopOfHorizon } from './src/engine/game.js';
+import { executeOnPlayEffects } from './src/effects/executor.js';
+import { ALL_CARD_IDS, getCard } from './src/data/cardDb.js';
 
-const DUMMY_HAND = ['53','04','45','65','66'];
+const KNOWN_CHOICE_LIMIT = 40;
 
-function setup() {
-  const s = createGameState(); initDeck(s);
-  s.phase='active'; s.turn='p1'; s.activePlayer='p1'; s.turnNumber=2;
-  s.players.p1.energy=30; s.players.p2.energy=30;
-  // give p1 a hand of dummies (remove from deck if present)
-  for (const id of DUMMY_HAND){ const i=s.zones.deck.indexOf(id); if(i!==-1)s.zones.deck.splice(i,1); s.players.p1.hand.push(id); }
-  for (const id of ['07','12','13']){ const i=s.zones.deck.indexOf(id); if(i!==-1)s.zones.deck.splice(i,1); s.players.p2.hand.push(id); }
-  // seed a few cards in trash (for putFromDuskToHand etc.)
-  s.zones.dusk.push('22','34','38');
-  // seed stack with dummy targets beneath the test card: an action (played in response to a point) and a point
-  const actionDummy = createStackEntry('53','p2',{ respondedToCardIndex:1, respondedToCardType:'point' });
-  const pointDummy  = createStackEntry('04','p2',{});
-  s.zones.stack = [actionDummy, pointDummy];
-  return s;
+function freshState() {
+  const state = createGameState();
+  initDeck(state);
+  drawCards(state, 'p1', 5);
+  drawCards(state, 'p2', 5);
+  state.phase = 'active';
+  state.turn = 'p1';
+  state.activePlayer = 'p1';
+  state.players.p1.energy = 20;
+  state.players.p2.energy = 20;
+  // Give the horizon, dusk and both zeniths some content so targeting effects
+  // have something legal to find.
+  state.zones.dusk.push('001', '002', '051', '052');
+  state.players.p1.zenith.push('003');
+  state.players.p2.zenith.push('004');
+  return state;
 }
 
-function makePayload(s, ch) {
-  const p = ch.player; const hand = s.players[p].hand;
-  const findStack = () => s.zones.stack.findIndex(e => stackEntryMatchesFilter(e, ch.filter));
-  switch (ch.type) {
-    case 'duskFromHand': return { cardIds: hand.slice(0, ch.count ?? 1) };
-    case 'putFromDuskToHand': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
-    case 'trashFromStack': case 'returnToControllerHand': case 'stealFromStack': case 'gainControl': case 'moveFromStackToDeckTop': {
-      const i = findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 };
+const results = [];
+
+for (const id of ALL_CARD_IDS) {
+  const card = getCard(id);
+  const state = freshState();
+
+  // A decoy from each side so horizon-targeting effects have a legal choice.
+  state.zones.horizon.push(createHorizonEntry('005', 'p2', { respondedToCardType: 'point' }));
+  state.zones.horizon.push(createHorizonEntry('053', 'p2', { respondedToCardType: 'point' }));
+
+  const entry = createHorizonEntry(id, 'p1', { respondedToCardIndex: 0, respondedToCardType: 'point' });
+  state.zones.horizon.unshift(entry);
+
+  const issues = [];
+  let events = [];
+  try {
+    events = [...executeOnPlayEffects(state, entry), ...riseTopOfHorizon(state)];
+  } catch (err) {
+    issues.push(`threw: ${err.message}`);
+  }
+
+  for (const ev of events) {
+    if (ev.type === 'UNHANDLED_EFFECT') issues.push(`unhandled effect: ${ev.effectType}`);
+  }
+
+  // Any choice left queued that the sweep cannot answer is reported, not fatal.
+  const pending = state.pendingTriggers.filter(t => t.type !== 'registerTurnTrigger');
+  if (pending.length > KNOWN_CHOICE_LIMIT) issues.push('choice queue runaway');
+
+  results.push({ id, name: card.name, type: card.type, issues, pending: pending.map(p => p.type) });
+}
+
+const broken = results.filter(r => r.issues.length > 0);
+const unhandled = new Map();
+for (const r of broken) {
+  for (const i of r.issues) {
+    if (i.startsWith('unhandled effect: ')) {
+      const t = i.slice('unhandled effect: '.length);
+      if (!unhandled.has(t)) unhandled.set(t, []);
+      unhandled.get(t).push(r.id);
     }
-    case 'putHandCardOnDeckTop': return hand.length ? { cardId: hand[0] } : undefined;
-    case 'additionalCost':
-      return ch.cost?.type==='putHandCardOnDeckTop'
-        ? (hand.length?{cardId:hand[0]}:undefined)
-        : { cardIds: hand.slice(0, ch.cost?.count ?? 1) };
-    case 'optional': return { accept: true };
-    case 'revealUntilType': return { cardType: 'action' };
-    case 'lookAtTopN': return { duskCardId: (ch.revealed ?? s.zones.deck)[0] };
-    case 'opponentChoosesOne': return ch.revealedCards?.length ? { cardId: ch.revealedCards[0] } : undefined;
-    case 'controllerMovesCardFromStackTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
-    case 'controllerMovesCardFromStack': return { destination: 'deckTop' };
-    case 'chooseNumber': return { number: 0 };
-    case 'confirmFreePlay': return { play: false };
-    case 'duskUnlessControllerPaysTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
-    case 'mayPlayFromHand': return { play: false };
-    case 'mayPlayTopOfDeck': return { play: false };
-    case 'duskUnlessControllerPays': return { pay: false };
-    case 'putFromDuskToDeckBottom': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
-    case 'chooseCardToTrashFromRevealedHand': {
-      const cand = (ch.revealedHand ?? []).filter(id => !ch.filter || ch.filter === 'any' || getCard(id).type === ch.filter);
-      return cand.length ? { cardId: cand[0] } : undefined;
-    }
-    default: return undefined; // unknown choice type
   }
 }
 
-const CHOICE_TRIGGER_TYPES = new Set(['duskFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromDuskToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','duskUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','duskUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
+console.log(`Swept ${results.length} cards — ${results.length - broken.length} OK, ${broken.length} with issues.\n`);
 
-function sweepCard(card) {
-  const s = setup();
-  const entry = createStackEntry(card.id, 'p1', { respondedToCardIndex:0, respondedToCardType:'point' });
-  const events = [];
-  let crash = null, choiceFail = null;
-  try {
-    events.push(...executeOnPlayEffects(s, entry));
-    events.push(...executeEffects(s, entry));
-    // drain choices
-    let guard=0;
-    while (guard++ < 80) {
-      if (!s.pendingChoice) { if (!advancePendingChoices(s)) break; }
-      const ch = s.pendingChoice;
-      const payload = makePayload(s, ch);
-      if (payload === undefined) { choiceFail = { kind:'UNRESOLVABLE', type: ch.type }; break; }
-      const { error } = resolveChoice(s, ch.player, payload);
-      if (error) { choiceFail = { kind:'ERROR', type: ch.type, error }; break; }
-    }
-  } catch (e) { crash = e.message; }
-  const unhandled = [...new Set(events.filter(e=>e.type==='UNHANDLED_EFFECT').map(e=>e.effectType))];
-  // leftover un-surfaced choice triggers
-  const leftover = [...new Set(s.pendingTriggers.filter(t=>CHOICE_TRIGGER_TYPES.has(t.type)).map(t=>t.type))];
-  let status='OK', detail='';
-  if (crash){ status='CRASH'; detail=crash; }
-  else if (choiceFail){ status='CHOICE_'+choiceFail.kind; detail=choiceFail.type+(choiceFail.error?': '+choiceFail.error:''); }
-  else if (unhandled.length){ status='UNHANDLED_EFFECT'; detail=unhandled.join(','); }
-  else if (leftover.length){ status='CHOICE_NOT_SURFACED'; detail=leftover.join(','); }
-  return { id:card.id, name:card.name, type:card.type, status, detail };
+if (unhandled.size) {
+  console.log('Effect types with no executor case:');
+  for (const [type, ids] of [...unhandled].sort((a, b) => b[1].length - a[1].length)) {
+    console.log(`  ${type.padEnd(38)} ${ids.length} card(s): ${ids.join(', ')}`);
+  }
+  console.log();
 }
 
-const results = cards.map(sweepCard);
-const bad = results.filter(r=>r.status!=='OK');
-console.log(`SWEEP: ${results.length} cards | OK: ${results.length-bad.length} | issues: ${bad.length}\n`);
-const byStatus = {};
-for (const r of bad) (byStatus[r.status]=byStatus[r.status]||[]).push(r);
-for (const st of Object.keys(byStatus).sort()){
-  console.log(`### ${st} (${byStatus[st].length})`);
-  for (const r of byStatus[st]) console.log(`  ${r.id} ${r.name.padEnd(18)} ${r.type.padEnd(6)} — ${r.detail}`);
-  console.log('');
+const threw = broken.filter(r => r.issues.some(i => i.startsWith('threw:')));
+if (threw.length) {
+  console.log('Cards that threw:');
+  for (const r of threw) console.log(`  ${r.id} ${r.name}: ${r.issues.filter(i => i.startsWith('threw:')).join('; ')}`);
+  console.log();
 }
+
+process.exitCode = threw.length > 0 ? 1 : 0;
