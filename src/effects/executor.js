@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  drawCards, trashCardFromHand, trashHand, trashFromHorizon,
-  sendToTrash, removeFromHorizon, shuffle, opponent, controllerOf,
+  drawCards, duskCardFromHand, duskHand, duskFromHorizon,
+  sendToDusk, removeFromHorizon, shuffle, opponent, controllerOf,
   horizonHasTarget,
 } from '../engine/state.js';
 
@@ -14,12 +14,6 @@ export function executeEffects(state, entry) {
   const card = getCard(entry.cardId);
   const controller = controllerOf(entry);
   const events = [];
-
-  // Point cards always grant a point first (before any additional effects)
-  if (card.type === 'point') {
-    grantPoints(state, controller, 1, events);
-    if (state.winner) return events; // game over — stop processing
-  }
 
   // One ctx shared across all of a card's effects, so an earlier effect can
   // pass data to a later one (e.g. revealTopN → opponentChoosesOne).
@@ -57,12 +51,6 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
   switch (effect.type) {
 
-    case 'gainPoints': {
-      const target = effect.player === 'self' ? controller : opp;
-      grantPoints(state, target, effect.amount, events);
-      break;
-    }
-
     case 'gainEnergy': {
       const amount = resolveAmount(state, effect.amount, ctx);
       if (effect.player === 'both') {
@@ -96,7 +84,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'trashFromHand': {
+    case 'duskFromHand': {
       const count = effect.count;
       const targets = resolvePlayers(effect.player, controller, opp);
       const playerList = targets === 'both' ? [controller, opp] : [targets];
@@ -104,7 +92,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       // Prepare's deferred draw) instead of trashing on resolution.
       if (effect.timing === 'endOfTurn') {
         for (const p of playerList) {
-          state.pendingTriggers.push({ type: 'endOfTurnTrash', player: p, count });
+          state.pendingTriggers.push({ type: 'endOfTurnDusk', player: p, count });
         }
         events.push({ type: 'PENDING_TRASH', player: controller, count });
         break;
@@ -114,48 +102,48 @@ function executeEffect(state, effect, controller, entry, ctx) {
         // trashes all of them; with an empty hand it does nothing (no lock).
         const effective = Math.min(count, state.players[p].hand.length);
         if (effective === 0) continue;
-        state.pendingTriggers.push({ type: 'trashFromHandChoice', player: p, count: effective, optional: false });
-        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'trashFromHand', count: effective });
+        state.pendingTriggers.push({ type: 'duskFromHandChoice', player: p, count: effective, optional: false });
+        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'duskFromHand', count: effective });
       }
       break;
     }
 
-    case 'trashHand': {
+    case 'duskHand': {
       const target = effect.player === 'self' ? controller : opp;
-      const count = trashHand(state, target);
+      const count = duskHand(state, target);
       ctx.cardsJustTrashed = (ctx.cardsJustTrashed ?? 0) + count;
       events.push({ type: 'HAND_TRASHED', player: target, count });
       break;
     }
 
-    case 'trashAnyNumberFromHand': {
+    case 'duskAnyNumberFromHand': {
       // Reset Memory (88): the caster trashes any number of cards from their
       // hand (including none), then draws that many plus a bonus. The trash +
       // draw both happen when the choice resolves (see choices.js), so an empty
       // hand still lets them draw the bonus.
       state.pendingTriggers.push({
-        type: 'trashAnyNumberFromHandChoice',
+        type: 'duskAnyNumberFromHandChoice',
         player: controller,
         drawPlus: effect.thenDrawPlus ?? 0,
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashAnyNumberFromHand' });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskAnyNumberFromHand' });
       break;
     }
 
-    case 'trashFromHorizon': {
+    case 'duskFromHorizon': {
       // No legal target on the (remaining) horizon → skip instead of prompting an
       // impossible choice that would hardlock the game.
       if (!horizonHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashFromHorizon', filter: effect.filter });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHorizon', filter: effect.filter });
         break;
       }
       state.pendingTriggers.push({
-        type: 'trashFromHorizonChoice',
+        type: 'duskFromHorizonChoice',
         player: controller,
         filter: effect.filter,
         thenGrant: effect.thenGrant ?? null,
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashFromHorizon', filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskFromHorizon', filter: effect.filter });
       break;
     }
 
@@ -163,7 +151,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       const trashed = [];
       while (state.zones.horizon.length > 0) {
         const e = state.zones.horizon.shift();
-        sendToTrash(state, e.cardId);
+        sendToDusk(state, e.cardId);
         trashed.push(e.cardId);
       }
       ctx.cardsJustTrashed = (ctx.cardsJustTrashed ?? 0) + trashed.length;
@@ -175,7 +163,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       for (let i = 0; i < (effect.count ?? 1); i++) {
         if (state.zones.deck.length === 0) break;
         const card = state.zones.deck.shift();
-        sendToTrash(state, card);
+        sendToDusk(state, card);
         events.push({ type: 'DECK_TOP_TRASHED', card });
       }
       break;
@@ -193,15 +181,15 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'putFromTrashToHand': {
+    case 'putFromDuskToHand': {
       // Clamp to what's in the trash; skip if there's nothing to take.
-      const effective = Math.min(effect.count ?? 1, state.zones.trash.length);
+      const effective = Math.min(effect.count ?? 1, state.zones.dusk.length);
       if (effective === 0) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'putFromTrashToHand' });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'putFromDuskToHand' });
         break;
       }
-      state.pendingTriggers.push({ type: 'putFromTrashToHandChoice', player: controller, count: effective });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromTrashToHand', count: effective });
+      state.pendingTriggers.push({ type: 'putFromDuskToHandChoice', player: controller, count: effective });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromDuskToHand', count: effective });
       break;
     }
 
@@ -237,7 +225,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'chooseCardToTrashFromRevealedHand': {
+    case 'chooseCardToDuskFromRevealedHand': {
       // Inquisition (16), Cerebral Snuff (81): reveal the opponent's hand, then
       // the caster picks a card from it (filtered) to trash.
       const target = opp;
@@ -246,17 +234,17 @@ function executeEffect(state, effect, controller, entry, ctx) {
         id => filter === 'any' || getCard(id).type === filter
       );
       if (candidates.length === 0) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'chooseCardToTrashFromRevealedHand', filter });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'chooseCardToDuskFromRevealedHand', filter });
         break;
       }
       state.pendingTriggers.push({
-        type: 'chooseCardToTrashFromRevealedHand',
+        type: 'chooseCardToDuskFromRevealedHand',
         player: controller,
         targetPlayer: target,
         filter,
         revealedHand: [...state.players[target].hand],
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'chooseCardToTrashFromRevealedHand', filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'chooseCardToDuskFromRevealedHand', filter });
       break;
     }
 
@@ -327,12 +315,12 @@ function executeEffect(state, effect, controller, entry, ctx) {
         break;
       }
       state.pendingTriggers.push({
-        type: 'trashUnlessControllerPaysTarget',
+        type: 'duskUnlessControllerPaysTarget',
         player: controller,
         filter: effect.filter,
         ransom: effect.ransom,
       });
-      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'trashUnlessControllerPaysTarget', filter: effect.filter });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskUnlessControllerPaysTarget', filter: effect.filter });
       break;
     }
 
@@ -403,14 +391,14 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'allowPlayFromTrash': {
-      state.turnFlags.playFromTrash = true;
+    case 'allowPlayFromDusk': {
+      state.turnFlags.playFromDusk = true;
       events.push({ type: 'PLAY_FROM_TRASH_UNLOCKED', player: controller });
       break;
     }
 
-    case 'redirectTrashToDeckBottom': {
-      state.turnFlags.redirectTrashToDeckBottom = true;
+    case 'redirectDuskToDeckBottom': {
+      state.turnFlags.redirectDuskToDeckBottom = true;
       events.push({ type: 'TRASH_REDIRECT_ACTIVE' });
       break;
     }
@@ -441,22 +429,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'conditional':
-    case 'conditionalGainPoints': {
-      // Chant (34) — check condition, grant additional point
-      if (effect.condition) {
-        const met = evaluateResolutionCondition(state, effect.condition);
-        if (met) {
-          grantPoints(state, controller, effect.amount ?? 1, events);
-        }
-      }
-      break;
-    }
-
     // Complex effects that need player interaction — all queued as pending choices
     case 'revealUntilType':
     case 'chooseNumber':
-    case 'trashFromHandChoice':
+    case 'duskFromHandChoice':
     case 'mayPlayFromHand':
     case 'mayPlayTopOfDeck':
     case 'putHandCardOnDeckTop': {
@@ -474,16 +450,6 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function grantPoints(state, playerId, amount, events) {
-  state.players[playerId].points += amount;
-  events.push({ type: 'POINTS_GAINED', player: playerId, amount, total: state.players[playerId].points });
-  if (state.players[playerId].points >= 5) {
-    state.winner = playerId;
-    state.phase = 'ended';
-    events.push({ type: 'GAME_OVER', winner: playerId, reason: 'points' });
-  }
-}
-
 function resolvePlayers(spec, controller, opp) {
   if (spec === 'self') return controller;
   if (spec === 'opponent') return opp;
@@ -499,13 +465,13 @@ function resolveAmount(state, amount, ctx) {
     return Math.max(...state.zones.horizon.map(e => getCard(e.cardId).energyCost));
   }
   if (amount === 'distinctEnergyCostsInTrash') {
-    return new Set(state.zones.trash.map(id => getCard(id).energyCost)).size;
+    return new Set(state.zones.dusk.map(id => getCard(id).energyCost)).size;
   }
-  if (typeof amount === 'string' && amount.startsWith('countInTrash:')) {
+  if (typeof amount === 'string' && amount.startsWith('countInDusk:')) {
     const filter = amount.split(':')[1];
     return filter === 'any'
-      ? state.zones.trash.length
-      : state.zones.trash.filter(id => getCard(id).type === filter).length;
+      ? state.zones.dusk.length
+      : state.zones.dusk.filter(id => getCard(id).type === filter).length;
   }
   if (typeof amount === 'string' && amount.startsWith('countOnHorizon:')) {
     return state.zones.horizon.length;
@@ -514,8 +480,8 @@ function resolveAmount(state, amount, ctx) {
 }
 
 function evaluateResolutionCondition(state, condition) {
-  if (condition.type === 'countInTrash') {
-    const count = state.zones.trash.filter(id => {
+  if (condition.type === 'countInDusk') {
+    const count = state.zones.dusk.filter(id => {
       const c = getCard(id);
       return condition.filter === 'any' || c.type === condition.filter;
     }).length;

@@ -1,12 +1,12 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  computeActualCost, isHorizonLocked, canPlayFromTrash,
+  computeActualCost, isHorizonLocked, canPlayFromDusk,
   opponentPointResponseAllowed, opponent, controllerOf,
 } from './state.js';
 
 /**
  * Returns null if the play is legal, or an error string if not.
- * context = { fromTrash?: bool, respondingToHorizonIndex?: number }
+ * context = { fromDusk?: bool, respondingToHorizonIndex?: number }
  */
 export function validatePlay(state, playerId, cardId, context = {}) {
   const card = getCard(cardId);
@@ -16,11 +16,11 @@ export function validatePlay(state, playerId, cardId, context = {}) {
 
   // ── Source zone check ────────────────────────────────────────────────────
   const inHand = player.hand.includes(cardId);
-  const inTrash = state.zones.trash.includes(cardId);
+  const inTrash = state.zones.dusk.includes(cardId);
 
-  if (context.fromTrash) {
+  if (context.fromDusk) {
     if (!inTrash) return 'Card is not in the trash.';
-    if (!canPlayFromTrash(state, playerId)) return 'You cannot play cards from the trash right now.';
+    if (!canPlayFromDusk(state, playerId)) return 'You cannot play cards from the trash right now.';
   } else {
     if (!inHand) return 'Card is not in your hand.';
   }
@@ -113,12 +113,12 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   // ── Additional costs must be payable (Sneak 08, Vitalize 25) ──────────────
   // Treated like energy: if you can't pay, you can't put the card on the horizon.
   const handCosts = (card.additionalCosts ?? []).filter(
-    c => c.type === 'trashFromHand' || c.type === 'putHandCardOnDeckTop'
+    c => c.type === 'duskFromHand' || c.type === 'putHandCardOnDeckTop'
   );
   if (handCosts.length) {
     const needed = handCosts.reduce((n, c) => n + (c.count ?? 1), 0);
     // The card being played leaves the hand, so it can't pay its own cost.
-    const available = player.hand.length - (context.fromTrash ? 0 : 1);
+    const available = player.hand.length - (context.fromDusk ? 0 : 1);
     if (available < needed) {
       return `${card.name} needs ${needed} more card${needed !== 1 ? 's' : ''} in hand to pay its additional cost.`;
     }

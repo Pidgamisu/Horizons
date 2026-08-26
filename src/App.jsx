@@ -22,11 +22,11 @@ const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
 // Events where a card is removed from the horizon before resolving (= countered):
 // trashed, bounced to hand, stolen, moved to the deck, or trashed by a trigger.
 const HORIZON_REMOVAL_EVENTS = new Set([
-  'CARD_TRASHED_FROM_HORIZON',
+  'CARD_TO_DUSK_FROM_HORIZON',
   'CARD_RETURNED_TO_HAND',
   'CARD_STOLEN_TO_HAND',
   'CARD_TO_DECK',
-  'CARD_TRASHED_BY_TRIGGER',
+  'CARD_TO_DUSK_BY_TRIGGER',
 ])
 
 function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizonCardClick, onCardHover, onZoneClick, onCardHold, onCardHoldEnd }) {
@@ -262,7 +262,7 @@ export default function App() {
   const handleHorizonCardClick = useCallback((cardCode, editor) => {
     const choice = client.pendingChoice
     if (!choice || choice.player !== myPlayerId) return
-    const horizonChoiceTypes = ['trashFromHorizon', 'trashFromHorizonChoice', 'returnToControllerHand',
+    const horizonChoiceTypes = ['duskFromHorizon', 'duskFromHorizonChoice', 'returnToControllerHand',
       'returnHorizonCardToHandChoice', 'stealFromHorizon', 'stealFromHorizonChoice',
       'gainControl', 'gainControlChoice']
     if (!horizonChoiceTypes.includes(choice.type)) return
@@ -287,7 +287,7 @@ export default function App() {
   }, [])
 
   const handlePlayFromTrash = useCallback((cardId) => {
-    client.playCard(cardId, { fromTrash: true })
+    client.playCard(cardId, { fromDusk: true })
     setViewingZone(null)
     setSelectedCard(null)
   }, [client])
@@ -439,10 +439,10 @@ export default function App() {
 
       {viewingZone === 'trash' && (
         <ZoneViewer
-          title={myState?.canPlayFromTrash ? 'Trash — you may play from here' : 'Trash'}
+          title={myState?.canPlayFromDusk ? 'Trash — you may play from here' : 'Trash'}
           cardIds={[...(gameState?.zones?.trash ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
-          onPlayCard={myState?.canPlayFromTrash ? handlePlayFromTrash : null}
+          onPlayCard={myState?.canPlayFromDusk ? handlePlayFromTrash : null}
         />
       )}
 

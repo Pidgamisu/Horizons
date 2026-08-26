@@ -1,18 +1,11 @@
-// Browser-safe card art lookup. cardDb.js can't be imported on the client
-// (it uses Node's fs), so this module imports cards.json directly (Vite parses
-// JSON imports) and maps each card id to its slugged art filename. Card art
-// files are named after the card's name, e.g. "00" -> "/cards/unstoppable.png".
+// Card art lookup. Art files are named by card id, e.g. "000" -> "/cards/000.png".
 import cards from './cards.json'
 
-const slugify = (s) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-
-const SLUG_BY_ID = Object.fromEntries(cards.map((c) => [c.id, slugify(c.name)]))
+const IDS = new Set(cards.map((c) => c.id))
 
 /** Image path for a card id; falls back to the card back for unknown/hidden cards. */
 export function cardImageSrc(cardId) {
-  const slug = cardId != null ? SLUG_BY_ID[cardId] : null
-  return slug ? `/cards/${slug}.png` : '/cards/back.png'
+  return cardId != null && IDS.has(cardId) ? `/cards/${cardId}.png` : '/cards/back.png'
 }
 
 const NAME_BY_ID = Object.fromEntries(cards.map((c) => [c.id, c.name]))

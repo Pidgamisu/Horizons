@@ -1,10 +1,7 @@
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const raw = readFileSync(join(__dirname, 'cards.json'), 'utf8');
-const cardList = JSON.parse(raw);
+// Card lookup by id. cards.json is imported as a JSON module (supported by both
+// Node and Vite) rather than read through fs, so the engine stays importable in
+// the browser bundle as well as on the server.
+import cardList from './cards.json' with { type: 'json' };
 
 // Index by id for O(1) lookup
 export const CARDS = Object.fromEntries(cardList.map(c => [c.id, c]));

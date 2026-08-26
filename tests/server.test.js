@@ -219,10 +219,10 @@ describe('Choice flow', () => {
     return { ...game, afterResolve };
   }
 
-  test('Sort (53) resolution creates trashFromHand choice', async () => {
+  test('Sort (53) resolution creates duskFromHand choice', async () => {
     const setup = await setupSortChoice();
     if (!setup) return;
-    expect(setup.afterResolve.state.pendingChoice.type).toBe('trashFromHand');
+    expect(setup.afterResolve.state.pendingChoice.type).toBe('duskFromHand');
     expect(setup.afterResolve.state.pendingChoice.count).toBe(2);
   });
 

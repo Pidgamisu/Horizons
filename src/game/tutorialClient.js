@@ -34,7 +34,7 @@ function proj({
     players: {
       p1: {
         hand: p1hand, handSize: p1hand.length, points: p1points, energy: p1energy,
-        timerSeconds: 1500, lockedFromPlaying: false, canPlayFromTrash: false,
+        timerSeconds: 1500, lockedFromPlaying: false, canPlayFromDusk: false,
       },
       p2: {
         hand: [], handSize: p2handSize, points: 0, energy: p2energy,
@@ -104,7 +104,7 @@ const BEATS = [
   },
   {
     mode: 'continue',
-    events: [{ type: 'CARD_TRASHED_FROM_HORIZON', cardId: STOP }],
+    events: [{ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: STOP }],
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
     narration: 'With the horizon clear, your point card finally resolves and now you **score a point!** 🎉',
   },

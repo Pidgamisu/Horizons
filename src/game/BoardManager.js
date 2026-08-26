@@ -173,7 +173,7 @@ export class BoardManager {
       this._setAllTargeted(false)
       return
     }
-    const horizonChoiceTypes = ['trashFromHorizon','trashFromHorizonChoice','returnToControllerHand',
+    const horizonChoiceTypes = ['duskFromHorizon','duskFromHorizonChoice','returnToControllerHand',
                               'returnHorizonCardToHandChoice','stealFromHorizon','stealFromHorizonChoice',
                               'gainControl','gainControlChoice','trashUnlessControllerPays']
     if (horizonChoiceTypes.includes(choice.type)) {

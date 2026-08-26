@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
-import { createGameState, drawCards, opponent, initDeck, canPlayFromTrash } from '../src/engine/state.js';
-import { startGame, playCard, passPriority, voidCard, endTurn, isLivePriorityWindow, flushResolutionTrash } from '../src/engine/game.js';
-import { resolveChoice } from '../src/engine/choices.js';
+import {
+  createGameState, createHorizonEntry, initDeck, drawCards, opponent, pointsOf,
+} from '../src/engine/state.js';
+import {
+  startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
+  checkSunset, isLivePriorityWindow,
+} from '../src/engine/game.js';
 import { validatePlay } from '../src/engine/validation.js';
-import { advancePendingChoices } from '../src/server.js';
+import { ALL_CARD_IDS, getCard } from '../src/data/cardDb.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Card ids are ordered: 000–049 are points, 050–104 are actions.
+const POINT = '000';
+const POINT_B = '001';
+const ACTION = '050';
+const ACTION_B = '051';
 
 function freshGame() {
   const state = createGameState();
@@ -19,11 +29,10 @@ function eventTypes(events) {
   return events.map(e => e.type);
 }
 
+/** Put a specific card in a player's hand, taking it out of the deck. */
 function giveCard(state, playerId, cardId) {
-  // Put a specific card in a player's hand (remove from deck if present).
   const di = state.zones.deck.indexOf(cardId);
   if (di !== -1) state.zones.deck.splice(di, 1);
-  // Avoid duplicates: the random opening hand may already hold this card.
   if (!state.players[playerId].hand.includes(cardId)) {
     state.players[playerId].hand.push(cardId);
   }
@@ -33,68 +42,21 @@ function setEnergy(state, playerId, amount) {
   state.players[playerId].energy = amount;
 }
 
-// ─── Initialisation ───────────────────────────────────────────────────────────
+/** Total cards across every zone — nothing should ever be created or lost. */
+function countAllCards(state) {
+  return state.zones.deck.length
+    + state.zones.dusk.length
+    + state.zones.horizon.length
+    + state.players.p1.hand.length + state.players.p2.hand.length
+    + state.players.p1.zenith.length + state.players.p2.zenith.length;
+}
 
-// ─── Reset Memory (88) ───────────────────────────────────────────────────────
-
-describe('Reset Memory (88): trash any number, draw that many plus one', () => {
-  function respond(state, player, payload) {
-    if (!state.pendingChoice) advancePendingChoices(state);
-    const res = resolveChoice(state, player, payload);
-    if (!state.pendingChoice) advancePendingChoices(state);
-    if (!state.pendingChoice) res.events.push(...flushResolutionTrash(state));
-    return res;
-  }
-
-  test('trashing two cards draws three (2 + 1)', () => {
-    const { state } = freshGame();
-    state.players.p1.hand = ['88', '10', '20'];
-    state.turn = 'p1'; state.activePlayer = 'p1';
-    setEnergy(state, 'p1', 5);
-    state.zones.deck = ['30', '31', '32', '33', '34'];
-
-    playCard(state, 'p1', '88');   // Reset Memory (action, cost 2) onto horizon
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');     // resolves → trashAnyNumberFromHand choice
-
-    advancePendingChoices(state);
-    expect(state.pendingChoice?.type).toBe('trashAnyNumberFromHand');
-
-    respond(state, 'p1', { cardIds: ['10', '20'] });
-
-    expect(state.players.p1.hand).toEqual(['30', '31', '32']); // drew 2 + 1
-    expect(state.zones.trash).toContain('10');
-    expect(state.zones.trash).toContain('20');
-    expect(state.zones.trash).toContain('88'); // resolved, then trashed
-    expect(state.zones.horizon).toHaveLength(0);
-  });
-
-  test('trashing nothing still draws one', () => {
-    const { state } = freshGame();
-    state.players.p1.hand = ['88', '10'];
-    state.turn = 'p1'; state.activePlayer = 'p1';
-    setEnergy(state, 'p1', 5);
-    state.zones.deck = ['30', '31'];
-
-    playCard(state, 'p1', '88');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-
-    respond(state, 'p1', { cardIds: [] });
-
-    expect(state.players.p1.hand).toContain('10');  // kept
-    expect(state.players.p1.hand).toContain('30');  // the bonus draw
-    expect(state.players.p1.hand).toHaveLength(2);
-    expect(state.zones.trash).toContain('88');
-  });
-});
-
-// ─── Client choice-prompt coverage ──────────────────────────────────────────────
+// ─── Client prompt coverage ───────────────────────────────────────────────────
 
 describe('Client prompt coverage', () => {
   // Guard against the "choice resolves in the engine but the client has no prompt
-  // / never receives the hidden data" class of bug (Search, the free-play cards).
-  // Every choice type that can surface must have a ChoicePrompt branch.
+  // / never receives the hidden data" class of bug. Every choice type that can
+  // surface must have a ChoicePrompt branch.
   test('every surfaceable choice type has a ChoicePrompt branch', () => {
     const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8');
     const server = read('server.js');
@@ -102,7 +64,6 @@ describe('Client prompt coverage', () => {
     const choices = read('engine/choices.js');
     const prompt = read('ui/ChoicePrompt.jsx');
 
-    // Trigger types the server surfaces, mapped to their client choice type.
     const setBlock = state.match(/CHOICE_TRIGGER_TYPES = new Set\(\[([\s\S]*?)\]\)/);
     expect(setBlock).not.toBe(null);
     const triggers = [...setBlock[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
@@ -112,10 +73,8 @@ describe('Client prompt coverage', () => {
     for (const m of mapBlock[1].matchAll(/(\w+):\s*'([^']+)'/g)) typeMap[m[1]] = m[2];
 
     const surfaced = new Set(triggers.map((t) => typeMap[t] ?? t));
-    // Choices set directly as state.pendingChoice (chained / follow-up choices).
     for (const m of choices.matchAll(/pendingChoice\s*=\s*\{\s*type:\s*'([^']+)'/g)) surfaced.add(m[1]);
 
-    // Choice types the client prompt renders.
     const handled = new Set([...prompt.matchAll(/type === '([^']+)'/g)].map((m) => m[1]));
 
     const missing = [...surfaced].filter((t) => !handled.has(t)).sort();
@@ -123,1305 +82,486 @@ describe('Client prompt coverage', () => {
   });
 });
 
-describe('Game initialisation', () => {
-  test('starts in active phase', () => {
-    const { state } = freshGame();
-    expect(state.phase).toBe('active');
+// ─── The card set ─────────────────────────────────────────────────────────────
+
+describe('The deck', () => {
+  test('holds 105 cards: 55 actions and 50 points', () => {
+    expect(ALL_CARD_IDS).toHaveLength(105);
+    const points = ALL_CARD_IDS.filter(id => getCard(id).type === 'point');
+    const actions = ALL_CARD_IDS.filter(id => getCard(id).type === 'action');
+    expect(points).toHaveLength(50);
+    expect(actions).toHaveLength(55);
   });
 
-  test('both players draw 5 opening hand cards', () => {
+  test('ids 000-049 are points and 050-104 are actions', () => {
+    expect(getCard('000').type).toBe('point');
+    expect(getCard('049').type).toBe('point');
+    expect(getCard('050').type).toBe('action');
+    expect(getCard('104').type).toBe('action');
+  });
+
+  test('every card has a name, a cost and rules text', () => {
+    for (const id of ALL_CARD_IDS) {
+      const card = getCard(id);
+      expect(typeof card.name === 'string' && card.name.length > 0).toBe(true);
+      expect(Number.isInteger(card.energyCost)).toBe(true);
+      expect(typeof card.effectText === 'string' && card.effectText.length > 0).toBe(true);
+    }
+  });
+});
+
+// ─── Initialisation ───────────────────────────────────────────────────────────
+
+describe('Game initialisation', () => {
+  test('deals five cards each and leaves 95 in the deck', () => {
     const { state } = freshGame();
     expect(state.players.p1.hand).toHaveLength(5);
     expect(state.players.p2.hand).toHaveLength(5);
+    expect(state.zones.deck).toHaveLength(95);
+    expect(countAllCards(state)).toBe(105);
   });
 
-  test('deck has 80 cards after opening hands', () => {
+  test('starts with empty zeniths and an empty dusk', () => {
     const { state } = freshGame();
-    expect(state.zones.deck).toHaveLength(80);
+    expect(state.players.p1.zenith).toHaveLength(0);
+    expect(state.players.p2.zenith).toHaveLength(0);
+    expect(state.zones.dusk).toHaveLength(0);
+    expect(pointsOf(state, 'p1')).toBe(0);
   });
 
-  test('p1 holds priority at start', () => {
+  test('a two-player game gets no reshuffles, so the deck depletes exactly once', () => {
     const { state } = freshGame();
-    expect(state.activePlayer).toBe('p1');
-    expect(state.turn).toBe('p1');
+    expect(state.reshufflesRemaining).toBe(0);
+  });
+
+  test('the old trash and void zones are gone — the dusk replaces both', () => {
+    const { state } = freshGame();
+    expect(Object.keys(state.zones).sort()).toEqual(['deck', 'dusk', 'horizon']);
   });
 });
 
-// ─── Voiding ─────────────────────────────────────────────────────────────────
+// ─── Voiding ──────────────────────────────────────────────────────────────────
 
-describe('Voiding cards', () => {
-  test('voiding a card gives 3 energy and removes it from hand', () => {
+describe('Voiding', () => {
+  test('puts the card in the dusk and gives 3 energy', () => {
     const { state } = freshGame();
-    const cardId = state.players.p1.hand[0];
-    const events = voidCard(state, 'p1', cardId);
-    expect(state.players.p1.energy).toBe(3);
-    expect(state.players.p1.hand).not.toContain(cardId);
-    expect(state.zones.void).toContain(cardId);
+    const card = state.players.p1.hand[0];
+    const events = voidCard(state, 'p1', card);
+
     expect(eventTypes(events)).toContain('CARD_VOIDED');
+    expect(state.players.p1.energy).toBe(3);
+    expect(state.zones.dusk).toContain(card);
+    expect(state.players.p1.hand).not.toContain(card);
   });
 
-  test('voiding three cards gives 9 energy', () => {
+  test('stacks: voiding three cards gives 9 energy', () => {
     const { state } = freshGame();
-    voidCard(state, 'p1', state.players.p1.hand[0]);
-    voidCard(state, 'p1', state.players.p1.hand[0]);
-    voidCard(state, 'p1', state.players.p1.hand[0]);
+    for (const card of [...state.players.p1.hand].slice(0, 3)) voidCard(state, 'p1', card);
     expect(state.players.p1.energy).toBe(9);
-  });
-
-  test('opponent cannot void when they do not hold priority', () => {
-    const { state } = freshGame();
-    const cardId = state.players.p2.hand[0];
-    const events = voidCard(state, 'p2', cardId);
-    expect(eventTypes(events)).toContain('ERROR');
-    expect(events[0].code).toBe('NOT_YOUR_PRIORITY');
+    expect(state.zones.dusk).toHaveLength(3);
   });
 });
 
-// ─── Playing Cards ────────────────────────────────────────────────────────────
+// ─── Play timing ──────────────────────────────────────────────────────────────
 
-describe('Playing cards', () => {
-  test('playing a card puts it on the horizon and passes priority', () => {
+describe('Play timing', () => {
+  test('a point can be played on your turn while the horizon is empty', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action, cost 0
-    const events = playCard(state, 'p1', '53');
-    expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.zones.horizon).toHaveLength(1);
-    expect(state.zones.horizon[0].cardId).toBe('53');
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 10);
+    expect(validatePlay(state, 'p1', POINT)).toBeNull();
+  });
+
+  test('a point cannot be played while a card is on the horizon', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    giveCard(state, 'p1', POINT_B);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
+    expect(validatePlay(state, 'p1', POINT_B)).toMatch(/horizon is empty/);
+  });
+
+  test('a point cannot be played on your opponent\'s turn', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p2', POINT);
+    setEnergy(state, 'p2', 10);
+    expect(validatePlay(state, 'p2', POINT)).toMatch(/cannot play a point card in response/);
+  });
+
+  test('an action can be played in response to an opponent\'s card', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    giveCard(state, 'p2', ACTION);
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    playCard(state, 'p1', POINT);           // p1's point is now on top
     expect(state.activePlayer).toBe('p2');
+    expect(validatePlay(state, 'p2', ACTION)).toBeNull();
   });
 
-  test('cannot play a card without enough energy', () => {
+  test('you cannot respond to your own card', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '58'); // Change of Luck: action, cost 7
-    // p1 has 0 energy
-    const events = playCard(state, 'p1', '58');
-    expect(eventTypes(events)).toContain('ERROR');
-    expect(events[0].code).toBe('INVALID_PLAY');
-  });
-
-  test('playing a card costs energy', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '58'); // cost 7
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '58');
-    expect(state.players.p1.energy).toBe(2);
-  });
-
-  test('point card cannot be played when horizon is not empty', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p1', '04'); // Snatch: point cost 6
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '53');
-    // now p2 holds priority — pass back to p1
-    passPriority(state, 'p2');
-    // p1 tries to play a point card with something on the horizon
-    const events = playCard(state, 'p1', '04');
-    expect(eventTypes(events)).toContain('ERROR');
-  });
-
-  test('cannot play when not holding priority', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p2', '53');
-    const events = playCard(state, 'p2', '53');
-    expect(eventTypes(events)).toContain('ERROR');
-    expect(events[0].code).toBe('NOT_YOUR_PRIORITY');
-  });
-
-  test('p2 can play an action card in response to p1', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
-    setEnergy(state, 'p2', 3);
-    playCard(state, 'p1', '53');
-    // p2 now holds priority with something on horizon — can respond
-    const events = playCard(state, 'p2', '45');
-    expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.zones.horizon).toHaveLength(2);
-  });
-
-  test('cannot respond to your own card with another action', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '55'); // Lost at Sea: action
-    giveCard(state, 'p1', '65'); // Enlightenment: action
-    giveCard(state, 'p2', '45'); // Dig for Ideas: action
+    giveCard(state, 'p1', POINT);
+    giveCard(state, 'p1', ACTION);
     setEnergy(state, 'p1', 20);
-    setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '55');   // p1's action on the horizon, priority → p2
-
-    // the opponent CAN respond to it
-    expect(validatePlay(state, 'p2', '45')).toBe(null);
-
-    passPriority(state, 'p2');     // p2 declines, priority returns to p1
-
-    // p1 may NOT respond to its own card
-    expect(validatePlay(state, 'p1', '65')).not.toBe(null);
-    const events = playCard(state, 'p1', '65');
-    expect(eventTypes(events)).toContain('ERROR');
-    expect(state.zones.horizon).toHaveLength(1);
+    playCard(state, 'p1', POINT);
+    expect(validatePlay(state, 'p1', ACTION)).toMatch(/cannot respond to your own card/);
   });
 
-  test('isLivePriorityWindow: only your main phase or an opponent\'s card on top', () => {
+  test('an action cannot be played on the opponent\'s turn with an empty horizon', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '55'); // Lost at Sea (action)
-    setEnergy(state, 'p1', 20);
+    giveCard(state, 'p2', ACTION);
+    setEnergy(state, 'p2', 20);
+    expect(validatePlay(state, 'p2', ACTION)).toMatch(/only play action cards/);
+  });
 
-    // p1's turn, empty horizon → p1's main phase is live; p2 (non-turn, empty
-    // horizon end-of-turn window) is dead regardless of what it holds.
+  test('you cannot play a card you cannot pay for', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 0);
+    expect(validatePlay(state, 'p1', POINT)).toMatch(/Not enough energy/);
+  });
+});
+
+// ─── Rising ───────────────────────────────────────────────────────────────────
+
+describe('Rising', () => {
+  test('a risen point goes into its controller\'s zenith and scores a point', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
+
+    const events = riseTopOfHorizon(state);
+
+    expect(eventTypes(events)).toContain('CARD_TO_ZENITH');
+    expect(state.players.p1.zenith).toContain(POINT);
+    expect(state.zones.dusk).not.toContain(POINT);
+    expect(pointsOf(state, 'p1')).toBe(1);
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('a risen action goes into the dusk, not a zenith', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', ACTION);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', ACTION);
+
+    const events = riseTopOfHorizon(state);
+
+    expect(eventTypes(events)).toContain('CARD_TO_DUSK');
+    expect(state.zones.dusk).toContain(ACTION);
+    expect(state.players.p1.zenith).toHaveLength(0);
+  });
+
+  test('a point rises into the zenith of whoever controls it, not whoever owns it', () => {
+    const { state } = freshGame();
+    const entry = createHorizonEntry(POINT, 'p1');
+    entry.controlledBy = 'p2';
+    state.zones.horizon.unshift(entry);
+
+    riseTopOfHorizon(state);
+
+    expect(state.players.p2.zenith).toContain(POINT);
+    expect(state.players.p1.zenith).toHaveLength(0);
+  });
+
+  test('the horizon is last-in-first-out: the card played last rises first', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    giveCard(state, 'p2', ACTION);
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    playCard(state, 'p1', POINT);
+    playCard(state, 'p2', ACTION);       // played second, so on top
+
+    expect(state.zones.horizon[0].cardId).toBe(ACTION);
+    riseTopOfHorizon(state);
+    expect(state.zones.dusk).toContain(ACTION);
+    expect(state.zones.horizon[0].cardId).toBe(POINT);   // the point is still waiting
+  });
+
+  test('a card leaves the horizon before its text runs', () => {
+    // Rulebook p4: put it into the dusk / your zenith, THEN do the card's text —
+    // so a rising card can never be a target of its own effect.
+    const { state } = freshGame();
+    giveCard(state, 'p1', ACTION);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', ACTION);
+
+    const events = riseTopOfHorizon(state);
+    const order = eventTypes(events);
+    expect(order.indexOf('CARD_TO_DUSK')).toBeGreaterThan(order.indexOf('CARD_RISING') - 1);
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('both players passing makes the top card rise', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
+
+    passPriority(state, 'p2');   // opponent declines to respond
+    passPriority(state, 'p1');
+
+    expect(state.players.p1.zenith).toContain(POINT);
+  });
+});
+
+// ─── Priority ─────────────────────────────────────────────────────────────────
+
+describe('Priority', () => {
+  test('you hold a live window on your own turn with an empty horizon', () => {
+    const { state } = freshGame();
     expect(isLivePriorityWindow(state, 'p1')).toBe(true);
     expect(isLivePriorityWindow(state, 'p2')).toBe(false);
+  });
 
-    playCard(state, 'p1', '55'); // p1's card on the horizon
-    // p2 has an opponent's card to respond to → live; p1 has only its own → dead
+  test('you hold a live window when an opponent\'s card is on top of the horizon', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
     expect(isLivePriorityWindow(state, 'p2')).toBe(true);
     expect(isLivePriorityWindow(state, 'p1')).toBe(false);
   });
-
-  test('cannot respond on the opponent\'s end-of-turn empty-horizon window', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p2', '45'); // Dig for Ideas: action
-    setEnergy(state, 'p2', 9);
-
-    // p1's turn, empty horizon: p1 passes → priority to p2 (end-of-turn window)
-    passPriority(state, 'p1');
-    expect(state.activePlayer).toBe('p2');
-    expect(state.turn).toBe('p1');
-    expect(state.zones.horizon).toHaveLength(0);
-
-    // p2 (non-turn player) cannot sneak in an action
-    expect(validatePlay(state, 'p2', '45')).not.toBe(null);
-    const events = playCard(state, 'p2', '45');
-    expect(eventTypes(events)).toContain('ERROR');
-  });
 });
 
-// ─── Resolving card reaches the trash only after it has fully taken effect ─────
-
-describe('A card takes full effect before it is trashed', () => {
-  // Mimic the server: surface the next queued choice, resolve it, and once the
-  // choice chain drains, complete the deferred trash of the resolved card.
-  function respond(state, player, payload) {
-    if (!state.pendingChoice) advancePendingChoices(state);
-    const res = resolveChoice(state, player, payload);
-    if (!state.pendingChoice) advancePendingChoices(state);
-    if (!state.pendingChoice) res.events.push(...flushResolutionTrash(state));
-    return res;
-  }
-
-  test('Dig for Ideas (45): cannot pull itself out of the trash', () => {
-    const { state } = freshGame();
-    state.zones.trash = ['10'];        // an existing card to dig up
-    giveCard(state, 'p1', '45');       // Dig for Ideas (cost 1)
-    setEnergy(state, 'p1', 3);
-
-    playCard(state, 'p1', '45');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');          // Dig resolves → putFromTrashToHand choice
-
-    advancePendingChoices(state);
-    expect(state.pendingChoice?.type).toBe('putFromTrashToHand');
-    // Dig is NOT in the trash while its own effect is resolving, so it can't be
-    // chosen — only the pre-existing card is diggable.
-    expect(state.zones.trash).toEqual(['10']);
-    expect(state.zones.trash).not.toContain('45');
-    const bad = resolveChoice(state, 'p1', { cardIds: ['45'] });
-    expect(bad.error).not.toBe(null);
-
-    respond(state, 'p1', { cardIds: ['10'] });
-    // The dug card is in hand; Dig itself is now in the trash (not the hand).
-    expect(state.players.p1.hand).toContain('10');
-    expect(state.players.p1.hand).not.toContain('45');
-    expect(state.zones.trash).toContain('45');
-    expect(state.zones.horizon).toHaveLength(0);
-  });
-
-  test('Stop (44): can trash a card its own caster controls, then goes to the trash', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '01'); // Sprint (point) — p1's own card
-    giveCard(state, 'p2', '82'); // Drain (action) — something to respond to
-    giveCard(state, 'p1', '44'); // Stop (cost 3)
-    setEnergy(state, 'p1', 20); setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '01'); // horizon: [01(p1)]
-    playCard(state, 'p2', '82'); // horizon: [82(p2), 01(p1)]
-    playCard(state, 'p1', '44'); // Stop in response → horizon: [44(p1), 82(p2), 01(p1)]
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');    // Stop resolves → trashFromHorizon choice for p1
-
-    advancePendingChoices(state);
-    expect(state.pendingChoice?.type).toBe('trashFromHorizon');
-    // Stop is still on the horizon (resolving) but has NOT yet reached the trash.
-    expect(state.zones.horizon.some(e => e.cardId === '44')).toBe(true);
-    expect(state.zones.trash).not.toContain('44');
-
-    const idx = state.zones.horizon.findIndex(e => e.cardId === '01'); // p1's own point
-    respond(state, 'p1', { horizonIndex: idx });
-
-    expect(state.zones.trash).toContain('01'); // own card trashed
-    expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
-  });
-
-  test('Stop (44): cannot choose itself while it resolves', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '01'); // Sprint (point) — p1's own card
-    giveCard(state, 'p2', '82'); // Drain (action) — something to respond to
-    giveCard(state, 'p1', '44'); // Stop (cost 3)
-    setEnergy(state, 'p1', 20); setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '01'); // horizon: [01(p1)]
-    playCard(state, 'p2', '82'); // horizon: [82(p2), 01(p1)]
-    playCard(state, 'p1', '44'); // Stop in response → horizon: [44(p1), 82(p2), 01(p1)]
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');    // Stop resolves → trashFromHorizon choice for p1
-
-    advancePendingChoices(state);
-    // Stop stays on the horizon (still visible) but isn't a legal target for itself.
-    const stopEntry = state.zones.horizon.find(e => e.cardId === '44');
-    expect(stopEntry !== undefined).toBe(true);
-    expect(stopEntry.resolving).toBe(true);
-    const stopIdx = state.zones.horizon.findIndex(e => e.cardId === '44');
-
-    // Choosing Stop itself is rejected.
-    const bad = resolveChoice(state, 'p1', { horizonIndex: stopIdx });
-    expect(bad.error !== null).toBe(true);
-    expect(state.zones.trash).not.toContain('44');
-
-    // Another card on the horizon is still a valid target.
-    const drainIdx = state.zones.horizon.findIndex(e => e.cardId === '82');
-    respond(state, 'p1', { horizonIndex: drainIdx });
-    expect(state.zones.trash).toContain('82'); // targeted card trashed
-    expect(state.zones.trash).toContain('44'); // Stop trashed afterwards
-  });
-});
-
-// ─── Priority & Horizon Resolution ──────────────────────────────────────────────
-
-describe('Priority and horizon resolution', () => {
-  test('both passing resolves top of horizon', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '56'); // Debilitate: action, 0 cost, no player choice
-    playCard(state, 'p1', '56');
-    passPriority(state, 'p2');
-    const events = passPriority(state, 'p1');
-    expect(eventTypes(events)).toContain('CARD_RESOLVING');
-    expect(eventTypes(events)).toContain('CARD_TRASHED');
-    expect(state.zones.horizon).toHaveLength(0);
-  });
-
-  test('horizon resolves top-down (LIFO)', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
-    setEnergy(state, 'p2', 3);
-
-    playCard(state, 'p1', '53'); // horizon: [53]
-    playCard(state, 'p2', '45'); // horizon: [45, 53]
-    passPriority(state, 'p1');
-    const events = passPriority(state, 'p2'); // resolves top = 45
-
-    const resolvingEvent = events.find(e => e.type === 'CARD_RESOLVING');
-    expect(resolvingEvent.cardId).toBe('45'); // top resolves first
-    expect(state.zones.horizon).toHaveLength(1); // 53 still pending
-    expect(state.zones.horizon[0].cardId).toBe('53');
-  });
-
-  test('after horizon resolution active turn player gets priority', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53');
-    playCard(state, 'p1', '53');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-    expect(state.activePlayer).toBe('p1'); // p1's turn, gets priority back
-  });
-
-  test('empty horizon + both pass = end turn', () => {
-    const { state } = freshGame();
-    passPriority(state, 'p1');
-    const events = passPriority(state, 'p2');
-    expect(eventTypes(events)).toContain('TURN_ENDED');
-    expect(state.turn).toBe('p2');
-  });
-});
-
-// ─── End of Turn ──────────────────────────────────────────────────────────────
+// ─── End of turn ──────────────────────────────────────────────────────────────
 
 describe('End of turn', () => {
-  test('energy is wiped at end of turn', () => {
+  test('wipes leftover energy for both players', () => {
     const { state } = freshGame();
-    setEnergy(state, 'p1', 6);
-    setEnergy(state, 'p2', 3);
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
+    setEnergy(state, 'p1', 7);
+    setEnergy(state, 'p2', 4);
+    endTurn(state);
     expect(state.players.p1.energy).toBe(0);
     expect(state.players.p2.energy).toBe(0);
   });
 
-  test('trash moves to void at end of turn', () => {
+  test('refills the turn player back up to five cards', () => {
     const { state } = freshGame();
-    state.zones.trash.push('53');
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
-    expect(state.zones.trash).toHaveLength(0);
-    expect(state.zones.void).toContain('53');
-  });
-
-  test('current player draws up to 5 at end of turn', () => {
-    const { state } = freshGame();
-    // p1 voids 3 cards, hand down to 2
-    voidCard(state, 'p1', state.players.p1.hand[0]);
-    voidCard(state, 'p1', state.players.p1.hand[0]);
-    voidCard(state, 'p1', state.players.p1.hand[0]);
-    expect(state.players.p1.hand).toHaveLength(2);
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
+    state.players.p1.hand = [state.players.p1.hand[0]];
+    endTurn(state);
     expect(state.players.p1.hand).toHaveLength(5);
   });
 
-  test('p2 draws up to 5 at end of p1\'s first turn', () => {
+  test('there is no maximum hand size — a big hand is not trimmed', () => {
     const { state } = freshGame();
-    // p2 starts with 5 cards (opening hand drawn at start)
-    // p2 should still have 5 after p1's first turn ends
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
-    expect(state.players.p2.hand).toHaveLength(5);
+    drawCards(state, 'p1', 3);
+    expect(state.players.p1.hand).toHaveLength(8);
+    endTurn(state);
+    expect(state.players.p1.hand).toHaveLength(8);
   });
 
-  test('turn passes to p2 after p1\'s turn', () => {
+  test('passes the turn to the other player', () => {
     const { state } = freshGame();
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
+    endTurn(state);
     expect(state.turn).toBe('p2');
-    expect(state.activePlayer).toBe('p2');
+    expect(state.turnNumber).toBe(2);
+  });
+
+  test('the dusk persists across turns — it is one pile all game', () => {
+    const { state } = freshGame();
+    const card = state.players.p1.hand[0];
+    voidCard(state, 'p1', card);
+    endTurn(state);
+    expect(state.zones.dusk).toContain(card);
+  });
+
+  test('cannot end the turn while the horizon still has cards', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
+    const events = endTurn(state);
+    expect(events[0].code).toBe('HORIZON_NOT_EMPTY');
   });
 });
 
-// ─── Void Reshuffle ───────────────────────────────────────────────────────────
+// ─── Reshuffles ───────────────────────────────────────────────────────────────
 
-describe('Deck exhaustion', () => {
-  test('void is shuffled into deck when deck runs out', () => {
+describe('Reshuffles', () => {
+  test('with a reshuffle available, an empty deck is refilled from the dusk', () => {
     const { state } = freshGame();
-    // Drain the deck
-    state.zones.void.push(...state.zones.deck);
     state.zones.deck = [];
-    state.zones.void.push('53');
-    // Drawing should reshuffle void into deck
+    state.zones.dusk = ['000', '001', '002'];
+    state.reshufflesRemaining = 1;
+
+    const drawn = drawCards(state, 'p1', 2);
+
+    expect(drawn).toHaveLength(2);
+    expect(state.reshufflesRemaining).toBe(0);
+    expect(state.zones.dusk).toHaveLength(0);
+    expect(state.zones.deck).toHaveLength(1);
+  });
+
+  test('with no reshuffles left, drawing from an empty deck simply stops', () => {
+    const { state } = freshGame();
+    state.zones.deck = [];
+    state.zones.dusk = ['000', '001'];
+    state.reshufflesRemaining = 0;
+
+    const drawn = drawCards(state, 'p1', 2);
+
+    expect(drawn).toHaveLength(0);
+    expect(state.zones.dusk).toHaveLength(2);
+  });
+
+  test('a zenith is never reshuffled back into the deck', () => {
+    const { state } = freshGame();
+    state.zones.deck = [];
+    state.zones.dusk = ['000'];
+    state.players.p1.zenith = ['001', '002'];
+    state.reshufflesRemaining = 1;
+
     drawCards(state, 'p1', 1);
-    expect(state.players.p1.hand.length).toBeGreaterThan(5);
-    expect(state.zones.void).toHaveLength(0);
+
+    expect(state.players.p1.zenith).toEqual(['001', '002']);
   });
 });
 
-// ─── Points & Win Condition ───────────────────────────────────────────────────
+// ─── Sunset ───────────────────────────────────────────────────────────────────
 
-describe('Points and win condition', () => {
-  test('playing a point card and resolving it grants 1 point', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '04'); // Snatch: point cost 6, draw a card
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '04');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-    expect(state.players.p1.points).toBe(1);
-  });
+describe('Sunset', () => {
+  function spentDeck(state) {
+    state.zones.deck = [];
+    state.reshufflesRemaining = 0;
+  }
 
-  test('reaching 5 points ends the game immediately', () => {
+  test('ends the game once the deck is spent', () => {
     const { state } = freshGame();
-    state.players.p1.points = 4;
-    giveCard(state, 'p1', '04'); // Snatch: point
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '04');
-    passPriority(state, 'p2');
-    const events = passPriority(state, 'p1');
-    expect(state.winner).toBe('p1');
-    expect(state.phase).toBe('ended');
+    spentDeck(state);
+    const events = checkSunset(state);
+    expect(eventTypes(events)).toContain('SUNSET');
     expect(eventTypes(events)).toContain('GAME_OVER');
+    expect(state.phase).toBe('ended');
   });
 
-  test('Sprint (01) gives 2 points total when it resolves', () => {
+  test('the player with more points in their zenith wins', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '01'); // Sprint: point cost 7, gain additional point
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '01');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-    expect(state.players.p1.points).toBe(2);
+    spentDeck(state);
+    state.players.p1.zenith = ['000', '001', '002'];
+    state.players.p2.zenith = ['003'];
+    checkSunset(state);
+    expect(state.winner).toBe('p1');
   });
-});
 
-// ─── Cost Modifiers ───────────────────────────────────────────────────────────
-
-describe('Cost modifiers', () => {
-  test('Delve (03): costs 1 less per card in trash', () => {
+  test('an equal number of points is a draw', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '03'); // Delve: point cost 6
-    state.zones.trash.push('53', '45', '48'); // 3 cards in trash
-    setEnergy(state, 'p1', 4); // needs exactly 3 after discount
-    const events = playCard(state, 'p1', '03');
-    expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.players.p1.energy).toBe(1); // 4 - 3 = 1
+    spentDeck(state);
+    state.players.p1.zenith = ['000'];
+    state.players.p2.zenith = ['001'];
+    checkSunset(state);
+    expect(state.winner).toBe('draw');
   });
 
-  test('Overwhelm (17): costs 1 less per card on horizon, response only', () => {
+  test('cards left on the horizon go to the dusk and never rise', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '17'); // Overwhelm: point cost 7, 1 less per horizon card
-    setEnergy(state, 'p2', 9);
-    playCard(state, 'p1', '53'); // horizon has 1 card
-    // cost = 7 - 1 = 6
-    const events = playCard(state, 'p2', '17');
-    expect(eventTypes(events)).not.toContain('ERROR');
-    expect(state.players.p2.energy).toBe(3); // 9 - 6 = 3
-  });
+    spentDeck(state);
+    state.zones.horizon = [createHorizonEntry(POINT, 'p1'), createHorizonEntry(ACTION_B, 'p2')];
 
-  test('Quad (26): only playable with exactly 4 energy', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '26'); // Quad: point cost 4, exactly 4 energy required
-    setEnergy(state, 'p1', 5);
-    const events = playCard(state, 'p1', '26');
-    expect(eventTypes(events)).toContain('ERROR');
-  });
+    checkSunset(state);
 
-  test('Quad (26): playable with exactly 4 energy', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '26');
-    setEnergy(state, 'p1', 4);
-    const events = playCard(state, 'p1', '26');
-    expect(eventTypes(events)).not.toContain('ERROR');
-  });
-});
-
-// ─── Static Effects ───────────────────────────────────────────────────────────
-
-describe('Static effects', () => {
-  test('Unstoppable (00): no cards can be played while on horizon', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '00'); // Unstoppable: point cost 7
-    giveCard(state, 'p2', '45'); // Dig for Ideas: action cost 1
-    setEnergy(state, 'p1', 9);
-    setEnergy(state, 'p2', 3);
-    playCard(state, 'p1', '00');
-    const events = playCard(state, 'p2', '45');
-    expect(eventTypes(events)).toContain('ERROR');
-    expect(events[0].message).toMatch(/cannot be played/i);
-  });
-
-  test('Paranoia (23): controller cannot play cards while on horizon', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '23'); // Paranoia: point cost 4, controller locked
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '45'); // Dig for Ideas
-    setEnergy(state, 'p1', 9);
-    setEnergy(state, 'p2', 3);
-    playCard(state, 'p1', '23'); // Paranoia on horizon, p2 gets priority
-    // p2 CAN play immediately (Paranoia only locks its controller, p1)
-    const p2events = playCard(state, 'p2', '45');
-    expect(eventTypes(p2events)).not.toContain('ERROR');
-    // Resolve horizon fully, then p1 tries to play while Paranoia still on horizon
-    // (reset to test p1 lock: put Paranoia back on horizon manually)
-    // Instead test p1 lock by checking after p2 plays and p1 gets priority
-    passPriority(state, 'p1'); // p2 gets priority
-    passPriority(state, 'p2'); // resolves p2's card (45), p1 gets priority
-    // Paranoia still on horizon — p1 tries Sort
-    const lockEvents = playCard(state, 'p1', '53');
-    expect(eventTypes(lockEvents)).toContain('ERROR');
-  });
-
-  test('Erase Reason (11): must be first card, locks self from playing', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '11'); // Erase Reason: point cost 0, first card only
-    giveCard(state, 'p1', '53');
-    setEnergy(state, 'p1', 0);
-    playCard(state, 'p1', '11');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves
-    // p1 now locked from playing for rest of turn
-    expect(state.players.p1.lockedFromPlaying).toBe(true);
-  });
-
-  test('Stifle Speech (52): opponent cannot play after it resolves', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '52'); // Stifle Speech: action cost 1
-    giveCard(state, 'p2', '45'); // Dig for Ideas
-    setEnergy(state, 'p1', 3);
-    setEnergy(state, 'p2', 3);
-    playCard(state, 'p1', '52');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves — opponent locked
-    passPriority(state, 'p1'); // p1 passes, p2 gets priority
-    const events = playCard(state, 'p2', '45');
-    expect(eventTypes(events)).toContain('ERROR');
-  });
-});
-
-// ─── Special Card Interactions ────────────────────────────────────────────────
-
-describe('Special card interactions', () => {
-  test('Strafe (06): can only be played in response to actions', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p2', '06'); // Strafe: point cost 5, response to actions only
-    setEnergy(state, 'p2', 9);
-    // Try to play when horizon is empty (own turn) — should fail
-    // But it's p1's turn, so p2 can only respond
-    // First, get p2 priority by p1 playing an action
-    giveCard(state, 'p1', '53');
-    playCard(state, 'p1', '53');
-    // Now p2 has priority with an action on the horizon — valid
-    const events = playCard(state, 'p2', '06');
-    expect(eventTypes(events)).not.toContain('ERROR');
-  });
-
-  test('Insanity (18): hand is trashed when card hits horizon', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '18'); // Insanity: point cost 3
-    setEnergy(state, 'p1', 9);
-    const handSizeBefore = state.players.p1.hand.length;
-    playCard(state, 'p1', '18');
-    // Hand (excluding Insanity itself which moved to horizon) should be empty
-    expect(state.players.p1.hand).toHaveLength(0);
-    expect(state.zones.trash.length).toBe(handSizeBefore - 1); // minus Insanity itself
-  });
-
-  test('Sneak (08): additional cost puts a card on top of deck', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '08'); // Sneak: point cost 2, put hand card on deck top
-    setEnergy(state, 'p1', 9);
-    const events = playCard(state, 'p1', '08');
-    // Should require an additional cost choice
-    expect(eventTypes(events)).toContain('ADDITIONAL_COST_REQUIRED');
-  });
-
-  test('Sow (29): each player gains energy when anyone plays a card', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '29'); // Sow: point cost 5
-    giveCard(state, 'p2', '53'); // Sort: action cost 0
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '29'); // Sow on horizon, priority to p2
-    const energyBefore_p1 = state.players.p1.energy;
-    const energyBefore_p2 = state.players.p2.energy;
-    const events = playCard(state, 'p2', '53');
-    // Both should gain 1 energy from Sow's trigger
-    expect(state.players.p1.energy).toBe(energyBefore_p1 + 1);
-    expect(state.players.p2.energy).toBe(energyBefore_p2 + 1);
-  });
-
-  test('Trip (37): trashes itself when 4th card is played', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '37'); // Trip: point cost 4
-    giveCard(state, 'p2', '53'); // Sort
-    giveCard(state, 'p1', '65'); // Enlightenment cost 0
-    giveCard(state, 'p2', '56'); // Debilitate cost 0
-    setEnergy(state, 'p1', 9);
-    setEnergy(state, 'p2', 9);
-
-    // Players alternate responses (each onto the OPPONENT's card) so Trip stays
-    // on the horizon while four cards get played this turn.
-    playCard(state, 'p1', '37'); // card 1, Trip (point) on horizon, priority → p2
-    playCard(state, 'p2', '53'); // card 2, responds to Trip
-    playCard(state, 'p1', '65'); // card 3, responds to Sort
-    // Playing the 4th card should trigger Trip to trash itself
-    const events = playCard(state, 'p2', '56'); // card 4, responds to Enlightenment
-    expect(eventTypes(events)).toContain('CARD_TRASHED_BY_TRIGGER');
-    // Trip (37) should no longer be on the horizon
-    expect(state.zones.horizon.map(e => e.cardId)).not.toContain('37');
-  });
-});
-
-// ─── Horizon-targeting choices ────────────────────────────────────────────────────
-
-describe('Horizon-targeting choices', () => {
-  // Regression: horizon-choice triggers must tag the chooser via `player`, not
-  // `chooser`. With the wrong field the choice has no `player`, so the server
-  // shows "waiting for opponent" to both players and no one can select a card.
-  test('trashFromHorizon tags the choosing player on the trigger', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action cost 0
-    giveCard(state, 'p2', '44'); // Stop: action, trashFromHorizon any
-    setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '53'); // horizon: [53], p2 has priority
-    playCard(state, 'p2', '44'); // p2 responds: horizon [44, 53]
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');   // Stop resolves → trashFromHorizon choice for p2
-
-    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice');
-    expect(trigger).not.toBe(undefined);
-    expect(trigger.player).toBe('p2');
-  });
-});
-
-// ─── Additional costs ───────────────────────────────────────────────────────────
-
-describe('Additional costs', () => {
-  // Mirrors how the server surfaces a queued trigger as the pending choice.
-  function surfaceChoice(state, triggerType) {
-    const t = state.pendingTriggers.find(x => x.type === triggerType);
-    if (!t) return null;
-    state.pendingChoice = { ...t, type: 'additionalCost' };
-    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
-    return state.pendingChoice;
-  }
-
-  test('Sneak (08): additional cost is required and resolves a card onto the deck', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '08'); // Sneak: point, additionalCost putHandCardOnDeckTop
-    giveCard(state, 'p1', '53'); // spare card to pay the cost
-    setEnergy(state, 'p1', 9);
-
-    const events = playCard(state, 'p1', '08');
-    expect(eventTypes(events)).toContain('ADDITIONAL_COST_REQUIRED');
-
-    // The trigger must tag the paying player so the server can route it.
-    const choice = surfaceChoice(state, 'additionalCost');
-    expect(choice).not.toBe(null);
-    expect(choice.player).toBe('p1');
-    expect(choice.cost.type).toBe('putHandCardOnDeckTop');
-
-    const { error } = resolveChoice(state, 'p1', { cardId: '53' });
-    expect(error).toBe(null);
-    expect(state.players.p1.hand).not.toContain('53');
-    expect(state.zones.deck[0]).toBe('53');
-    expect(state.pendingChoice).toBe(null);
-  });
-});
-
-// ─── Deferred (start-of-next-turn) draws ────────────────────────────────────────
-
-describe('Deferred draws', () => {
-  // Regression: Prepare's "draw a card at the start of the next turn" must add
-  // a card on top of the 5-card refill, not get absorbed by draw-up-to-5.
-  test('Prepare (50) yields a net extra card despite the refill', () => {
-    const baseline = (() => {
-      const { state } = freshGame();
-      // void 3 cards so the hand is below 5 at end of turn (the absorbing case)
-      const toVoid = state.players.p1.hand.slice(0, 3);
-      for (const c of toVoid) voidCard(state, 'p1', c);
-      passPriority(state, 'p1');
-      passPriority(state, 'p2');
-      return state.players.p1.hand.length;
-    })();
-
-    const { state } = freshGame();
-    giveCard(state, 'p1', '50'); // Prepare: action, draw 1 at start of next turn
-    const toVoid = state.players.p1.hand.filter(c => c !== '50').slice(0, 3);
-    for (const c of toVoid) voidCard(state, 'p1', c);
-    playCard(state, 'p1', '50');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // Prepare resolves → deferred draw
-    passPriority(state, 'p1');
-    passPriority(state, 'p2'); // p1 turn ends
-
-    expect(state.players.p1.hand.length).toBe(baseline + 1);
-  });
-
-  // Regression: Last Chance draws 4 now but must not trash on resolution — the
-  // trash is deferred to the turn boundary (same timing as Prepare's draw).
-  test('Last Chance (76) defers its trash to the turn boundary', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '76');
-    setEnergy(state, 'p1', 20);
-    const before = state.players.p1.hand.length;
-
-    playCard(state, 'p1', '76');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // Last Chance resolves
-
-    // Drew 4, and the trash is queued — not surfaced as an immediate choice.
-    expect(state.players.p1.hand.length).toBe(before + 3); // -1 played, +4 drawn
-    expect(state.pendingTriggers.some(t => t.type === 'trashFromHandChoice')).toBe(false);
-    expect(state.pendingTriggers.some(t => t.type === 'endOfTurnTrash')).toBe(true);
-
-    // End the turn → the deferred trash becomes a choice.
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');
-    expect(state.pendingTriggers.some(t => t.type === 'trashFromHandChoice')).toBe(true);
-  });
-});
-
-describe('Stifle Speech (52)', () => {
-  const LOCK_MSG = 'You cannot play any more cards this turn.';
-
-  test('locks the caster\'s opponent, not the caster', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '52');
-    setEnergy(state, 'p1', 20);
-    playCard(state, 'p1', '52');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // Stifle Speech resolves
-    expect(state.turnFlags.lockedPlayer).toBe('p2');
-  });
-
-  test('the lock blocks the locked player even on their own turn', () => {
-    const { state } = freshGame(); // p1's turn
-    giveCard(state, 'p1', '30');
-    setEnergy(state, 'p1', 20);
-    // Caster locked their opponent; here we lock the turn player directly to
-    // prove the block is player-specific (the old !isOwnTurn check could not).
-    state.turnFlags.lockedPlayer = 'p1';
-    expect(validatePlay(state, 'p1', '30')).toBe(LOCK_MSG);
-    // A different locked target leaves the turn player free to play.
-    state.turnFlags.lockedPlayer = 'p2';
-    expect(validatePlay(state, 'p1', '30')).toBe(null);
-  });
-});
-
-// ─── Consult the Past (38): play from trash ─────────────────────────────────────
-
-describe('Consult the Past (38)', () => {
-  test('lets its controller play a trashed card in response to the opponent', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '38'); // Consult the Past (point)
-    giveCard(state, 'p2', '56'); // Debilitate (action) — p2's response
-    state.zones.trash.push('53'); // an action in the trash
-    setEnergy(state, 'p1', 9);
-    setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '38'); // Consult on the horizon, priority → p2
-    expect(canPlayFromTrash(state, 'p1')).toBe(true);
-    expect(canPlayFromTrash(state, 'p2')).toBe(false);
-
-    playCard(state, 'p2', '56'); // p2 responds; its action is now on top
-
-    // p1 may now play the trashed action in response to the opponent's card
-    const ev = playCard(state, 'p1', '53', { fromTrash: true });
-    expect(ev.some(e => e.type === 'ERROR')).toBe(false);
-    expect(state.zones.trash).not.toContain('53');
-    expect(state.zones.horizon[0].cardId).toBe('53');
-  });
-
-  test('still enforces timing — cannot play from trash onto your own Consult', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '38'); // Consult the Past (point)
-    state.zones.trash.push('53'); // an action in the trash
-    setEnergy(state, 'p1', 9);
-
-    playCard(state, 'p1', '38'); // Consult on the horizon, priority → p2
-    passPriority(state, 'p2');   // priority returns to p1, own Consult on top
-
-    // the grant is active, but timing forbids responding to your own card
-    expect(canPlayFromTrash(state, 'p1')).toBe(true);
-    expect(validatePlay(state, 'p1', '53', { fromTrash: true })).not.toBe(null);
-  });
-});
-
-// ─── Choice effects with insufficient resources ─────────────────────────────────
-
-describe('Choice effects with insufficient resources', () => {
-  test('Mulled Over (12): a player who can\'t trash is skipped, not locked', () => {
-    const { state } = freshGame();
-    state.players.p1.hand = ['12']; // only Mulled Over
-    state.players.p2.hand = [];     // empty
-    setEnergy(state, 'p1', 9);
-
-    playCard(state, 'p1', '12');    // point on horizon
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');      // resolves: grant point + each player trashes
-
-    // neither player can trash → no stuck choice
-    expect(state.pendingTriggers.find(t => t.type === 'trashFromHandChoice')).toBe(undefined);
-    expect(state.players.p1.points).toBe(1);
-  });
-
-  test('Mulled Over (12): only players who can trash get the choice', () => {
-    const { state } = freshGame();
-    state.players.p1.hand = ['12', '53']; // Mulled Over + a spare card
-    state.players.p2.hand = [];           // empty
-    setEnergy(state, 'p1', 9);
-
-    playCard(state, 'p1', '12');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-
-    const triggers = state.pendingTriggers.filter(t => t.type === 'trashFromHandChoice');
-    expect(triggers.length).toBe(1);
-    expect(triggers[0].player).toBe('p1');
-  });
-});
-
-// ─── Additional cost affordability ──────────────────────────────────────────────
-
-describe('Additional cost affordability', () => {
-  test('Vitalize (25): unplayable without a card to pay its additional cost', () => {
-    const { state } = freshGame();
-    setEnergy(state, 'p1', 9);
-
-    state.players.p1.hand = ['25'];          // only Vitalize — nothing to trash
-    expect(validatePlay(state, 'p1', '25')).not.toBe(null);
-
-    state.players.p1.hand = ['25', '53'];    // a spare card to pay with
-    expect(validatePlay(state, 'p1', '25')).toBe(null);
-  });
-
-  test('Sneak (08): unplayable without a card to put on the deck', () => {
-    const { state } = freshGame();
-    setEnergy(state, 'p1', 9);
-
-    state.players.p1.hand = ['08'];          // only Sneak
-    expect(validatePlay(state, 'p1', '08')).not.toBe(null);
-
-    state.players.p1.hand = ['08', '53'];
-    expect(validatePlay(state, 'p1', '08')).toBe(null);
-  });
-});
-
-// ─── Free play ("may play a card for 0") ────────────────────────────────────────
-
-describe('Free play for 0', () => {
-  // Mimic the server: when a choice emits FREE_PLAY_CONFIRMED, the card is
-  // played onto the horizon for free.
-  function completeFreePlay(state, events) {
-    for (const ev of events) {
-      if (ev.type === 'FREE_PLAY_CONFIRMED') playCard(state, ev.player, ev.cardId, { free: true });
-    }
-  }
-
-  function trashFromHorizonTo(state, chooser, cardId) {
-    const t = state.pendingTriggers.find(x => x.type === 'trashFromHorizonChoice');
-    state.pendingChoice = { ...t, type: 'trashFromHorizon' };
-    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
-    const idx = state.zones.horizon.findIndex(e => e.cardId === cardId);
-    return resolveChoice(state, chooser, { horizonIndex: idx });
-  }
-
-  test('Metamorphosis (61): trashed card\'s controller may play a point from hand for 0', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '04'); // Snatch (point) — p1's card, to be trashed
-    giveCard(state, 'p1', '01'); // Sprint (point) — to free-play from hand
-    giveCard(state, 'p2', '61'); // Metamorphosis
-    setEnergy(state, 'p1', 9); setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '04');  // point on horizon
-    playCard(state, 'p2', '61');  // Metamorphosis in response
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');    // Metamorphosis resolves → trash choice for p2
-
-    const r1 = trashFromHorizonTo(state, 'p2', '04'); // p2 trashes p1's point
-    expect(r1.error).toBe(null);
-    // thenGrant must surface (not be nulled) for p1, the trashed card's controller
-    expect(state.pendingChoice?.type).toBe('mayPlayFromHand');
-    expect(state.pendingChoice.player).toBe('p1');
-
-    const energyBefore = state.players.p1.energy;
-    const r2 = resolveChoice(state, 'p1', { play: true, cardId: '01' });
-    expect(r2.error).toBe(null);
-    completeFreePlay(state, r2.events);
-
-    expect(state.zones.horizon[0].cardId).toBe('01');         // played onto the horizon
-    expect(state.players.p1.energy).toBe(energyBefore);     // for free
-    expect(state.players.p1.hand).not.toContain('01');
-  });
-
-  test('Reinstate (84): trashed action\'s controller may play the top of deck for 0', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort (action) — p1's card, to be trashed
-    giveCard(state, 'p2', '84'); // Reinstate
-    setEnergy(state, 'p1', 9); setEnergy(state, 'p2', 9);
-    state.zones.deck = state.zones.deck.filter(id => id !== '01');
-    state.zones.deck.unshift('01'); // Sprint on top of the deck
-
-    playCard(state, 'p1', '53');  // action on horizon
-    playCard(state, 'p2', '84');  // Reinstate in response
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');    // Reinstate resolves → trash choice for p2
-
-    const r1 = trashFromHorizonTo(state, 'p2', '53');
-    expect(r1.error).toBe(null);
-    expect(state.pendingChoice?.type).toBe('mayPlayTopOfDeck');
-    expect(state.pendingChoice.cardId).toBe('01'); // top card revealed
-
-    const r2 = resolveChoice(state, 'p1', { play: true });
-    expect(r2.error).toBe(null);
-    completeFreePlay(state, r2.events);
-
-    expect(state.zones.horizon[0].cardId).toBe('01'); // top card played for free
-    expect(state.zones.deck).not.toContain('01');
-  });
-
-  test('Predict (54): playing the guessed card puts it on the horizon', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '54'); // Predict
-    setEnergy(state, 'p1', 9);
-    state.zones.deck = state.zones.deck.filter(id => id !== '53');
-    state.zones.deck.unshift('53'); // Sort (cost 0) on top
-
-    playCard(state, 'p1', '54');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → chooseNumber
-
-    const t = state.pendingTriggers.find(x => x.type === 'chooseNumber');
-    state.pendingChoice = { ...t, type: 'chooseNumber' };
-    state.pendingTriggers = state.pendingTriggers.filter(x => x !== t);
-    resolveChoice(state, 'p1', { number: 0 }); // match → confirmFreePlay
-    expect(state.pendingChoice?.type).toBe('confirmFreePlay');
-
-    const r = resolveChoice(state, 'p1', { play: true });
-    expect(r.error).toBe(null);
-    completeFreePlay(state, r.events);
-    expect(state.zones.horizon[0].cardId).toBe('53'); // played onto the horizon
-  });
-});
-
-// ─── Injustice (67): protect next action only ───────────────────────────────────
-
-describe('Injustice (67)', () => {
-  test('protects only the next action played, not all responses', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '67'); // Injustice: action
-    giveCard(state, 'p1', '55'); // protected action A (Lost at Sea — clean draw)
-    giveCard(state, 'p1', '65'); // later action B (Enlightenment)
-    giveCard(state, 'p2', '45'); // p2's responder action (Dig for Ideas)
-    setEnergy(state, 'p1', 20);
-    setEnergy(state, 'p2', 9);
-
-    // Play & resolve Injustice
-    playCard(state, 'p1', '67');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → arms protection for p1
-    expect(state.turnFlags.protectNextSelfAction).toBe('p1');
-
-    // p1 plays the protected action A
-    playCard(state, 'p1', '55');
-    expect(state.zones.horizon[0].responsesLocked).toBe(true);
-    expect(state.turnFlags.protectNextSelfAction).toBe(null); // consumed
-
-    // p2 cannot play an action in response to A
-    expect(validatePlay(state, 'p2', '45')).not.toBe(null);
-    // p1 also cannot horizon another action onto its own card
-    expect(validatePlay(state, 'p1', '65')).not.toBe(null);
-
-    // let A resolve (p2 passes, then p1 passes), clearing the horizon
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
     expect(state.zones.horizon).toHaveLength(0);
-
-    // p1 plays a second action B (not protected)
-    playCard(state, 'p1', '65');
-    expect(state.zones.horizon[0].responsesLocked).toBe(false);
-
-    // now p2 CAN respond with an action (only the next action was protected)
-    expect(validatePlay(state, 'p2', '45')).toBe(null);
+    expect(state.zones.dusk).toContain(POINT);
+    expect(state.zones.dusk).toContain(ACTION_B);
+    // The stranded point did NOT rise, so it never reached a zenith.
+    expect(state.players.p1.zenith).not.toContain(POINT);
   });
-});
 
-// ─── Kinship (revealTopN + opponentChoosesOne) ──────────────────────────────────
-
-describe('Kinship (46): revealTopN + opponentChoosesOne', () => {
-  test('opponent keeps one of four revealed cards, caster gets the rest', () => {
+  test('the current card still finishes rising before the sun sets', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '46'); // Kinship: action
-    setEnergy(state, 'p1', 9);
-    // Known top four
-    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53', '45'].includes(id));
-    state.zones.deck.unshift('00', '04', '53', '45'); // top four
-    const p1HandBefore = state.players.p1.hand.length;
-    const p2HandBefore = state.players.p2.hand.length;
+    spentDeck(state);
+    state.zones.horizon = [createHorizonEntry(POINT, 'p1')];
 
-    playCard(state, 'p1', '46');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → opponent (p2) chooses
+    const events = riseTopOfHorizon(state);
 
-    const trigger = state.pendingTriggers.find(t => t.type === 'opponentChoosesOne');
-    expect(trigger).not.toBe(undefined);
-    expect(trigger.player).toBe('p2');               // the opponent chooses
-    expect(trigger.revealedCards).toEqual(['00', '04', '53', '45']);
-
-    state.pendingChoice = { ...trigger, type: 'opponentChoosesOne' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const { error } = resolveChoice(state, 'p2', { cardId: '53' }); // p2 keeps 53
-
-    expect(error).toBe(null);
-    expect(state.players.p2.hand).toContain('53');          // opponent kept the chosen card
-    expect(state.players.p2.hand.length).toBe(p2HandBefore + 1);
-    // caster (p1) gets the other three revealed cards
-    for (const id of ['00', '04', '45']) expect(state.players.p1.hand).toContain(id);
+    expect(state.players.p1.zenith).toContain(POINT);   // banked before scoring
+    expect(eventTypes(events)).toContain('SUNSET');
+    expect(state.winner).toBe('p1');
   });
-});
 
-// ─── Predict (chooseNumber) ─────────────────────────────────────────────────────
-
-describe('Predict (54): chooseNumber', () => {
-  test('guessing the top card cost offers a free play', () => {
+  test('the end-of-turn refill is what usually triggers Sunset', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '54'); // Predict: action
-    setEnergy(state, 'p1', 9);
-    state.zones.deck = state.zones.deck.filter(id => id !== '53');
-    state.zones.deck.unshift('53'); // Sort (cost 0) on top
+    state.zones.deck = ['000'];
+    state.reshufflesRemaining = 0;
+    state.players.p1.hand = [];
 
-    playCard(state, 'p1', '54');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → chooseNumber choice
+    const events = endTurn(state);
 
-    const trigger = state.pendingTriggers.find(t => t.type === 'chooseNumber');
-    expect(trigger).not.toBe(undefined);
-    state.pendingChoice = { ...trigger, type: 'chooseNumber' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const { error } = resolveChoice(state, 'p1', { number: 0 }); // Sort costs 0 → match
+    expect(state.zones.deck).toHaveLength(0);
+    expect(eventTypes(events)).toContain('SUNSET');
+    expect(state.phase).toBe('ended');
+  });
 
-    expect(error).toBe(null);
-    expect(state.pendingChoice?.type).toBe('confirmFreePlay');
-    expect(state.pendingChoice.cardId).toBe('53');
+  test('Sunset does not fire twice', () => {
+    const { state } = freshGame();
+    spentDeck(state);
+    checkSunset(state);
+    const again = checkSunset(state);
+    expect(again).toHaveLength(0);
   });
 });
 
-// ─── Reveal hand + trash (Inquisition / Cerebral Snuff) ─────────────────────────
+// ─── Whole-game integrity ─────────────────────────────────────────────────────
 
-describe('chooseCardToTrashFromRevealedHand', () => {
-  function resolveTo(state) {
-    const trigger = state.pendingTriggers.find(t => t.type === 'chooseCardToTrashFromRevealedHand');
-    if (trigger) {
-      state.pendingChoice = { ...trigger, type: 'chooseCardToTrashFromRevealedHand' };
-      state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
+describe('Whole-game integrity', () => {
+  test('a full game reaches Sunset without creating or losing a card', () => {
+    const { state } = freshGame();
+    let guard = 0;
+
+    while (state.phase === 'active' && guard++ < 3000) {
+      const me = state.turn;
+      if (state.activePlayer !== me) { passPriority(state, state.activePlayer); continue; }
+
+      // Void two cards for energy, then play the cheapest affordable point.
+      for (const id of [...state.players[me].hand].slice(0, 2)) voidCard(state, me, id);
+      const affordable = state.players[me].hand
+        .map(id => getCard(id))
+        .filter(c => c.type === 'point' && c.energyCost <= state.players[me].energy)
+        .sort((a, b) => a.energyCost - b.energyCost)[0];
+      if (affordable) {
+        playCard(state, me, affordable.id);
+        while (state.phase === 'active' && state.zones.horizon.length > 0) {
+          passPriority(state, state.activePlayer);
+        }
+      }
+      if (state.phase !== 'active') break;
+      passPriority(state, state.activePlayer);
+      if (state.phase === 'active' && state.turn === me) passPriority(state, state.activePlayer);
     }
-    return state.pendingChoice;
-  }
 
-  test('Inquisition (16): trashes a chosen action from the opponent\'s hand', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '16'); // Inquisition: point
-    // ensure p2 has an action (53 Sort) and a point (04) in hand
-    giveCard(state, 'p2', '53');
-    giveCard(state, 'p2', '04');
-    setEnergy(state, 'p1', 9);
-
-    playCard(state, 'p1', '16');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → choice for p1
-
-    const choice = resolveTo(state);
-    expect(choice).not.toBe(undefined);
-    expect(choice.player).toBe('p1');
-    expect(choice.targetPlayer).toBe('p2');
-    expect(choice.filter).toBe('action');
-
-    // can't trash a point (filter is action)
-    const bad = resolveChoice(state, 'p1', { cardId: '04' });
-    expect(bad.error).not.toBe(null);
-
-    const good = resolveChoice(state, 'p1', { cardId: '53' });
-    expect(good.error).toBe(null);
-    expect(state.players.p2.hand).not.toContain('53');
-    expect(state.zones.trash).toContain('53');
+    expect(state.phase).toBe('ended');
+    expect(state.zones.deck).toHaveLength(0);
+    expect(state.zones.horizon).toHaveLength(0);
+    expect(countAllCards(state)).toBe(105);
+    expect(['p1', 'p2', 'draw']).toContain(state.winner);
   });
 
-  test('Cerebral Snuff (81): trashes any chosen card from the opponent\'s hand', () => {
+  test('every card in a zenith is a point card', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '81'); // Cerebral Snuff: action
-    giveCard(state, 'p2', '04'); // a point — should be trashable (no filter)
-    setEnergy(state, 'p1', 9);
-
-    playCard(state, 'p1', '81');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1');
-
-    const choice = resolveTo(state);
-    expect(choice.filter).toBe('any');
-    const { error } = resolveChoice(state, 'p1', { cardId: '04' });
-    expect(error).toBe(null);
-    expect(state.zones.trash).toContain('04');
-  });
-});
-
-// ─── Search (lookAtTopN) ────────────────────────────────────────────────────────
-
-describe('Search (47): lookAtTopN', () => {
-  test('looks at the top two, trashes the chosen one, then draws a card', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '47'); // Search: action
-    setEnergy(state, 'p1', 9);
-    // Known deck top: 00, 04, 53, ...
-    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53'].includes(id));
-    state.zones.deck.unshift('00', '04', '53'); // top order: 00, 04, 53
-
-    playCard(state, 'p1', '47');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → lookAtTopN choice
-
-    const trigger = state.pendingTriggers.find(t => t.type === 'lookAtTopN');
-    expect(trigger).not.toBe(undefined);
-
-    state.pendingChoice = { ...trigger, type: 'lookAtTopN' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const { error } = resolveChoice(state, 'p1', { trashCardId: '04' }); // trash one of the top two
-
-    expect(error).toBe(null);
-    expect(state.zones.trash).toContain('04');          // the chosen card was trashed
-    expect(state.players.p1.hand).toContain('00');      // then drew the new top (the other looked-at card)
-    expect(state.zones.deck[0]).toBe('53');             // 53 remains on top
-  });
-});
-
-// ─── revealUntilType (Inspiration / Inspect) ────────────────────────────────────
-
-describe('revealUntilType', () => {
-  test('Inspect (64): reveals until the chosen type, takes it, rest to deck bottom', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '64'); // Inspect: action
-    setEnergy(state, 'p1', 9);
-    // Arrange a known deck top: two points then an action.
-    for (const id of ['64']) { /* already in hand */ }
-    state.zones.deck = state.zones.deck.filter(id => !['00', '04', '53'].includes(id));
-    state.zones.deck.unshift('53'); // action (the one to find)
-    state.zones.deck.unshift('04'); // point
-    state.zones.deck.unshift('00'); // point  → deck top order: 00, 04, 53, ...
-
-    playCard(state, 'p1', '64');
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // resolves → revealUntilType choice for p1
-
-    const trigger = state.pendingTriggers.find(t => t.type === 'revealUntilType');
-    expect(trigger).not.toBe(undefined);
-    expect(state.pendingTriggers.find(t => t.type === 'chooseCardType')).toBe(undefined); // no dangling step
-
-    state.pendingChoice = { ...trigger, type: 'revealUntilType' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const { error } = resolveChoice(state, 'p1', { cardType: 'action' });
-
-    expect(error).toBe(null);
-    expect(state.players.p1.hand).toContain('53');        // found action taken to hand
-    expect(state.zones.deck.slice(-2)).toEqual(['00', '04']); // the two points went to deck bottom
-  });
-});
-
-// ─── trashUnlessControllerPays ──────────────────────────────────────────────────
-
-describe('trashUnlessControllerPays', () => {
-  // Set up: p1 plays an action, p2 plays the counter in response, both pass so the
-  // counter resolves → choice goes to the targeted card's controller (p1).
-  function setupCounter(counterId, casterEnergy = 9) {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action — p1's card, will be the target
-    giveCard(state, 'p2', counterId);
-    setEnergy(state, 'p2', casterEnergy);
-    setEnergy(state, 'p1', 9);
-    playCard(state, 'p1', '53');         // horizon: [53] (p1's)
-    playCard(state, 'p2', counterId);    // horizon: [counter, 53]
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');           // counter resolves → caster (p2) targets
-
-    // Step 1: caster (p2) chooses the target card (the Sort).
-    const t1 = state.pendingTriggers.find(t => t.type === 'trashUnlessControllerPaysTarget');
-    if (t1) {
-      state.pendingChoice = { ...t1, type: 'trashUnlessControllerPaysTarget' };
-      state.pendingTriggers = state.pendingTriggers.filter(t => t !== t1);
-      const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
-      resolveChoice(state, 'p2', { horizonIndex: idx }); // → step 2 choice for p1
+    let guard = 0;
+    while (state.phase === 'active' && guard++ < 3000) {
+      const me = state.turn;
+      if (state.activePlayer !== me) { passPriority(state, state.activePlayer); continue; }
+      for (const id of [...state.players[me].hand].slice(0, 2)) voidCard(state, me, id);
+      const pt = state.players[me].hand
+        .map(id => getCard(id))
+        .filter(c => c.type === 'point' && c.energyCost <= state.players[me].energy)[0];
+      if (pt) {
+        playCard(state, me, pt.id);
+        while (state.phase === 'active' && state.zones.horizon.length > 0) {
+          passPriority(state, state.activePlayer);
+        }
+      }
+      if (state.phase !== 'active') break;
+      passPriority(state, state.activePlayer);
+      if (state.phase === 'active' && state.turn === me) passPriority(state, state.activePlayer);
     }
-    return { state, trigger: state.pendingChoice };
-  }
 
-  test('Poke (87): choice goes to the targeted card\'s controller', () => {
-    const { trigger } = setupCounter('87');
-    expect(trigger).not.toBe(undefined);
-    expect(trigger.player).toBe('p1');       // p1 controls the targeted Sort
-    expect(trigger.targetCardId).toBe('53');
-  });
-
-  test('Poke (87): declining trashes the card', () => {
-    const { state } = setupCounter('87');
-    const { error } = resolveChoice(state, 'p1', { pay: false });
-    expect(error).toBe(null);
-    expect(state.zones.horizon.find(e => e.cardId === '53')).toBe(undefined);
-    expect(state.zones.trash).toContain('53');
-  });
-
-  test('Poke (87): paying energy saves the card', () => {
-    const { state } = setupCounter('87');
-    const before = state.players.p1.energy;
-    const { error } = resolveChoice(state, 'p1', { pay: true });
-    expect(error).toBe(null);
-    expect(state.players.p1.energy).toBe(before - 1); // Poke ransom = 1 energy
-    expect(state.zones.horizon.find(e => e.cardId === '53')).not.toBe(undefined); // survived
-  });
-
-  test('Overconfidence (71): paying puts a trash card on the deck bottom', () => {
-    const { state } = setupCounter('71');
-    state.zones.trash.push('22'); // ensure a trash card to pay with
-    const { error } = resolveChoice(state, 'p1', { pay: true });
-    expect(error).toBe(null);
-    // Pay opens a follow-up choice to pick the trash card
-    expect(state.pendingChoice?.type).toBe('putFromTrashToDeckBottom');
-    const deckLenBefore = state.zones.deck.length;
-    const r2 = resolveChoice(state, 'p1', { cardIds: ['22'] });
-    expect(r2.error).toBe(null);
-    expect(state.zones.trash).not.toContain('22');
-    expect(state.zones.deck[state.zones.deck.length - 1]).toBe('22'); // bottom
-    expect(state.zones.deck.length).toBe(deckLenBefore + 1);
-    expect(state.zones.horizon.find(e => e.cardId === '53')).not.toBe(undefined); // survived
-  });
-});
-
-// ─── Regret (moveFromHorizonToDeckTop) ────────────────────────────────────────────
-
-describe('Regret (41): moveFromHorizonToDeckTop', () => {
-  test('puts a chosen horizon card on top of the deck', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '53'); // Sort: action — will sit on the horizon as the target
-    giveCard(state, 'p2', '41'); // Regret: action
-    setEnergy(state, 'p2', 9);
-
-    playCard(state, 'p1', '53');  // horizon: [53]
-    playCard(state, 'p2', '41');  // p2 responds: horizon [41, 53]
-    passPriority(state, 'p1');
-    passPriority(state, 'p2');    // Regret resolves → choice for p2
-
-    const trigger = state.pendingTriggers.find(t => t.type === 'moveFromHorizonToDeckTop');
-    expect(trigger).not.toBe(undefined);
-    expect(trigger.player).toBe('p2');
-
-    // surface + resolve: move card 53 (still on the horizon) to the top of the deck
-    state.pendingChoice = { ...trigger, type: 'moveFromHorizonToDeckTop' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
-    const { error } = resolveChoice(state, 'p2', { horizonIndex: idx });
-
-    expect(error).toBe(null);
-    expect(state.zones.deck[0]).toBe('53');
-    expect(state.zones.horizon.find(e => e.cardId === '53')).toBe(undefined);
-  });
-});
-
-// ─── Horizon-target effects with no legal target ──────────────────────────────────
-
-describe('Horizon-target effects without a legal target', () => {
-  // Regression: a horizon-targeting effect with no legal target must be skipped,
-  // not create an impossible choice that hardlocks the game.
-  test('Deny Hostility (69) with no valid target is skipped, not stuck', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '69'); // Deny Hostility: trashFromHorizon actionPlayedInResponseToPoint
-    setEnergy(state, 'p1', 3);
-
-    playCard(state, 'p1', '69'); // alone on the horizon
-    passPriority(state, 'p2');
-    const events = passPriority(state, 'p1'); // resolves with nothing else on the horizon
-
-    expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
-    expect(state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice')).toBe(undefined);
-  });
-
-  test('Deny Hostility (69) trashes an action played in response to a point', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '04'); // Snatch: point
-    giveCard(state, 'p2', '53'); // Sort: action
-    giveCard(state, 'p1', '69'); // Deny Hostility
-    setEnergy(state, 'p1', 20);
-    setEnergy(state, 'p2', 20);
-
-    playCard(state, 'p1', '04'); // point on horizon
-    playCard(state, 'p2', '53'); // action in response to the point
-    playCard(state, 'p1', '69'); // Deny Hostility in response
-    passPriority(state, 'p2');
-    passPriority(state, 'p1'); // Deny Hostility resolves → choice for p1
-
-    const trigger = state.pendingTriggers.find(t => t.type === 'trashFromHorizonChoice');
-    expect(trigger).not.toBe(undefined);
-
-    // Mirror the server surfacing the trigger, then resolve it.
-    state.pendingChoice = { ...trigger, type: 'trashFromHorizon' };
-    state.pendingTriggers = state.pendingTriggers.filter(t => t !== trigger);
-    const idx = state.zones.horizon.findIndex(e => e.cardId === '53');
-    const { error } = resolveChoice(state, 'p1', { horizonIndex: idx });
-
-    expect(error).toBe(null);
-    expect(state.zones.trash).toContain('53');
+    const zenithCards = [...state.players.p1.zenith, ...state.players.p2.zenith];
+    expect(zenithCards.every(id => getCard(id).type === 'point')).toBe(true);
+    expect(zenithCards.length).toBeGreaterThan(0);
   });
 });

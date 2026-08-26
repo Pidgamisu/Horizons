@@ -1,320 +1,259 @@
 [
   {
-    "id": "00",
-    "name": "Unstoppable",
+    "id": "000",
+    "name": "Pretty Privilege",
     "type": "point",
     "energyCost": 7,
-    "effectText": "While this is on the horizon, players can't play cards.",
+    "effectText": "While this is on the horizon, your opponents can't play cards.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "lockHorizon", "scope": "allPlayers" }
-    ]
-  },
-  {
-    "id": "01",
-    "name": "Sprint",
-    "type": "point",
-    "energyCost": 7,
-    "effectText": "When this takes effect, gain an additional point.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "gainPoints", "amount": 1, "player": "self" }
-    ],
     "staticEffects": []
   },
   {
-    "id": "02",
+    "id": "001",
+    "name": "Abstract Embrace",
+    "type": "point",
+    "energyCost": 7,
+    "effectText": "When this rises, put a point from the dusk into your zenith.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "002",
     "name": "Momentum",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this takes effect, gain 4 energy.",
+    "effectText": "When this rises, you gain 4 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "gainEnergy", "amount": 4, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "03",
+    "id": "003",
     "name": "Delve",
     "type": "point",
     "energyCost": 6,
-    "effectText": "This costs 1 energy less for each card in the trash.",
+    "effectText": "This costs 2 energy less if an action and a point went into the dusk this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountPerCard", "zone": "trash", "filter": "any", "amount": 1 }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "04",
-    "name": "Snatch",
+    "id": "004",
+    "name": "Inquire",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this takes effect, draw a card.",
+    "effectText": "When this rises, draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "05",
+    "id": "005",
     "name": "Entwine",
     "type": "point",
     "energyCost": 6,
-    "effectText": "If you played a point and action card this turn, this costs 4 energy less.",
+    "effectText": "If you played an action and a point this turn, this costs 4 energy less.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountIfCondition", "condition": "playedBothTypesThisTurn", "amount": 4 }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "06",
+    "id": "006",
     "name": "Strafe",
     "type": "point",
     "energyCost": 5,
-    "effectText": "You can play this in response to actions. You cannot play this during your turn.",
-    "playRestrictions": [
-      { "type": "responseOnly", "filter": "action" }
-    ],
+    "effectText": "You can play this in response to an opponent's action.\nYou can't play this during your turn.",
+    "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "07",
+    "id": "007",
     "name": "Synergy",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, you may trash a card from your hand. If you do, draw a card.",
+    "effectText": "When this rises, you may put a card from your hand into the dusk. If you do, draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "optional", "effects": [
-        { "type": "trashFromHand", "count": 1, "chooser": "self" },
-        { "type": "draw", "count": 1, "player": "self" }
-      ]}
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "08",
-    "name": "Sneak",
+    "id": "008",
+    "name": "Lurk",
     "type": "point",
     "energyCost": 2,
     "effectText": "As an additional cost, put a card from your hand on top of the deck.",
     "playRestrictions": [],
-    "additionalCosts": [
-      { "type": "putHandCardOnDeckTop", "count": 1, "chooser": "self" }
-    ],
+    "additionalCosts": [],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "09",
-    "name": "Ambition",
+    "id": "009",
+    "name": "Wasted Ambition",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, put this on top of the deck.",
+    "effectText": "When this is put into the dusk from anywhere other than the horizon, each player draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "moveSelf", "to": "deckTop" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "10",
-    "name": "Again and Again",
+    "id": "010",
+    "name": "Plead",
     "type": "point",
     "energyCost": 3,
-    "effectText": "When this takes effect, put this in an opponent's hand.",
+    "effectText": "When this leaves the horizon, each opponent draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "moveSelf", "to": "opponentHand" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "11",
+    "id": "011",
     "name": "Erase Reason",
     "type": "point",
     "energyCost": 0,
-    "effectText": "You can only play this if it's the first card you've played this turn. When you play this, you can't play cards this turn.",
-    "playRestrictions": [
-      { "type": "mustBeFirstCardThisTurn" }
-    ],
+    "effectText": "You can only play this if it's the first card of the turn. When you play this, you can't play any more cards this turn.",
+    "playRestrictions": [],
     "additionalCosts": [],
-    "onPlayEffects": [
-      { "type": "lockSelfFromPlaying", "duration": "restOfTurn" }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "12",
+    "id": "012",
     "name": "Mulled Over",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, each player trashes a card in their hand.",
+    "effectText": "When this rises, each player puts a card from their hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "13",
+    "id": "013",
     "name": "Initiative",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, each player trashes a card in their hand, then draws a card.",
+    "effectText": "When this rises, each player puts a card from their hand into the dusk, then draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" },
-      { "type": "draw", "count": 1, "player": "both" }
-    ],
-    "staticEffects": []
-  },
-  {
-    "id": "14",
-    "name": "At Long Last",
-    "type": "point",
-    "energyCost": 6,
-    "effectText": "This costs 3 energy less if a player is a point away from winning.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountIfCondition", "condition": "anyPlayerAtFourPoints", "amount": 3 }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "15",
+    "id": "014",
+    "name": "Mercy",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "This costs 3 energy less if an opponent has four or more points in their zenith.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "015",
     "name": "Efficiency",
     "type": "point",
-    "energyCost": 4,
-    "effectText": "While this is on the horizon, cards your opponents play cost 1 energy less.",
+    "energyCost": 3,
+    "effectText": "While this is on the horizon, cards your opponents play cost 2 less energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "modifyPlayCost", "target": "opponent", "amount": -1 }
-    ]
-  },
-  {
-    "id": "16",
-    "name": "Inquisition",
-    "type": "point",
-    "energyCost": 6,
-    "effectText": "When this takes effect, reveal a player's hand, then trash an action card from it.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "revealHand", "target": "chosenPlayer", "chooser": "self" },
-      { "type": "chooseCardToTrashFromRevealedHand", "filter": "action", "chooser": "self", "trashBy": "targetPlayer" }
-    ],
     "staticEffects": []
   },
   {
-    "id": "17",
+    "id": "016",
+    "name": "Pilfer Thoughts",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this rises, reveal a player's hand, then put a card from it in the dusk.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "017",
     "name": "Overwhelm",
     "type": "point",
     "energyCost": 7,
-    "effectText": "This costs 1 energy less for each card on the horizon. You can only play this in response to actions.",
-    "playRestrictions": [
-      { "type": "responseOnly", "filter": "action" }
-    ],
+    "effectText": "This costs 1 energy less for each card on the horizon.\nYou can only play this in response to actions.",
+    "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountPerCard", "zone": "horizon", "filter": "any", "amount": 1 }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "18",
+    "id": "018",
     "name": "Insanity",
     "type": "point",
     "energyCost": 3,
-    "effectText": "When you play this, trash your hand.",
+    "effectText": "When you put this on the horizon, put your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "onPlayEffects": [
-      { "type": "trashHand", "player": "self" }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "19",
-    "name": "Glacial Pace",
+    "id": "019",
+    "name": "Death and Taxes",
     "type": "point",
     "energyCost": 6,
-    "effectText": "While this is on the horizon, cards your opponents play cost 1 energy more.",
+    "effectText": "While this is on the horizon, cards your opponents play cost 2 energy more.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "modifyPlayCost", "target": "opponent", "amount": 1 }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "20",
+    "id": "020",
     "name": "Angst",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this takes effect, draw cards equal to the number of action cards in the trash.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": "countInTrash:action", "player": "self" }
-    ],
-    "staticEffects": []
-  },
-  {
-    "id": "21",
-    "name": "Endure",
-    "type": "point",
-    "energyCost": 6,
-    "effectText": "While this is on the horizon, whenever an opponent plays a card, draw a card.",
+    "effectText": "When this rises, draw two cards if an action and a point went into the dusk this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "trigger", "on": "opponentPlaysCard", "effect": { "type": "draw", "count": 1, "player": "controller" } }
-    ]
-  },
-  {
-    "id": "22",
-    "name": "Radiance",
-    "type": "point",
-    "energyCost": 5,
-    "effectText": "When this takes effect, each player draws a card.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 1, "player": "both" }
-    ],
     "staticEffects": []
   },
   {
-    "id": "23",
+    "id": "021",
+    "name": "Endure Hatred",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "While this is on the horizon, whenever an opponent plays a card, you draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "022",
+    "name": "Shared Prosperity",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this rises, each player draws two cards.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "023",
     "name": "Paranoia",
     "type": "point",
     "energyCost": 4,
@@ -322,80 +261,65 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "lockHorizon", "scope": "controller" }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "24",
+    "id": "024",
     "name": "Treasure Anew",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the horizon, whenever a player plays a card, they draw a card.",
+    "effectText": "While this is on the horizon, whenever an opponent plays a card, each player draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "draw", "count": 1, "player": "thatPlayer" } }
-    ]
-  },
-  {
-    "id": "25",
-    "name": "Vitalize",
-    "type": "point",
-    "energyCost": 3,
-    "effectText": "As an additional cost, trash a card from your hand. When this takes effect, put a card from the trash into your hand.",
-    "playRestrictions": [],
-    "additionalCosts": [
-      { "type": "trashFromHand", "count": 1, "chooser": "self" }
-    ],
-    "effects": [
-      { "type": "putFromTrashToHand", "count": 1, "chooser": "self" }
-    ],
     "staticEffects": []
   },
   {
-    "id": "26",
-    "name": "Quad",
+    "id": "025",
+    "name": "Vitalize",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this rises, put a card from the dusk into your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "026",
+    "name": "Affair With Perfection",
     "type": "point",
     "energyCost": 4,
     "effectText": "You can only play this if you have exactly 4 energy.",
-    "playRestrictions": [
-      { "type": "exactEnergy", "amount": 4 }
-    ],
-    "additionalCosts": [],
-    "effects": [],
-    "staticEffects": []
-  },
-  {
-    "id": "27",
-    "name": "Invest",
-    "type": "point",
-    "energyCost": 9,
-    "effectText": "When you play this, gain 6 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "onPlayEffects": [
-      { "type": "gainEnergy", "amount": 6, "player": "self" }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "28",
-    "name": "With the Sky",
+    "id": "027",
+    "name": "Trickle Down Economics",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When you put this on the horizon, each opponent loses all leftover energy. You gain that much energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "028",
+    "name": "Birth the Sky",
     "type": "point",
     "energyCost": 3,
-    "effectText": "Opponents may play point cards in response to this.",
+    "effectText": "While this is at the top of the horizon, opponents may play points in response to this.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "allowOpponentPointResponse" }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "29",
+    "id": "029",
     "name": "Sow",
     "type": "point",
     "energyCost": 5,
@@ -403,138 +327,109 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "gainEnergy", "amount": 1, "player": "both" } }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "30",
+    "id": "030",
     "name": "Reap",
     "type": "point",
     "energyCost": 5,
-    "effectText": "While this is on the horizon, whenever a player plays a card, each player trashes a card from their hand.",
+    "effectText": "While this is on the horizon, whenever a player plays a card, each player puts a card from their hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "trigger", "on": "anyPlayerPlaysCard", "effect": { "type": "trashFromHand", "count": 1, "player": "both", "chooser": "each" } }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "31",
+    "id": "031",
     "name": "Burning Flow",
     "type": "point",
     "energyCost": 6,
     "effectText": "This costs 3 energy less if you drew two or more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountIfCondition", "condition": "drewTwoOrMoreThisTurn", "amount": 3 }
-    ],
     "effects": [],
     "staticEffects": []
   },
   {
-    "id": "32",
+    "id": "032",
     "name": "Plead Insane",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this takes effect, trash your hand, then draw three cards.",
+    "effectText": "When this rises, put your hand into the dusk, then draw three cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashHand", "player": "self" },
-      { "type": "draw", "count": 3, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "33",
+    "id": "033",
     "name": "Unbury Intent",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, each player reveals their hand.",
+    "effectText": "When this rises, each player reveals their hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "revealHand", "target": "both" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "34",
-    "name": "Chant",
+    "id": "034",
+    "name": "Beget Advantage",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this takes effect, if there are two or more point cards in the trash, gain an additional point.",
+    "effectText": "When this rises, if you have four or more points in your zenith, draw three cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "conditionalGainPoints", "condition": { "type": "countInTrash", "filter": "point", "minimum": 2 }, "amount": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "35",
+    "id": "035",
     "name": "Inspiration",
     "type": "point",
     "energyCost": 5,
-    "effectText": "When this takes effect, choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest into an opponent's hand.",
+    "effectText": "When this rises, choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest into an opponent's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "revealUntilType", "putFound": "selfHand", "putRest": "opponentHand" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "36",
+    "id": "036",
     "name": "Forever Borrow",
     "type": "point",
-    "energyCost": 5,
-    "effectText": "You can only play this in response to point cards. When you do, gain control of that point card and its controller gains control of this.",
-    "playRestrictions": [
-      { "type": "responseOnly", "filter": "point" }
-    ],
+    "energyCost": 7,
+    "effectText": "You can only play this in response to actions. When you do, gain control of that action.",
+    "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      {
-        "type": "swapHorizonPositions",
-        "targetA": "respondedToCard",
-        "targetB": "self",
-        "note": "Cards physically swap indices in the horizon array. Controllers do not change. Priority windows are unaffected — resolution continues top-down from the new ordering."
-      }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "37",
-    "name": "Trip",
+    "id": "037",
+    "name": "Stumble",
     "type": "point",
     "energyCost": 4,
-    "effectText": "While this is on the horizon, whenever a player plays the fourth card of the turn, trash this.",
+    "effectText": "While this is on the horizon, whenever a player plays the fourth card of the turn, put this into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "trigger", "on": "nthCardPlayedThisTurn", "n": 4, "scope": "eitherPlayer", "effect": { "type": "trashSelf" } }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "38",
-    "name": "Consult the Past",
+    "id": "038",
+    "name": "Consult The Past",
     "type": "point",
     "energyCost": 6,
-    "effectText": "While this is on the horizon, you may play cards from the trash.",
+    "effectText": "While this is on the horizon, you may play actions from the dusk by paying its cost plus 2 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "allowPlayFromTrash", "scope": "controller" }
-    ]
+    "staticEffects": []
   },
   {
-    "id": "39",
+    "id": "039",
     "name": "Dread",
     "type": "point",
     "energyCost": 5,
@@ -542,699 +437,721 @@
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [],
-    "staticEffects": [
-      { "type": "lockDraw", "scope": "allPlayers" }
-    ]
-  },
-  {
-    "id": "40",
-    "name": "Bounce Back",
-    "type": "action",
-    "energyCost": 1,
-    "effectText": "Return a point card on the horizon to its controller's hand.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "returnToControllerHand", "zone": "horizon", "filter": "point", "chooser": "self" }
-    ],
     "staticEffects": []
   },
   {
-    "id": "41",
+    "id": "040",
+    "name": "Agoraphobia",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this leaves the horizon and didn't rise, put it at the bottom of the deck instead of anywhere else.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "041",
+    "name": "Contentment",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this leaves the horizon and didn't rise, each player draws a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "042",
+    "name": "Splendor",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this rises, each player gains 4 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "043",
+    "name": "Pray To Me",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "While this is on the horizon, actions you play cost 0 energy.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "044",
+    "name": "Purity",
+    "type": "point",
+    "energyCost": 2,
+    "effectText": "If an opponent responds to this, put this in the dusk.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "045",
+    "name": "Auction",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "As an additional cost, pay any amount of energy. While this is on the horizon, cards your opponents play cost that much more.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "046",
+    "name": "Pride",
+    "type": "point",
+    "energyCost": 5,
+    "effectText": "When this leaves the horizon, draw a card if it rises. If it didn't, put a card from your hand into the dusk.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "047",
+    "name": "Answer Fate",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "When this rises, you may shuffle the dusk into the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "048",
+    "name": "Abyss",
+    "type": "point",
+    "energyCost": 3,
+    "effectText": "As an additional cost, put six cards from the dusk to the bottom of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "049",
+    "name": "Dawn",
+    "type": "point",
+    "energyCost": 6,
+    "effectText": "This costs 0 energy if you reveal three points from your hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "050",
+    "name": "Bounce Back",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Return a point on the horizon to its controller's hand.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "051",
     "name": "Regret",
     "type": "action",
     "energyCost": 3,
     "effectText": "Put a card on the horizon on top of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "moveFromHorizonToDeckTop", "filter": "any", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "42",
+    "id": "052",
     "name": "Reverse",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Gain control of an action card on the horizon. When it takes effect, return it to its initial controller's hand.",
+    "effectText": "Gain control of an action on the horizon. When it rises, return it to its initial controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "gainControl", "zone": "horizon", "filter": "action", "chooser": "self",
-        "onResolve": { "type": "returnToInitialControllerHand" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "43",
+    "id": "053",
     "name": "Delusion",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Trash a point card on the horizon.",
+    "effectText": "Put a point on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "point", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "44",
-    "name": "Stop",
+    "id": "054",
+    "name": "Warp",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a card on the horizon.",
+    "effectText": "Put a card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "45",
-    "name": "Dig for Ideas",
+    "id": "055",
+    "name": "Dig For Ideas",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Put a card from the trash into your hand.",
+    "effectText": "Put a card from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "putFromTrashToHand", "count": 1, "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "46",
+    "id": "056",
     "name": "Kinship",
     "type": "action",
     "energyCost": 4,
     "effectText": "Reveal the top four cards of the deck and choose an opponent. They put one of the cards into their hand, then the rest into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "revealTopN", "count": 4 },
-      { "type": "opponentChoosesOne", "putChosen": "opponentHand", "putRest": "selfHand" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "47",
-    "name": "Search",
+    "id": "057",
+    "name": "Reach Out to the Dark",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "Look at the top two cards of the deck, trash one, then draw a card.",
+    "energyCost": 2,
+    "effectText": "Put two cards of an opponent's choice from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "lookAtTopN", "count": 2, "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "48",
-    "name": "Grass is Greener",
+    "id": "058",
+    "name": "Bid",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "Reveal an opponent's hand. Draw a card.",
+    "energyCost": 0,
+    "effectText": "As an additional cost, pay any amount of energy. Put a card on the horizon into the dusk unless its controller pays that much energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "revealHand", "target": "opponent" },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "49",
-    "name": "Rethink",
+    "id": "059",
+    "name": "Hesitation",
     "type": "action",
     "energyCost": 1,
     "effectText": "Draw two cards, then put a card from your hand on top of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 2, "player": "self" },
-      { "type": "putHandCardOnDeckTop", "count": 1, "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "50",
+    "id": "060",
     "name": "Prepare",
     "type": "action",
     "energyCost": 0,
     "effectText": "Each player gains 1 energy. Draw a card at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "gainEnergy", "amount": 1, "player": "both" },
-      { "type": "draw", "count": 1, "player": "self", "timing": "endOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "51",
+    "id": "061",
     "name": "Blinding Flash",
     "type": "action",
-    "energyCost": 3,
-    "effectText": "You may play point cards in response to action cards this turn. Draw a card.",
+    "energyCost": 2,
+    "effectText": "You may play points in response to actions this turn. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "allowSelfPointResponseToActions", "duration": "restOfTurn" },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "52",
+    "id": "062",
     "name": "Stifle Speech",
     "type": "action",
     "energyCost": 1,
     "effectText": "Opponents can't play any more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "lockOpponentFromPlaying", "duration": "restOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "53",
+    "id": "063",
     "name": "Sort",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Draw two cards, then trash two cards from your hand.",
+    "effectText": "Draw two cards, then put two cards from your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 2, "player": "self" },
-      { "type": "trashFromHand", "count": 2, "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "54",
-    "name": "Predict",
+    "id": "064",
+    "name": "Understand Despair",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Choose a number, then reveal the top card of the deck. If its energy cost is the same as the number you chose, you may play it for 0 energy.",
+    "effectText": "Whenever a card you control leaves the horizon this turn and didn't rise, draw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "chooseNumber", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "55",
-    "name": "Lost at Sea",
+    "id": "065",
+    "name": "Light's Guidance",
     "type": "action",
     "energyCost": 5,
-    "effectText": "This costs 1 energy less for each card in the trash. Draw two cards.",
+    "effectText": "This costs 1 energy less for each point in each player's zenith.\nDraw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountPerCard", "zone": "trash", "filter": "any", "amount": 1 }
-    ],
-    "effects": [
-      { "type": "draw", "count": 2, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "56",
-    "name": "Debilitate",
+    "id": "066",
+    "name": "Foreshadow",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Trash the top card of the deck. Draw a card at the start of the next turn.",
+    "effectText": "Put a card from the dusk on top of the deck. Draw a card at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashTopOfDeck", "count": 1 },
-      { "type": "draw", "count": 1, "player": "self", "timing": "endOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "57",
+    "id": "067",
     "name": "Journey",
     "type": "action",
     "energyCost": 2,
-    "effectText": "The controller of an action card on the horizon chooses to put it on the top or bottom of the deck.",
+    "effectText": "The controller of an action on the horizon chooses to put it on the top or bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "controllerMovesCardFromHorizon", "filter": "action", "destinations": ["deckTop", "deckBottom"], "chooser": "targetController" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "58",
+    "id": "068",
     "name": "Change of Luck",
     "type": "action",
     "energyCost": 7,
-    "effectText": "Gain control of a card on the horizon.",
+    "effectText": "Put a point on the horizon into your zenith.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "gainControl", "zone": "horizon", "filter": "any", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "59",
+    "id": "069",
     "name": "Drown in Fog",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "Trash a card on the horizon unless its controller pays 1 energy for each card in the trash.",
+    "energyCost": 2,
+    "effectText": "Put a card on the horizon into the dusk unless its controller pays 1 energy for each card in the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "any", "chooser": "self",
-        "ransom": { "type": "payEnergy", "amount": "countInTrash:any" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "60",
-    "name": "Capture",
+    "id": "070",
+    "name": "Apprehend",
     "type": "action",
     "energyCost": 4,
-    "effectText": "Trash a point card on the horizon. Draw a card.",
+    "effectText": "Put a point on the horizon into the dusk. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "point", "chooser": "self" },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "61",
+    "id": "071",
     "name": "Metamorphosis",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Trash a card on the horizon. The controller of that card may play a point card from their hand for 0 energy.",
+    "effectText": "Put a card on the horizon into the dusk. The next card its controller plays this turn costs 0 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self",
-        "thenGrant": { "type": "mayPlayFromHand", "filter": "point", "cost": 0, "player": "trashedCardController" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "62",
+    "id": "072",
     "name": "Reimagine",
     "type": "action",
     "energyCost": 3,
     "effectText": "Return a card on the horizon to its controller's hand. You gain 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "returnToControllerHand", "zone": "horizon", "filter": "any", "chooser": "self" },
-      { "type": "gainEnergy", "amount": 3, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "63",
+    "id": "073",
     "name": "Anxiety",
     "type": "action",
-    "energyCost": 3,
-    "effectText": "Choose an opponent to trash two cards from their hand.",
+    "energyCost": 2,
+    "effectText": "Put the top card of the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHand", "count": 2, "player": "opponent", "chooser": "opponent" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "64",
+    "id": "074",
     "name": "Inspect",
     "type": "action",
     "energyCost": 1,
     "effectText": "Choose point or action. Reveal cards from the top of the deck until you reveal that type. Put it into your hand and put the rest at the bottom of the deck.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "revealUntilType", "putFound": "selfHand", "putRest": "deckBottom" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "65",
+    "id": "075",
     "name": "Enlightenment",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Trash a card from your hand. You may trash a card on the horizon that shares the energy cost of the trashed card.",
+    "effectText": "Put a card from your hand into the dusk. You may put a card on the horizon that shares that card's energy cost into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHand", "count": 1, "chooser": "self", "trackCost": true },
-      { "type": "optional", "effects": [
-        { "type": "trashFromHorizon", "filter": "matchesTrashedCost", "chooser": "self" }
-      ]}
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "66",
+    "id": "076",
     "name": "By Any Means",
     "type": "action",
     "energyCost": 0,
-    "effectText": "Trash a card on the horizon, then trash your hand.",
+    "effectText": "Put a card on the horizon into the dusk, then put your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" },
-      { "type": "trashHand", "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "67",
-    "name": "Injustice",
+    "id": "077",
+    "name": "Avert Injustice",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Opponents can't play action cards in response to the next action card you play this turn. Draw a card.",
+    "effectText": "Opponents can't play actions in response to the next action you play this turn. Draw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "lockOpponentActionResponse", "target": "nextActionSelf", "duration": "nextSelfActionThisTurn" },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "68",
+    "id": "078",
     "name": "Unravel",
     "type": "action",
     "energyCost": 5,
-    "effectText": "This costs 1 energy less for each card on the horizon. Trash all cards on the horizon.",
+    "effectText": "This costs 1 energy less for each card on the horizon.\nPut all cards on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "discountPerCard", "zone": "horizon", "filter": "any", "amount": 1 }
-    ],
-    "effects": [
-      { "type": "trashAllFromHorizon" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "69",
+    "id": "079",
     "name": "Deny Hostility",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the horizon that was played in response to a point card.",
+    "effectText": "Put an action on the horizon into the dusk if it was played in response to a point.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "actionPlayedInResponseToPoint", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "70",
+    "id": "080",
     "name": "Icarus",
     "type": "action",
     "energyCost": 5,
-    "effectText": "You may play this for 0 energy if an opponent played three or more cards this turn. Trash a card on the horizon.",
+    "effectText": "This costs 0 energy if an opponent played 3 or more cards this turn.\nPut a card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "costModifiers": [
-      { "type": "freeIfCondition", "condition": "opponentPlayedThreeOrMoreThisTurn" }
-    ],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "71",
-    "name": "Overconfidence",
-    "type": "action",
-    "energyCost": 3,
-    "effectText": "Trash a card on the horizon unless its controller puts a card from the trash at the bottom of the deck. Draw a card.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "any", "chooser": "self",
-        "ransom": { "type": "putFromTrashToDeckBottom", "count": 1, "chooser": "targetController" } },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
-    "staticEffects": []
-  },
-  {
-    "id": "72",
-    "name": "Brought Back",
+    "id": "081",
+    "name": "Debate",
     "type": "action",
     "energyCost": 2,
-    "effectText": "You may play cards from the trash this turn. Whenever a card goes to the trash this turn, put it at the bottom of the deck instead.",
+    "effectText": "Put a card on the horizon into the dusk unless its controller puts three cards of your choice from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "allowPlayFromTrash", "scope": "self", "duration": "restOfTurn" },
-      { "type": "redirectTrashToDeckBottom", "scope": "allCards", "duration": "restOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "73",
+    "id": "082",
+    "name": "Fuzzy Memory",
+    "type": "action",
+    "energyCost": 0,
+    "effectText": "When this leaves the horizon, draw a card at the start of the next turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "083",
     "name": "Dividends",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Draw cards equal to the number of different energy costs in the trash.",
+    "effectText": "Draw cards equal to the number of different energy costs on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": "distinctEnergyCostsInTrash", "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "74",
+    "id": "084",
     "name": "Chains",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the horizon unless its controller pays 1 energy for each card on the horizon.",
+    "effectText": "Put an action on the horizon into the dusk unless its controller pays 1 energy for each card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "action", "chooser": "self",
-        "ransom": { "type": "payEnergy", "amount": "countOnHorizon:any" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "75",
+    "id": "085",
     "name": "Share the Loot",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Whenever an opponent's card takes effect this turn, you gain 3 energy.",
+    "effectText": "You gain 3 energy for each card on the horizon.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "registerTrigger", "on": "opponentCardTakesEffect", "duration": "restOfTurn",
-        "effect": { "type": "gainEnergy", "amount": 3, "player": "self" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "76",
+    "id": "086",
     "name": "Last Chance",
     "type": "action",
     "energyCost": 2,
-    "effectText": "Draw four cards. At the start of the next turn, trash four cards from your hand.",
+    "effectText": "Draw four cards. At the start of the next turn, put four cards from your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 4, "player": "self" },
-      { "type": "trashFromHand", "count": 4, "chooser": "self", "timing": "endOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "77",
+    "id": "087",
     "name": "Reimburse",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a card on the horizon. Each player draws a card.",
+    "effectText": "Put a card on the horizon into the dusk. Each player draws a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self" },
-      { "type": "draw", "count": 1, "player": "both" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "78",
+    "id": "088",
     "name": "Burn Out",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Trash a point on the horizon. Gain energy equal to its cost.",
+    "effectText": "Put a point on the horizon into the dusk. You gain energy equal to its cost.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "point", "chooser": "self", "trackCost": true },
-      { "type": "gainEnergy", "amount": "trashedCardCost", "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "79",
+    "id": "089",
     "name": "Unwanted Gift",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action on the horizon. That action's controller gains 3 energy.",
+    "effectText": "Put an action on the horizon into the dusk. Its controller gains 3 energy.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "action", "chooser": "self",
-        "thenGrant": { "type": "gainEnergy", "amount": 3, "player": "trashedCardController" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "80",
+    "id": "090",
     "name": "Abandon Hope",
     "type": "action",
-    "energyCost": 4,
-    "effectText": "Trash all cards on the horizon. Gain 1 energy for each card trashed this way.",
+    "energyCost": 3,
+    "effectText": "Put each card on the horizon into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashAllFromHorizon", "trackCount": true },
-      { "type": "gainEnergy", "amount": "cardsJustTrashed", "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "81",
+    "id": "091",
     "name": "Cerebral Snuff",
     "type": "action",
-    "energyCost": 2,
-    "effectText": "Reveal a player's hand and choose a card from it for them to trash.",
-    "playRestrictions": [],
-    "additionalCosts": [],
-    "effects": [
-      { "type": "revealHand", "target": "chosenPlayer", "chooser": "self" },
-      { "type": "chooseCardToTrashFromRevealedHand", "chooser": "self", "trashBy": "targetPlayer" }
-    ],
-    "staticEffects": []
-  },
-  {
-    "id": "82",
-    "name": "Drain",
-    "type": "action",
     "energyCost": 1,
-    "effectText": "Gain energy equal to the highest energy cost on the horizon.",
+    "effectText": "Each opponent puts a random card from their hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "gainEnergy", "amount": "highestCostOnHorizon", "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "83",
+    "id": "092",
+    "name": "Drain Motive",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Put a point on the horizon into dusk. Its controller can't play any more cards this turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "093",
     "name": "Possess Love",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Cards cost 1 energy less this turn.",
+    "effectText": "Choose an opponent. You and that player each draw two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "modifyAllPlayCosts", "amount": -1, "player": "self", "duration": "restOfTurn" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "84",
+    "id": "094",
     "name": "Reinstate",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "Trash an action on the horizon. Its controller may play the top card of the deck for 0 energy.",
+    "energyCost": 4,
+    "effectText": "Put a card on the horizon into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "action", "chooser": "self",
-        "thenGrant": { "type": "mayPlayTopOfDeck", "cost": 0, "player": "trashedCardController" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "85",
+    "id": "095",
     "name": "Relapse",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash a card on the horizon, then its controller draws two cards.",
+    "effectText": "Put a card on the horizon into the dusk, then its controller draws two cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashFromHorizon", "filter": "any", "chooser": "self",
-        "thenGrant": { "type": "draw", "count": 2, "player": "trashedCardController" } }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "86",
+    "id": "096",
     "name": "Steal Intensity",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Put a point card on the horizon into your hand.",
+    "effectText": "Put a point on the horizon into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "moveFromHorizonToHand", "filter": "point", "chooser": "self", "destination": "selfHand" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "87",
+    "id": "097",
     "name": "Poke",
     "type": "action",
     "energyCost": 1,
-    "effectText": "Trash an action card on the horizon unless its controller pays 1 energy. Draw a card.",
+    "effectText": "Put an action on the horizon into the dusk unless its controller pays 1 energy.\nDraw a card.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashUnlessControllerPays", "zone": "horizon", "filter": "action", "chooser": "self",
-        "ransom": { "type": "payEnergy", "amount": 1 } },
-      { "type": "draw", "count": 1, "player": "self" }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "88",
+    "id": "098",
     "name": "Reset Memory",
     "type": "action",
-    "energyCost": 2,
-    "effectText": "Trash any number of cards from your hand, then draw that many plus one.",
+    "energyCost": 3,
+    "effectText": "Shuffle each player's hand into the deck, then each player draws 5 cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "trashAnyNumberFromHand", "player": "self", "thenDrawPlus": 1 }
-    ],
+    "effects": [],
     "staticEffects": []
   },
   {
-    "id": "89",
-    "name": "Take Your Time",
+    "id": "099",
+    "name": "Delay the Inevitable",
     "type": "action",
     "energyCost": 2,
     "effectText": "Draw two cards at the start of the next turn.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
-      { "type": "draw", "count": 2, "player": "self", "timing": "endOfTurn" }
-    ],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "100",
+    "name": "Settle",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Put each card on the horizon to the bottom of the deck.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "101",
+    "name": "Paradox",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Return two cards on the horizon controlled by different players to their controller's hand. Draw a card.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "102",
+    "name": "Strobe Brightness",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Return a card on the horizon to its controller's hand. You gain energy equal to its cost at the start of the next turn.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "103",
+    "name": "Gamble",
+    "type": "action",
+    "energyCost": 3,
+    "effectText": "Reveal the top 4 cards of the deck. Put all points from among them into your hand, and the rest into the dusk.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
+    "staticEffects": []
+  },
+  {
+    "id": "104",
+    "name": "Honest Sentiment",
+    "type": "action",
+    "energyCost": 1,
+    "effectText": "Move a card on the horizon to the top of the horizon.",
+    "playRestrictions": [],
+    "additionalCosts": [],
+    "effects": [],
     "staticEffects": []
   }
 ]

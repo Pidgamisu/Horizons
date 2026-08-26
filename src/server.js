@@ -1,7 +1,7 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createGameState, initDeck, opponent, canPlayFromTrash, CHOICE_TRIGGER_TYPES } from './engine/state.js';
-import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow, flushResolutionTrash } from './engine/game.js';
+import { createGameState, initDeck, opponent, canPlayFromDusk, CHOICE_TRIGGER_TYPES } from './engine/state.js';
+import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
 
 // ─── Room Management ──────────────────────────────────────────────────────────
@@ -62,16 +62,18 @@ function broadcastState(room) {
           [slot]: {
             hand: state.players[slot].hand,
             handSize: state.players[slot].hand.length,
-            points: state.players[slot].points,
+            zenith: state.players[slot].zenith,
+            points: state.players[slot].zenith.length,
             energy: state.players[slot].energy,
             timerSeconds: state.players[slot].timerSeconds,
             lockedFromPlaying: state.players[slot].lockedFromPlaying,
-            canPlayFromTrash: canPlayFromTrash(state, slot), // Consult the Past (38)
+            canPlayFromDusk: canPlayFromDusk(state, slot), // Consult the Past (38)
           },
           [opp]: {
             hand: [],                                      // hidden
             handSize: state.players[opp].hand.length,     // count only
-            points: state.players[opp].points,
+            zenith: state.players[opp].zenith,
+            points: state.players[opp].zenith.length,
             energy: state.players[opp].energy,
             timerSeconds: state.players[opp].timerSeconds,
             lockedFromPlaying: state.players[opp].lockedFromPlaying,
@@ -83,10 +85,9 @@ function broadcastState(room) {
             cardId: e.cardId,
             playedBy: e.playedBy,
             controlledBy: e.controlledBy,
-            resolving: !!e.resolving,
           })),
-          trash: state.zones.trash,
-          voidSize: state.zones.void.length,
+          dusk: state.zones.dusk,
+          reshufflesRemaining: state.reshufflesRemaining,
         },
         pendingChoice: state.pendingChoice
           ? buildChoicePrompt(state.pendingChoice, slot)
@@ -146,13 +147,13 @@ export function advancePendingChoices(state) {
 
   // Map trigger type → choice type
   const typeMap = {
-    trashFromHandChoice:           'trashFromHand',
-    trashAnyNumberFromHandChoice:  'trashAnyNumberFromHand',
-    trashFromHorizonChoice:          'trashFromHorizon',
+    duskFromHandChoice:           'duskFromHand',
+    duskAnyNumberFromHandChoice:  'duskAnyNumberFromHand',
+    duskFromHorizonChoice:          'duskFromHorizon',
     returnHorizonCardToHandChoice:   'returnToControllerHand',
     stealFromHorizonChoice:          'stealFromHorizon',
     gainControlChoice:             'gainControl',
-    putFromTrashToHandChoice:      'putFromTrashToHand',
+    putFromDuskToHandChoice:      'putFromDuskToHand',
     optionalEffectChoice:          'optional',
     additionalCost:                'additionalCost',
     lookAtTopN:                    'lookAtTopN',
@@ -160,7 +161,7 @@ export function advancePendingChoices(state) {
     opponentChoosesOne:            'opponentChoosesOne',
     controllerMovesCardFromHorizon:  'controllerMovesCardFromHorizon',
     revealUntilType:               'revealUntilType',
-    chooseCardToTrashFromRevealedHand: 'chooseCardToTrashFromRevealedHand',
+    chooseCardToDuskFromRevealedHand: 'chooseCardToDuskFromRevealedHand',
     putHandCardOnDeckTop:          'putHandCardOnDeckTop',
   };
 
@@ -265,13 +266,6 @@ function handleMessage(ws, room, playerId, msg) {
     advancePendingChoices(state);
   }
 
-  // A resolving card whose effect spawned a choice was held out of the trash
-  // until that choice chain drained. Now that no choice is pending, complete the
-  // trash — before autoSkip resolves the next card on the horizon.
-  if (!state.pendingChoice) {
-    events.push(...flushResolutionTrash(state));
-  }
-
   // Auto-skip dead priority windows: a player should only hold priority on their
   // own main phase (their turn, empty horizon) or to respond to an opponent's card
   // on the horizon. In any other window there's nothing they could do, so pass on
@@ -279,9 +273,6 @@ function handleMessage(ws, room, playerId, msg) {
   // the next window. Stops as soon as a player can act, a choice surfaces, or
   // the game ends.
   autoSkipDeadPriority(state, events);
-  if (!state.pendingChoice) {
-    events.push(...flushResolutionTrash(state));
-  }
 
   // Broadcast events, then full state
   if (events.length > 0) broadcastEvents(room, events);

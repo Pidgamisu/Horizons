@@ -1,6 +1,6 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  drawCards, trashCardFromHand, sendToTrash, trashFromHorizon,
+  drawCards, duskCardFromHand, sendToDusk, duskFromHorizon,
   removeFromHorizon, opponent, controllerOf, horizonEntryMatchesFilter,
 } from '../engine/state.js';
 
@@ -21,7 +21,7 @@ export function resolveChoice(state, playerId, payload) {
 
   switch (choice.type) {
 
-    case 'trashFromHand': {
+    case 'duskFromHand': {
       // payload: { cardIds: string[] }
       const { cardIds } = payload;
       if (!Array.isArray(cardIds) || cardIds.length !== choice.count) {
@@ -34,13 +34,13 @@ export function resolveChoice(state, playerId, payload) {
       }
       if (error) break;
       for (const id of cardIds) {
-        trashCardFromHand(state, playerId, id);
-        events.push({ type: 'CARD_TRASHED_FROM_HAND', player: playerId, cardId: id });
+        duskCardFromHand(state, playerId, id);
+        events.push({ type: 'CARD_TO_DUSK_FROM_HAND', player: playerId, cardId: id });
       }
       break;
     }
 
-    case 'trashAnyNumberFromHand': {
+    case 'duskAnyNumberFromHand': {
       // Reset Memory (88): payload cardIds is any subset of the hand (possibly
       // empty). Trash them, then draw that many plus the bonus (choice.drawPlus).
       const { cardIds } = payload;
@@ -53,8 +53,8 @@ export function resolveChoice(state, playerId, payload) {
       }
       if (error) break;
       for (const id of unique) {
-        trashCardFromHand(state, playerId, id);
-        events.push({ type: 'CARD_TRASHED_FROM_HAND', player: playerId, cardId: id });
+        duskCardFromHand(state, playerId, id);
+        events.push({ type: 'CARD_TO_DUSK_FROM_HAND', player: playerId, cardId: id });
       }
       const drawCount = unique.length + (choice.drawPlus ?? 0);
       if (drawCount > 0) {
@@ -64,7 +64,7 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'trashFromHorizon': {
+    case 'duskFromHorizon': {
       // payload: { horizonIndex: number }
       const { horizonIndex } = payload;
       const entry = state.zones.horizon[horizonIndex];
@@ -72,8 +72,8 @@ export function resolveChoice(state, playerId, payload) {
       if (!horizonEntryMatchesFilter(entry, choice.filter)) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      const trashed = trashFromHorizon(state, horizonIndex);
-      events.push({ type: 'CARD_TRASHED_FROM_HORIZON', cardId: trashed.cardId });
+      const trashed = duskFromHorizon(state, horizonIndex);
+      events.push({ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: trashed.cardId });
 
       // Execute thenGrant if present (Metamorphosis 61, Reinstate 84, etc.)
       if (choice.thenGrant) {
@@ -92,7 +92,7 @@ export function resolveChoice(state, playerId, payload) {
       const trashed = [];
       while (state.zones.horizon.length > 0) {
         const e = state.zones.horizon.shift();
-        sendToTrash(state, e.cardId);
+        sendToDusk(state, e.cardId);
         trashed.push(e.cardId);
       }
       events.push({ type: 'HORIZON_CLEARED', cards: trashed, count: trashed.length });
@@ -142,18 +142,18 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'putFromTrashToHand': {
+    case 'putFromDuskToHand': {
       // payload: { cardIds: string[] }
       const { cardIds } = payload;
       if (!Array.isArray(cardIds) || cardIds.length !== choice.count) {
         error = `Must choose exactly ${choice.count} card(s).`; break;
       }
       for (const id of cardIds) {
-        if (!state.zones.trash.includes(id)) { error = `Card ${id} is not in the trash.`; break; }
+        if (!state.zones.dusk.includes(id)) { error = `Card ${id} is not in the trash.`; break; }
       }
       if (error) break;
       for (const id of cardIds) {
-        state.zones.trash.splice(state.zones.trash.indexOf(id), 1);
+        state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
         state.players[playerId].hand.push(id);
         events.push({ type: 'CARD_FROM_TRASH_TO_HAND', cardId: id, player: playerId });
       }
@@ -167,11 +167,11 @@ export function resolveChoice(state, playerId, payload) {
         error = `Must choose exactly ${choice.count ?? 1} card(s).`; break;
       }
       for (const id of cardIds) {
-        if (!state.zones.trash.includes(id)) { error = `Card ${id} is not in the trash.`; break; }
+        if (!state.zones.dusk.includes(id)) { error = `Card ${id} is not in the trash.`; break; }
       }
       if (error) break;
       for (const id of cardIds) {
-        state.zones.trash.splice(state.zones.trash.indexOf(id), 1);
+        state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
         state.zones.deck.push(id); // bottom of deck
         events.push({ type: 'CARD_FROM_TRASH_TO_DECK_BOTTOM', cardId: id, player: playerId });
       }
@@ -208,7 +208,7 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'trashUnlessControllerPaysTarget': {
+    case 'duskUnlessControllerPaysTarget': {
       // payload: { horizonIndex } — the caster chooses which horizon card to target.
       const { horizonIndex } = payload;
       const entry = state.zones.horizon[horizonIndex];
@@ -242,8 +242,8 @@ export function resolveChoice(state, playerId, payload) {
       const ransom = choice.ransom;
 
       if (!pay) {
-        const trashed = trashFromHorizon(state, horizonIndex);
-        events.push({ type: 'CARD_TRASHED_FROM_HORIZON', cardId: trashed.cardId, reason: 'ransom_declined' });
+        const trashed = duskFromHorizon(state, horizonIndex);
+        events.push({ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: trashed.cardId, reason: 'ransom_declined' });
         break;
       }
 
@@ -255,7 +255,7 @@ export function resolveChoice(state, playerId, payload) {
         state.players[playerId].energy -= cost;
         events.push({ type: 'RANSOM_PAID', player: playerId, amount: cost });
       } else if (ransom?.type === 'putFromTrashToDeckBottom') {
-        if (state.zones.trash.length === 0) { error = 'No card in the trash to pay the ransom.'; break; }
+        if (state.zones.dusk.length === 0) { error = 'No card in the trash to pay the ransom.'; break; }
         // Follow-up: the controller picks which trash card to put on the deck bottom.
         state.pendingChoice = {
           type: 'putFromTrashToDeckBottom',
@@ -329,7 +329,7 @@ export function resolveChoice(state, playerId, payload) {
       // Remove trashed card from deck top
       const idx = state.zones.deck.indexOf(trashCardId);
       state.zones.deck.splice(idx, 1);
-      sendToTrash(state, trashCardId);
+      sendToDusk(state, trashCardId);
       events.push({ type: 'DECK_TOP_TRASHED', cardId: trashCardId });
 
       // Draw a card (Search's second effect)
@@ -461,7 +461,7 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'chooseCardToTrashFromRevealedHand': {
+    case 'chooseCardToDuskFromRevealedHand': {
       // payload: { cardId }  — Inquisition (16), Cerebral Snuff (81)
       const { cardId } = payload;
       const targetPlayer = choice.targetPlayer;
@@ -471,8 +471,8 @@ export function resolveChoice(state, playerId, payload) {
       if (choice.filter && choice.filter !== 'any' && getCard(cardId).type !== choice.filter) {
         error = `Must choose a ${choice.filter} card.`; break;
       }
-      trashCardFromHand(state, targetPlayer, cardId);
-      events.push({ type: 'CARD_TRASHED_FROM_HAND', player: targetPlayer, cardId });
+      duskCardFromHand(state, targetPlayer, cardId);
+      events.push({ type: 'CARD_TO_DUSK_FROM_HAND', player: targetPlayer, cardId });
       break;
     }
 
@@ -480,7 +480,7 @@ export function resolveChoice(state, playerId, payload) {
       // Dispatch to specific additional cost type
       const { cost } = choice;
       switch (cost.type) {
-        case 'trashFromHand': {
+        case 'duskFromHand': {
           const { cardIds } = payload;
           if (!cardIds?.length) { error = 'Must trash a card.'; break; }
           for (const id of cardIds) {
@@ -490,8 +490,8 @@ export function resolveChoice(state, playerId, payload) {
           }
           if (error) break;
           for (const id of cardIds) {
-            trashCardFromHand(state, playerId, id);
-            events.push({ type: 'CARD_TRASHED_FROM_HAND', player: playerId, cardId: id });
+            duskCardFromHand(state, playerId, id);
+            events.push({ type: 'CARD_TO_DUSK_FROM_HAND', player: playerId, cardId: id });
           }
           break;
         }
@@ -526,7 +526,7 @@ export function resolveChoice(state, playerId, payload) {
 
 export function resolveRansomCost(state, ransom) {
   if (typeof ransom.amount === 'number') return ransom.amount;
-  if (ransom.amount === 'countInTrash:any') return state.zones.trash.length;
+  if (ransom.amount === 'countInDusk:any') return state.zones.dusk.length;
   if (ransom.amount === 'countOnHorizon:any') return state.zones.horizon.length;
   return 0;
 }

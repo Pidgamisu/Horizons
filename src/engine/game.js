@@ -1,8 +1,8 @@
 import { getCard } from '../data/cardDb.js';
 import {
   createGameState, createHorizonEntry, createTurnFlags,
-  drawCards, sendToTrash, opponent, controllerOf, computeActualCost,
-  isChoiceTrigger,
+  drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost,
+  isDeckSpent, pointsOf,
 } from './state.js';
 import { validatePlay } from './validation.js';
 import { executeEffects, executeOnPlayEffects } from '../effects/executor.js';
@@ -57,9 +57,9 @@ export function playCard(state, playerId, cardId, context = {}) {
   }
 
   // Remove from source zone
-  if (context.fromTrash) {
-    const idx = state.zones.trash.indexOf(cardId);
-    state.zones.trash.splice(idx, 1);
+  if (context.fromDusk) {
+    const idx = state.zones.dusk.indexOf(cardId);
+    state.zones.dusk.splice(idx, 1);
   } else {
     const hand = state.players[playerId].hand;
     hand.splice(hand.indexOf(cardId), 1);
@@ -128,8 +128,7 @@ export function passPriority(state, playerId) {
   if (state.priorityPassCount >= 2) {
     // Both passed — resolve top of horizon or end turn
     if (state.zones.horizon.length > 0) {
-      const resolveEvents = resolveTopOfHorizon(state);
-      events.push(...resolveEvents);
+      events.push(...riseTopOfHorizon(state));
       if (state.winner) return events;
       // After resolution, active turn player gets priority
       state.priorityPassCount = 0;
@@ -149,58 +148,48 @@ export function passPriority(state, playerId) {
   return events;
 }
 
-// ─── Horizon Resolution ─────────────────────────────────────────────────────────
+// ─── Rising ───────────────────────────────────────────────────────────────────
 
-export function resolveTopOfHorizon(state) {
+/**
+ * The top card of the horizon rises.
+ *
+ * Rulebook order (p2 / p4): the card LEAVES the horizon first — into the dusk if
+ * it's an action, into its controller's zenith if it's a point — and only then
+ * does its controller do the card's text. That ordering matters: a risen card is
+ * never a legal target for its own effect, and a point is already banked (and
+ * counts for Sunset scoring) before its text runs.
+ */
+export function riseTopOfHorizon(state) {
   if (state.zones.horizon.length === 0) return [];
   const events = [];
 
-  // The resolving card stays ON the horizon while its effect runs, so it's still
-  // visible to both players and is a legal target for its own effect (e.g. Stop
-  // 44 may trash itself). It's removed + trashed only once resolution completes.
   const entry = state.zones.horizon[0];
   const card = getCard(entry.cardId);
+  const controller = controllerOf(entry);
 
-  events.push({ type: 'CARD_RESOLVING', cardId: entry.cardId, controller: controllerOf(entry) });
+  events.push({ type: 'CARD_RISING', cardId: entry.cardId, controller });
 
-  // moveSelf / swapHorizonPositions relocate the card itself; pull it off the
-  // horizon first so those effects don't act on (or duplicate) a card that's
-  // still sitting there.
-  const selfMoved = card.effects?.some(e => e.type === 'moveSelf' || e.type === 'swapHorizonPositions');
-  if (selfMoved) {
-    removeHorizonEntry(state, entry);
+  // 1. Off the horizon, into its destination.
+  removeHorizonEntry(state, entry);
+  if (card.type === 'point') {
+    sendToZenith(state, controller, entry.cardId);
+    events.push({ type: 'CARD_TO_ZENITH', cardId: entry.cardId, player: controller });
   } else {
-    entry.resolving = true;
+    sendToDusk(state, entry.cardId);
+    events.push({ type: 'CARD_TO_DUSK', cardId: entry.cardId });
   }
 
-  // Execute effects
+  // 2. Now the controller does the card's text.
   const effectEvents = executeEffects(state, entry);
   events.push(...effectEvents);
 
-  if (!selfMoved && state.zones.horizon.includes(entry)) {
-    // The effect may have removed the card itself (it targeted / trashed itself).
-    // If it's still on the horizon, finish trashing it — but only once it has
-    // FULLY taken effect. A spawned player choice (Stop 44 → trashFromHorizon,
-    // Dig for Ideas 45 → putFromTrashToHand, …) resolves asynchronously, so keep
-    // the card on the horizon (still visible + targetable) and defer the trash
-    // until the choice chain drains (see flushResolutionTrash).
-    if (state.pendingTriggers.some(isChoiceTrigger)) {
-      state.pendingResolutionTrash.push(entry);
-    } else {
-      entry.resolving = false;
-      removeHorizonEntry(state, entry);
-      sendToTrash(state, entry.cardId);
-      events.push({ type: 'CARD_TRASHED', cardId: entry.cardId });
-    }
-  } else {
-    entry.resolving = false;
+  // Fire "opponent's card took effect" triggers (Share the Loot 085)
+  if (!state.winner) {
+    events.push(...checkRiseTriggers(state, entry));
   }
 
-  // Fire "opponent's card took effect" triggers (Share the Loot 75)
-  if (!state.winner) {
-    const lootEvents = checkResolveTriggers(state, entry);
-    events.push(...lootEvents);
-  }
+  // The card has finished rising — if the deck ran dry, the sun sets now.
+  events.push(...checkSunset(state));
 
   return events;
 }
@@ -211,27 +200,36 @@ function removeHorizonEntry(state, entry) {
   if (i !== -1) state.zones.horizon.splice(i, 1);
 }
 
+// ─── Sunset ───────────────────────────────────────────────────────────────────
+
 /**
- * Trash any cards that finished resolving while a player choice was outstanding.
- * Called once the choice chain drains (no pending choice) so a resolved card
- * reaches the trash only after its effect is fully complete — and before the
- * next card on the horizon starts resolving.
+ * Sunset (rulebook p8): once the deck is empty and no reshuffles remain, finish
+ * letting the current card rise, then put everything left on the horizon into
+ * the dusk and end the game. Most points in your zenith wins.
+ *
+ * Called after a card finishes rising and after the end-of-turn refill — the two
+ * moments the deck can run dry. A tie is a draw; only Answer Fate (048) can hand
+ * back a reshuffle and push Sunset further out.
  */
-export function flushResolutionTrash(state) {
-  if (state.pendingResolutionTrash.length === 0) return [];
-  const events = [];
-  for (const entry of state.pendingResolutionTrash) {
-    entry.resolving = false;
-    const i = state.zones.horizon.indexOf(entry);
-    if (i !== -1) {
-      state.zones.horizon.splice(i, 1);
-      sendToTrash(state, entry.cardId);
-      events.push({ type: 'CARD_TRASHED', cardId: entry.cardId });
-    }
-    // else: the card left the horizon during its own resolution (it targeted
-    // itself, e.g. Stop trashing itself) — its destination is already handled.
+export function checkSunset(state) {
+  if (state.phase !== 'active' || state.winner) return [];
+  if (!isDeckSpent(state)) return [];
+
+  const events = [{ type: 'SUNSET' }];
+
+  // Anything still on the horizon never rises — it goes straight to the dusk.
+  for (const entry of state.zones.horizon) {
+    sendToDusk(state, entry.cardId);
+    events.push({ type: 'CARD_TO_DUSK', cardId: entry.cardId, reason: 'sunset' });
   }
-  state.pendingResolutionTrash = [];
+  state.zones.horizon = [];
+
+  const p1 = pointsOf(state, 'p1');
+  const p2 = pointsOf(state, 'p2');
+  state.winner = p1 === p2 ? 'draw' : (p1 > p2 ? 'p1' : 'p2');
+  state.phase = 'ended';
+
+  events.push({ type: 'GAME_OVER', winner: state.winner, reason: 'sunset', points: { p1, p2 } });
   return events;
 }
 
@@ -251,11 +249,6 @@ export function endTurn(state) {
   state.players.p1.energy = 0;
   state.players.p2.energy = 0;
   events.push({ type: 'ENERGY_WIPED' });
-
-  // 3. Move trash → void
-  state.zones.void.push(...state.zones.trash);
-  state.zones.trash = [];
-  events.push({ type: 'TRASH_TO_VOID' });
 
   // 4. Current player draws up to 5
   const currentHand = state.players[currentPlayer].hand.length;
@@ -278,7 +271,7 @@ export function endTurn(state) {
   // 5b. Capture deferred "start of next turn" triggers (Prepare 50 draw, Last
   //     Chance 76 trash, …) before the per-turn reset wipes pendingTriggers.
   const deferred = state.pendingTriggers.filter(
-    t => t.type === 'draw' || t.type === 'endOfTurnTrash'
+    t => t.type === 'draw' || t.type === 'endOfTurnDusk'
   );
 
   // 6. Reset per-turn state
@@ -305,6 +298,9 @@ export function endTurn(state) {
 
   events.push({ type: 'TURN_ENDED', nextTurn: otherPlayer, turnNumber: state.turnNumber });
 
+  // The refill is the usual way the deck runs dry.
+  events.push(...checkSunset(state));
+
   return events;
 }
 
@@ -319,7 +315,7 @@ export function voidCard(state, playerId, cardId) {
   if (idx === -1) return [{ type: 'ERROR', code: 'CARD_NOT_IN_HAND' }];
 
   hand.splice(idx, 1);
-  state.zones.void.push(cardId);
+  state.zones.dusk.push(cardId);
   state.players[playerId].energy += 3;
 
   return [{ type: 'CARD_VOIDED', player: playerId, cardId, energyNow: state.players[playerId].energy }];
@@ -347,12 +343,12 @@ function checkPlayTriggers(state, newEntry, playedBy) {
       }
       if (on === 'nthCardPlayedThisTurn' && se.n === state.cardsPlayedThisTurn.length) {
         // Trip (37) — trash itself
-        if (effect.type === 'trashSelf') {
+        if (effect.type === 'duskSelf') {
           const idx = state.zones.horizon.indexOf(horizonEntry);
           if (idx !== -1) {
             state.zones.horizon.splice(idx, 1);
-            sendToTrash(state, horizonEntry.cardId);
-            events.push({ type: 'CARD_TRASHED_BY_TRIGGER', cardId: horizonEntry.cardId });
+            sendToDusk(state, horizonEntry.cardId);
+            events.push({ type: 'CARD_TO_DUSK_BY_TRIGGER', cardId: horizonEntry.cardId });
           }
         }
       }
@@ -362,7 +358,7 @@ function checkPlayTriggers(state, newEntry, playedBy) {
   return events;
 }
 
-function checkResolveTriggers(state, resolvedEntry) {
+function checkRiseTriggers(state, resolvedEntry) {
   const events = [];
   const resolvedController = controllerOf(resolvedEntry);
 
@@ -408,12 +404,12 @@ function executeStaticTriggerEffect(state, effect, contextPlayer, thatPlayer) {
       }
       break;
     }
-    case 'trashFromHand': {
+    case 'duskFromHand': {
       // Reap (30) — each player must trash a card
       const players = target === 'both' ? ['p1', 'p2'] : [target];
       for (const p of players) {
-        state.pendingTriggers.push({ type: 'trashFromHandChoice', player: p, count: effect.count ?? 1 });
-        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'trashFromHand', count: effect.count ?? 1 });
+        state.pendingTriggers.push({ type: 'duskFromHandChoice', player: p, count: effect.count ?? 1 });
+        events.push({ type: 'CHOICE_REQUIRED', player: p, choiceType: 'duskFromHand', count: effect.count ?? 1 });
       }
       break;
     }
@@ -429,13 +425,13 @@ function flushDeferredTriggers(state, deferred) {
       // Prepare (50) etc. — draw on top of the refilled hand.
       const drawn = drawCards(state, trigger.player, trigger.count);
       events.push({ type: 'CARDS_DRAWN', player: trigger.player, cards: drawn, reason: 'endOfTurnTrigger' });
-    } else if (trigger.type === 'endOfTurnTrash') {
+    } else if (trigger.type === 'endOfTurnDusk') {
       // Last Chance (76) — the owner now chooses which cards to trash. Clamp to
       // what they actually hold; an empty hand trashes nothing.
       const effective = Math.min(trigger.count, state.players[trigger.player].hand.length);
       if (effective === 0) continue;
-      state.pendingTriggers.push({ type: 'trashFromHandChoice', player: trigger.player, count: effective, optional: false });
-      events.push({ type: 'CHOICE_REQUIRED', player: trigger.player, choiceType: 'trashFromHand', count: effective });
+      state.pendingTriggers.push({ type: 'duskFromHandChoice', player: trigger.player, count: effective, optional: false });
+      events.push({ type: 'CHOICE_REQUIRED', player: trigger.player, choiceType: 'duskFromHand', count: effective });
     }
   }
   return events;

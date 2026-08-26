@@ -14,8 +14,8 @@ function setup() {
   // give p1 a hand of dummies (remove from deck if present)
   for (const id of DUMMY_HAND){ const i=s.zones.deck.indexOf(id); if(i!==-1)s.zones.deck.splice(i,1); s.players.p1.hand.push(id); }
   for (const id of ['07','12','13']){ const i=s.zones.deck.indexOf(id); if(i!==-1)s.zones.deck.splice(i,1); s.players.p2.hand.push(id); }
-  // seed a few cards in trash (for putFromTrashToHand etc.)
-  s.zones.trash.push('22','34','38');
+  // seed a few cards in trash (for putFromDuskToHand etc.)
+  s.zones.dusk.push('22','34','38');
   // seed stack with dummy targets beneath the test card: an action (played in response to a point) and a point
   const actionDummy = createStackEntry('53','p2',{ respondedToCardIndex:1, respondedToCardType:'point' });
   const pointDummy  = createStackEntry('04','p2',{});
@@ -27,8 +27,8 @@ function makePayload(s, ch) {
   const p = ch.player; const hand = s.players[p].hand;
   const findStack = () => s.zones.stack.findIndex(e => stackEntryMatchesFilter(e, ch.filter));
   switch (ch.type) {
-    case 'trashFromHand': return { cardIds: hand.slice(0, ch.count ?? 1) };
-    case 'putFromTrashToHand': return { cardIds: s.zones.trash.slice(0, ch.count ?? 1) };
+    case 'duskFromHand': return { cardIds: hand.slice(0, ch.count ?? 1) };
+    case 'putFromDuskToHand': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
     case 'trashFromStack': case 'returnToControllerHand': case 'stealFromStack': case 'gainControl': case 'moveFromStackToDeckTop': {
       const i = findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 };
     }
@@ -45,11 +45,11 @@ function makePayload(s, ch) {
     case 'controllerMovesCardFromStack': return { destination: 'deckTop' };
     case 'chooseNumber': return { number: 0 };
     case 'confirmFreePlay': return { play: false };
-    case 'trashUnlessControllerPaysTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
+    case 'duskUnlessControllerPaysTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
     case 'mayPlayFromHand': return { play: false };
     case 'mayPlayTopOfDeck': return { play: false };
     case 'trashUnlessControllerPays': return { pay: false };
-    case 'putFromTrashToDeckBottom': return { cardIds: s.zones.trash.slice(0, ch.count ?? 1) };
+    case 'putFromTrashToDeckBottom': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
     case 'chooseCardToTrashFromRevealedHand': {
       const cand = (ch.revealedHand ?? []).filter(id => !ch.filter || ch.filter === 'any' || getCard(id).type === ch.filter);
       return cand.length ? { cardId: cand[0] } : undefined;
@@ -58,7 +58,7 @@ function makePayload(s, ch) {
   }
 }
 
-const CHOICE_TRIGGER_TYPES = new Set(['trashFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromTrashToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','trashUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','trashUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
+const CHOICE_TRIGGER_TYPES = new Set(['duskFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromDuskToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','trashUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','duskUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
 
 function sweepCard(card) {
   const s = setup();

@@ -3,15 +3,15 @@ import { ALL_CARD_IDS } from '../data/cardDb.js';
 // ─── Choice Triggers ─────────────────────────────────────────────────────────
 // The subset of pendingTriggers that the server surfaces to a player as a
 // CHOICE_REQUIRED prompt (as opposed to background triggers like
-// registerTurnTrigger / endOfTurnTrash that resolve on their own). Single source
+// registerTurnTrigger / endOfTurnDusk that resolve on their own). Single source
 // of truth shared by server.advancePendingChoices and the resolution engine.
 export const CHOICE_TRIGGER_TYPES = new Set([
-  'trashFromHandChoice', 'trashAnyNumberFromHandChoice', 'trashFromHorizonChoice', 'returnHorizonCardToHandChoice',
-  'stealFromHorizonChoice', 'gainControlChoice', 'putFromTrashToHandChoice',
+  'duskFromHandChoice', 'duskAnyNumberFromHandChoice', 'duskFromHorizonChoice', 'returnHorizonCardToHandChoice',
+  'stealFromHorizonChoice', 'gainControlChoice', 'putFromDuskToHandChoice',
   'optionalEffectChoice', 'additionalCost', 'putHandCardOnDeckTop',
   'revealUntilType', 'opponentChoosesOne', 'controllerMovesCardFromHorizonTarget',
-  'lookAtTopN', 'chooseNumber', 'chooseCardToTrashFromRevealedHand',
-  'moveFromHorizonToDeckTop', 'trashUnlessControllerPaysTarget',
+  'lookAtTopN', 'chooseNumber', 'chooseCardToDuskFromRevealedHand',
+  'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget',
 ]);
 
 /** Does a pending trigger require a player choice (vs. resolving on its own)? */
@@ -39,19 +39,20 @@ export function createGameState() {
     zones: {
       deck:  [],   // CardId[], index 0 = top
       horizon: [],   // HorizonEntry[], index 0 = top (last played)
-      trash: [],   // CardId[]
-      void:  [],   // CardId[]
+      dusk:  [],   // CardId[] — the single shared face-up pile: risen actions AND voided cards
     },
+
+    // Sunset: the deck is finite. Each reshuffle refills the deck from the dusk;
+    // when the deck runs dry with none left, the game ends (see checkSunset).
+    // Rulebook: reshuffles = (players − 2), so a 2-player game gets zero and the
+    // deck depletes exactly once. Answer Fate (048) can grant an extra one.
+    reshufflesRemaining: 0,
 
     // Active per-turn effect flags (cleared each turn)
     turnFlags: createTurnFlags(),
 
     // Pending end-of-turn triggers
     pendingTriggers: [],
-
-    // Cards mid-resolution whose trip to the trash is deferred until their
-    // effect (including any player choices it spawned) has fully resolved.
-    pendingResolutionTrash: [],
 
     winner: null,
   };
@@ -60,7 +61,7 @@ export function createGameState() {
 export function createPlayerState() {
   return {
     hand:              [],
-    points:            0,
+    zenith:            [],        // CardId[] — face-up pile of risen points; 1 point each
     energy:            0,
     timerSeconds:      25 * 60,   // 25 minutes
     isHoldingPriority: false,
@@ -73,8 +74,8 @@ export function createPlayerState() {
 
 export function createTurnFlags() {
   return {
-    playFromTrash:            false,  // Consult the Past (38), Brought Back (72)
-    redirectTrashToDeckBottom:false,  // Brought Back (72)
+    playFromDusk:            false,  // Consult the Past (38), Brought Back (72)
+    redirectDuskToDeckBottom:false,  // Brought Back (72)
     allCardsCostLess:         0,      // Possess Love (83) — stacks as delta
     lockedPlayer:             null,   // Stifle Speech (52) — playerId locked from playing this turn
     protectNextSelfAction: null, // Injustice (67) — playerId whose next action this turn is protected from action responses
@@ -92,7 +93,6 @@ export function createHorizonEntry(cardId, playedBy, meta = {}) {
     respondedToCardIndex: meta.respondedToCardIndex ?? null,
     respondedToCardType:  meta.respondedToCardType  ?? null,
     responsesLocked: meta.responsesLocked ?? false, // Injustice (67) — opponents can't action-respond to this entry
-    resolving: false,          // true while this card's own effect is resolving (still on the horizon)
   };
 }
 
@@ -119,18 +119,22 @@ export function initDeck(state) {
   state.zones.deck = shuffle([...ALL_CARD_IDS]);
 }
 
-/** Draw up to n cards for a player. Handles void → deck reshuffle. */
+/**
+ * Draw up to n cards for a player. Spends a reshuffle (dusk → deck) if the deck
+ * runs dry and one remains; otherwise the draw simply stops — an empty deck is
+ * not an error, it's the Sunset condition (checked by the caller in game.js).
+ */
 export function drawCards(state, playerId, n) {
   const drawn = [];
   for (let i = 0; i < n; i++) {
-    // Check draw lock (Dread)
+    // Check draw lock (Dread 039)
     if (isDrawLocked(state)) break;
 
     if (state.zones.deck.length === 0) {
-      if (state.zones.void.length === 0) break; // nothing left
-      // Shuffle void into deck
-      state.zones.deck = shuffle([...state.zones.void]);
-      state.zones.void = [];
+      if (state.reshufflesRemaining <= 0) break;   // deck is spent — Sunset
+      if (state.zones.dusk.length === 0) break;    // nothing to reshuffle
+      reshuffleDuskIntoDeck(state);
+      state.reshufflesRemaining--;
     }
     const card = state.zones.deck.shift();
     state.players[playerId].hand.push(card);
@@ -140,43 +144,67 @@ export function drawCards(state, playerId, n) {
   return drawn;
 }
 
-/** Move a card from a player's hand to the trash (or deck bottom if Brought Back active). */
-export function trashCardFromHand(state, playerId, cardId) {
+/** Shuffle the whole dusk back into the deck. Zeniths are never reshuffled. */
+export function reshuffleDuskIntoDeck(state) {
+  state.zones.deck = shuffle([...state.zones.deck, ...state.zones.dusk]);
+  state.zones.dusk = [];
+}
+
+/** A player's score: one point per point card in their zenith. */
+export function pointsOf(state, playerId) {
+  return state.players[playerId].zenith.length;
+}
+
+/** Put a risen point card into its controller's zenith. */
+export function sendToZenith(state, playerId, cardId) {
+  state.players[playerId].zenith.push(cardId);
+}
+
+/**
+ * Has the deck run out with no reshuffles left? Sunset ends the game as soon as
+ * the current card finishes rising (see game.checkSunset).
+ */
+export function isDeckSpent(state) {
+  return state.zones.deck.length === 0 && state.reshufflesRemaining <= 0;
+}
+
+/** Move a card from a player's hand to the dusk (or deck bottom if redirected). */
+export function duskCardFromHand(state, playerId, cardId) {
   const hand = state.players[playerId].hand;
   const idx = hand.indexOf(cardId);
   if (idx === -1) throw new Error(`Card ${cardId} not in ${playerId}'s hand`);
   hand.splice(idx, 1);
-  sendToTrash(state, cardId);
+  sendToDusk(state, cardId);
 }
 
-/** Move a card to the trash, respecting Brought Back redirect. */
-export function sendToTrash(state, cardId) {
-  if (state.turnFlags.redirectTrashToDeckBottom) {
+/** Move a card to the dusk, respecting an active deck-bottom redirect. */
+export function sendToDusk(state, cardId) {
+  if (state.turnFlags.redirectDuskToDeckBottom) {
     state.zones.deck.push(cardId); // bottom of deck
   } else {
-    state.zones.trash.push(cardId);
+    state.zones.dusk.push(cardId);
   }
 }
 
-/** Trash all cards in a player's hand. Returns count. */
-export function trashHand(state, playerId) {
+/** Put a player's whole hand into the dusk. Returns count. */
+export function duskHand(state, playerId) {
   const hand = state.players[playerId].hand;
   const count = hand.length;
-  [...hand].forEach(id => sendToTrash(state, id));
+  [...hand].forEach(id => sendToDusk(state, id));
   state.players[playerId].hand = [];
   return count;
 }
 
-/** Remove a card from the horizon by index. Does NOT send to trash — caller handles destination. */
+/** Remove a card from the horizon by index. Does NOT send it anywhere — the caller picks the destination. */
 export function removeFromHorizon(state, horizonIndex) {
   const [entry] = state.zones.horizon.splice(horizonIndex, 1);
   return entry;
 }
 
-/** Remove a card from the horizon and send it to trash. */
-export function trashFromHorizon(state, horizonIndex) {
+/** Remove a card from the horizon and put it into the dusk. */
+export function duskFromHorizon(state, horizonIndex) {
   const entry = removeFromHorizon(state, horizonIndex);
-  sendToTrash(state, entry.cardId);
+  sendToDusk(state, entry.cardId);
   return entry;
 }
 
@@ -217,13 +245,13 @@ export function getHorizonCostModifier(state, forPlayer) {
   return delta;
 }
 
-/** Is play-from-trash allowed? (Consult the Past 38, Brought Back 72) */
-export function canPlayFromTrash(state, playerId) {
-  if (state.turnFlags.playFromTrash) return true;
+/** Is play-from-dusk allowed? (Consult The Past 038) */
+export function canPlayFromDusk(state, playerId) {
+  if (state.turnFlags.playFromDusk) return true;
   return state.zones.horizon.some(entry => {
     const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se =>
-      se.type === 'allowPlayFromTrash' && controllerOf(entry) === playerId
+      se.type === 'allowPlayFromDusk' && controllerOf(entry) === playerId
     );
   });
 }
@@ -251,9 +279,6 @@ function getHorizonEntryCard(entry) {
  * and resolveChoice (to validate the player's pick).
  */
 export function horizonEntryMatchesFilter(entry, filter) {
-  // A card can't be chosen by its own resolving effect — it stays on the horizon
-  // while it resolves (so it's still visible) but is not a legal target for itself.
-  if (entry.resolving) return false;
   if (!filter || filter === 'any') return true;
   const card = getCard(entry.cardId);
   if (filter === 'actionPlayedInResponseToPoint') {
@@ -281,7 +306,7 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
   for (const mod of card.costModifiers ?? []) {
     switch (mod.type) {
       case 'discountPerCard': {
-        const zone = mod.zone === 'trash' ? state.zones.trash : state.zones.horizon;
+        const zone = mod.zone === 'dusk' ? state.zones.dusk : state.zones.horizon;
         const count = mod.filter === 'any'
           ? zone.length
           : zone.filter(id => {
@@ -310,7 +335,7 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
 function evaluateCondition(state, condition, playerId, context) {
   switch (condition) {
     case 'anyPlayerAtFourPoints':
-      return state.players.p1.points >= 4 || state.players.p2.points >= 4;
+      return pointsOf(state, 'p1') >= 4 || pointsOf(state, 'p2') >= 4;
     case 'playedBothTypesThisTurn': {
       const types = new Set(state.cardsPlayedThisTurn.map(p => getCard(p.cardId).type));
       return types.has('point') && types.has('action');
