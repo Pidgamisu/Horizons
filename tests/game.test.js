@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import {
   createGameState, createHorizonEntry, initDeck, drawCards, pointsOf,
-  computeActualCost, sendToDusk,
+  computeActualCost, sendToDusk, duskFromHorizon,
 } from '../src/engine/state.js';
 import {
   startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
@@ -10,7 +10,7 @@ import {
 } from '../src/engine/game.js';
 import { validatePlay } from '../src/engine/validation.js';
 import { resolveChoice } from '../src/engine/choices.js';
-import { executeOnPlayEffects } from '../src/effects/executor.js';
+import { executeOnPlayEffects, flushHorizonTriggers } from '../src/effects/executor.js';
 import { advancePendingChoices, buildChoicePrompt } from '../src/server.js';
 import { ALL_CARD_IDS, getCard } from '../src/data/cardDb.js';
 
@@ -1042,10 +1042,12 @@ describe('Trigger coverage', () => {
   // A staticEffect trigger whose `on` the engine never checks is silently inert:
   // the card looks encoded but does nothing. cards-sweep.mjs cannot see this,
   // because it only reports unhandled *effects*.
-  test('every trigger timing used by the card set is either handled or known-missing', () => {
+  test('every trigger timing used by the card set is implemented', () => {
     const engineSrc = ['engine/game.js', 'engine/state.js', 'effects/executor.js', 'engine/choices.js']
       .map(p => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8')).join('\n');
-    const handled = new Set([...engineSrc.matchAll(/on === '([^']+)'/g)].map(m => m[1]));
+    // Both forms appear: `se.on === 'x'` for per-card triggers, `trigger.on !== 'x'`
+    // for the registered turn trigger.
+    const handled = new Set([...engineSrc.matchAll(/on\s*[!=]==\s*'([^']+)'/g)].map(m => m[1]));
 
     const used = new Map();
     for (const id of ALL_CARD_IDS) {
@@ -1058,19 +1060,111 @@ describe('Trigger coverage', () => {
       }
     }
 
-    // Timings that are encoded on cards but NOT yet implemented in the engine.
-    // Those cards currently do nothing. Remove entries as they are built.
-    const KNOWN_MISSING = new Set([
-      'putIntoDuskFromNonHorizon',        // 009 Wasted Ambition
-      'leavesHorizon',                    // 010 Plead, 046 Pride, 082 Fuzzy Memory
-      'leavesHorizonWithoutRising',       // 040 Agoraphobia, 041 Contentment
-      'opponentRespondsToThis',           // 044 Purity
-      'selfCardLeavesHorizonWithoutRising', // 064 Understand Despair
-    ]);
+    // Every timing the card set uses must now be implemented.
+    const unhandled = [...used.keys()].filter(on => !handled.has(on)).sort();
+    expect(unhandled).toEqual([]);
+  });
+});
 
-    const unaccounted = [...used.keys()]
-      .filter(on => !handled.has(on) && !KNOWN_MISSING.has(on))
-      .sort();
-    expect(unaccounted).toEqual([]);
+// ─── Departure triggers ───────────────────────────────────────────────────────
+
+describe('Cards that watch a departure', () => {
+  const flush = flushHorizonTriggers;
+
+  function armed(cardId, controller = 'p1') {
+    const { state } = freshGame();
+    state.players.p1.energy = 30;
+    state.players.p2.energy = 30;
+    state.zones.horizon.unshift(createHorizonEntry(cardId, controller));
+    return state;
+  }
+
+  test('Plead (010) makes the opponent draw when it leaves the horizon', () => {
+    const state = armed('010');
+    const before = state.players.p2.hand.length;
+    riseTopOfHorizon(state);
+    expect(state.players.p2.hand.length).toBe(before + 1);
+  });
+
+  test('Fuzzy Memory (082) queues its draw for the next turn', () => {
+    const state = armed('082');
+    riseTopOfHorizon(state);
+    expect(state.pendingTriggers.some(t => t.type === 'draw')).toBe(true);
+  });
+
+  test('Contentment (041) fires only when it does NOT rise', () => {
+    const removed = armed('041');
+    const p1 = removed.players.p1.hand.length;
+    const p2 = removed.players.p2.hand.length;
+    duskFromHorizon(removed, 0);
+    flush(removed);
+    expect(removed.players.p1.hand.length).toBe(p1 + 1);
+    expect(removed.players.p2.hand.length).toBe(p2 + 1);
+
+    const rose = armed('041');
+    const before = rose.players.p1.hand.length;
+    riseTopOfHorizon(rose);
+    expect(rose.players.p1.hand.length).toBe(before);
+  });
+
+  test('Agoraphobia (040) goes to the bottom of the deck instead of the dusk', () => {
+    const state = armed('040');
+    duskFromHorizon(state, 0);
+    flush(state);
+    expect(state.zones.dusk).not.toContain('040');
+    expect(state.zones.deck[state.zones.deck.length - 1]).toBe('040');
+  });
+
+  test('Pride (046) draws if it rose, and dusks a card from hand if it did not', () => {
+    const rose = armed('046');
+    const before = rose.players.p1.hand.length;
+    riseTopOfHorizon(rose);
+    expect(rose.players.p1.hand.length).toBe(before + 1);
+
+    const removed = armed('046');
+    duskFromHorizon(removed, 0);
+    flush(removed);
+    expect(removed.pendingTriggers.some(t => t.type === 'duskFromHandChoice')).toBe(true);
+  });
+
+  test('Wasted Ambition (009) fires when dusked from hand, not from the horizon', () => {
+    const { state } = freshGame();
+    state.players.p1.hand.push('009');
+    const p2 = state.players.p2.hand.length;
+    voidCard(state, 'p1', '009');
+    flush(state);
+    expect(state.players.p2.hand.length).toBe(p2 + 1);
+
+    const risen = armed('009');
+    const p2b = risen.players.p2.hand.length;
+    riseTopOfHorizon(risen);
+    expect(risen.players.p2.hand.length).toBe(p2b);   // it came FROM the horizon
+  });
+
+  test('Purity (044) goes to the dusk when an OPPONENT responds to it', () => {
+    const state = armed('044', 'p1');
+    state.players.p2.hand.push(ACTION);
+    state.activePlayer = 'p2';
+    playCard(state, 'p2', ACTION);
+    expect(state.zones.horizon.some(e => e.cardId === '044')).toBe(false);
+    expect(state.zones.dusk).toContain('044');
+  });
+
+  test('Purity (044) is unaffected by its own controller playing another card', () => {
+    const state = armed('044', 'p1');
+    state.players.p1.hand.push(ACTION);
+    state.activePlayer = 'p1';
+    playCard(state, 'p1', ACTION);
+    expect(state.zones.horizon.some(e => e.cardId === '044')).toBe(true);
+  });
+
+  test('Understand Despair (064) draws two whenever your card leaves without rising', () => {
+    const state = armed('064');
+    riseTopOfHorizon(state);            // registers the turn-long trigger
+    const before = state.players.p1.hand.length;
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p1'));
+    duskFromHorizon(state, 0);
+    flush(state);
+    expect(state.players.p1.hand.length).toBe(before + 2);
   });
 });

@@ -3,7 +3,7 @@ import {
   drawCards, duskCardFromHand, sendToDusk, duskFromHorizon,
   removeFromHorizon, opponent, controllerOf, horizonEntryMatchesFilter,
 } from '../engine/state.js';
-import { executeEffectList } from '../effects/executor.js';
+import { executeEffectList, flushHorizonTriggers } from '../effects/executor.js';
 
 /**
  * Process a player's response to a CHOICE_REQUIRED prompt.
@@ -92,7 +92,7 @@ export function resolveChoice(state, playerId, payload) {
       // No player input needed — auto-resolve
       const trashed = [];
       while (state.zones.horizon.length > 0) {
-        const e = state.zones.horizon.shift();
+        const e = removeFromHorizon(state, 0);
         sendToDusk(state, e.cardId);
         trashed.push(e.cardId);
       }
@@ -687,6 +687,9 @@ export function resolveChoice(state, playerId, payload) {
 
   if (!error) {
     state.pendingChoice = null;
+    // Targeted removals are the other way a card leaves the horizon, so any
+    // "when this leaves the horizon" trigger fires once the choice has applied.
+    events.push(...flushHorizonTriggers(state));
   }
 
   return { events, error };

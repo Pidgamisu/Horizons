@@ -36,6 +36,13 @@ export function createGameState() {
     cardsDrawnThisTurn: { p1: 0, p2: 0 },
     cardsToDuskThisTurn: [],   // CardId[] — everything that entered the dusk this turn (Delve 003, Angst 020)
 
+    // Trigger bookkeeping, drained by flushHorizonTriggers once the current
+    // operation finishes. Cards that watch for their own departure (Plead 010,
+    // Pride 046) or for reaching the dusk from off-horizon (Wasted Ambition 009)
+    // fire from these.
+    pendingHorizonDepartures: [],  // [{ entry, rose }]
+    pendingDuskEntries: [],        // [{ cardId, fromHorizon }]
+
     players: {
       p1: createPlayerState(),
       p2: createPlayerState(),
@@ -186,13 +193,16 @@ export function duskCardFromHand(state, playerId, cardId) {
 }
 
 /** Move a card to the dusk, respecting an active deck-bottom redirect. */
-export function sendToDusk(state, cardId) {
+export function sendToDusk(state, cardId, fromHorizon = false) {
   if (state.turnFlags.redirectDuskToDeckBottom) {
     state.zones.deck.push(cardId); // bottom of deck
-  } else {
-    state.zones.dusk.push(cardId);
-    state.cardsToDuskThisTurn.push(cardId);
+    return;
   }
+  state.zones.dusk.push(cardId);
+  state.cardsToDuskThisTurn.push(cardId);
+  // Wasted Ambition (009) only cares about arriving from somewhere other than
+  // the horizon, so the source travels with the record.
+  state.pendingDuskEntries?.push({ cardId, fromHorizon });
 }
 
 /** Did both a point and an action reach the dusk this turn? (Delve 003, Angst 020) */
@@ -211,15 +221,25 @@ export function duskHand(state, playerId) {
 }
 
 /** Remove a card from the horizon by index. Does NOT send it anywhere — the caller picks the destination. */
-export function removeFromHorizon(state, horizonIndex) {
+export function removeFromHorizon(state, horizonIndex, { rose = false } = {}) {
   const [entry] = state.zones.horizon.splice(horizonIndex, 1);
+  // Single chokepoint for leaving the horizon: every departure is recorded here
+  // so "when this leaves the horizon" triggers cannot be missed by a caller that
+  // spliced the array itself.
+  if (entry) state.pendingHorizonDepartures?.push({ entry, rose });
   return entry;
+}
+
+/** Remove a specific entry (no-op if it is already gone). */
+export function removeHorizonEntry(state, entry, opts) {
+  const i = state.zones.horizon.indexOf(entry);
+  return i === -1 ? null : removeFromHorizon(state, i, opts);
 }
 
 /** Remove a card from the horizon and put it into the dusk. */
 export function duskFromHorizon(state, horizonIndex) {
   const entry = removeFromHorizon(state, horizonIndex);
-  sendToDusk(state, entry.cardId);
+  sendToDusk(state, entry.cardId, true);
   return entry;
 }
 

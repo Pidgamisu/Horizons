@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
   drawCards, duskHand,
-  sendToDusk, shuffle, opponent, controllerOf,
+  sendToDusk, shuffle, opponent, controllerOf, removeFromHorizon, removeHorizonEntry,
   horizonHasTarget, reshuffleDuskIntoDeck, pointsOf, bothTypesToDuskThisTurn,
 } from '../engine/state.js';
 
@@ -165,8 +165,8 @@ function executeEffect(state, effect, controller, entry, ctx) {
     case 'duskAllFromHorizon': {
       const trashed = [];
       while (state.zones.horizon.length > 0) {
-        const e = state.zones.horizon.shift();
-        sendToDusk(state, e.cardId);
+        const e = removeFromHorizon(state, 0);
+        sendToDusk(state, e.cardId, true);
         trashed.push(e.cardId);
       }
       ctx.cardsJustTrashed = (ctx.cardsJustTrashed ?? 0) + trashed.length;
@@ -346,9 +346,25 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
+    case 'duskSelf': {
+      const removed = entry ? removeHorizonEntry(state, entry) : null;
+      if (removed) {
+        sendToDusk(state, removed.cardId, true);
+        events.push({ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: removed.cardId });
+      }
+      break;
+    }
+
     case 'moveSelf': {
-      // The card being resolved (already removed from horizon before this runs)
-      if (effect.to === 'deckTop') {
+      // The card has already left the horizon by the time this runs, and may
+      // already be sitting in the dusk — Agoraphobia (040) says to put it at the
+      // bottom of the deck "instead of anywhere else", so reclaim it first.
+      const di = state.zones.dusk.lastIndexOf(entry?.cardId);
+      if (di !== -1 && entry) state.zones.dusk.splice(di, 1);
+      if (effect.to === 'deckBottom') {
+        state.zones.deck.push(entry.cardId);
+        events.push({ type: 'CARD_TO_DECK_BOTTOM', card: entry.cardId });
+      } else if (effect.to === 'deckTop') {
         state.zones.deck.unshift(entry.cardId);
         events.push({ type: 'CARD_TO_DECK_TOP', card: entry.cardId });
       } else if (effect.to === 'opponentHand') {
@@ -493,8 +509,8 @@ function executeEffect(state, effect, controller, entry, ctx) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'duskTopOfHorizon' });
         break;
       }
-      const top = state.zones.horizon.shift();
-      sendToDusk(state, top.cardId);
+      const top = removeFromHorizon(state, 0);
+      sendToDusk(state, top.cardId, true);
       events.push({ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: top.cardId });
       break;
     }
@@ -503,7 +519,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
       // Settle (100) — everything waiting on the horizon goes under the deck.
       const moved = [];
       while (state.zones.horizon.length > 0) {
-        const e = state.zones.horizon.shift();
+        const e = removeFromHorizon(state, 0);
         state.zones.deck.push(e.cardId);
         moved.push(e.cardId);
       }
@@ -751,3 +767,78 @@ function evaluateCardCondition(state, condition, playerId) {
 
 
 
+
+// ─── Departure triggers ───────────────────────────────────────────────────────
+
+/**
+ * Fire the triggers that watch for a card leaving the horizon, or reaching the
+ * dusk from somewhere other than the horizon.
+ *
+ * Departures are queued rather than fired at the removal site, because removal
+ * happens deep inside state.js which cannot reach the effect executor. This
+ * drains that queue once the surrounding operation has finished, so the board is
+ * in a settled state before any trigger runs.
+ *
+ * Loops, since a trigger can itself remove another card from the horizon.
+ */
+export function flushHorizonTriggers(state) {
+  const events = [];
+  let guard = 0;
+
+  while (
+    (state.pendingHorizonDepartures?.length || state.pendingDuskEntries?.length) &&
+    ++guard < 32
+  ) {
+    const departures = state.pendingHorizonDepartures ?? [];
+    const duskEntries = state.pendingDuskEntries ?? [];
+    state.pendingHorizonDepartures = [];
+    state.pendingDuskEntries = [];
+
+    for (const { entry, rose } of departures) {
+      const card = getCard(entry.cardId);
+      const controller = controllerOf(entry);
+
+      for (const se of card.staticEffects ?? []) {
+        if (se.type !== 'trigger') continue;
+        const fires =
+          se.on === 'leavesHorizon' ||
+          (se.on === 'leavesHorizonWithoutRising' && !rose);
+        if (!fires) continue;
+        events.push(...runDepartureEffect(state, se.effect, controller, entry, rose));
+      }
+
+      // Understand Despair (064): registered for the turn, watching every card
+      // its owner controls rather than one specific card.
+      for (const trigger of state.pendingTriggers) {
+        if (trigger.type !== 'registerTurnTrigger') continue;
+        if (trigger.on !== 'selfCardLeavesHorizonWithoutRising') continue;
+        if (rose || controller !== trigger.owner) continue;
+        events.push(...runDepartureEffect(state, trigger.effect, trigger.owner, entry, rose));
+      }
+    }
+
+    for (const { cardId, fromHorizon } of duskEntries) {
+      if (fromHorizon) continue;
+      const card = getCard(cardId);
+      for (const se of card.staticEffects ?? []) {
+        if (se.type === 'trigger' && se.on === 'putIntoDuskFromNonHorizon') {
+          // No horizon entry exists — the card never got there — so the effect
+          // runs for the turn player.
+          events.push(...runDepartureEffect(state, se.effect, state.turn, null, false));
+        }
+      }
+    }
+  }
+
+  return events;
+}
+
+function runDepartureEffect(state, effect, controller, entry, rose) {
+  if (!effect) return [];
+  // Pride (046) does one thing if it rose and another if it didn't.
+  const resolved = effect.type === 'branchOnRose'
+    ? (rose ? effect.ifRose : effect.ifNot)
+    : effect;
+  if (!resolved) return [];
+  return executeEffectList(state, [resolved], controller, entry);
+}

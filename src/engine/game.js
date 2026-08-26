@@ -2,10 +2,10 @@ import { getCard } from '../data/cardDb.js';
 import {
   createHorizonEntry, createTurnFlags,
   drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost,
-  isDeckSpent, pointsOf,
+  isDeckSpent, pointsOf, removeFromHorizon, removeHorizonEntry,
 } from './state.js';
 import { validatePlay } from './validation.js';
-import { executeEffects, executeOnPlayEffects } from '../effects/executor.js';
+import { executeEffects, executeOnPlayEffects, executeEffectList, flushHorizonTriggers } from '../effects/executor.js';
 
 // ─── Game Lifecycle ───────────────────────────────────────────────────────────
 
@@ -94,6 +94,18 @@ export function playCard(state, playerId, cardId, context = {}) {
   const triggerEvents = checkPlayTriggers(state, entry, playerId);
   events.push(...triggerEvents);
 
+  // Purity (044): "if an opponent responds to this". The responded-to card is
+  // the one directly beneath the card just played.
+  const respondedTo = state.zones.horizon[1];
+  if (respondedTo && controllerOf(respondedTo) !== playerId) {
+    for (const se of getCard(respondedTo.cardId).staticEffects ?? []) {
+      if (se.type === 'trigger' && se.on === 'opponentRespondsToThis') {
+        events.push(...executeEffectList(state, [se.effect], controllerOf(respondedTo), respondedTo));
+      }
+    }
+  }
+  events.push(...flushHorizonTriggers(state));
+
   // Priority passes to other player (pass count resets)
   state.priorityPassCount = 0;
   state.activePlayer = opponent(playerId);
@@ -170,7 +182,7 @@ export function riseTopOfHorizon(state) {
   events.push({ type: 'CARD_RISING', cardId: entry.cardId, controller });
 
   // 1. Off the horizon, into its destination.
-  removeHorizonEntry(state, entry);
+  removeHorizonEntry(state, entry, { rose: true });
   if (entry.returnToHandOnRise) {
     // Reverse (052) / Forever Borrow (036): the borrowed card goes back to
     // whoever originally played it instead of to the dusk or a zenith.
@@ -181,7 +193,7 @@ export function riseTopOfHorizon(state) {
     sendToZenith(state, controller, entry.cardId);
     events.push({ type: 'CARD_TO_ZENITH', cardId: entry.cardId, player: controller });
   } else {
-    sendToDusk(state, entry.cardId);
+    sendToDusk(state, entry.cardId, true);
     events.push({ type: 'CARD_TO_DUSK', cardId: entry.cardId });
   }
 
@@ -194,16 +206,14 @@ export function riseTopOfHorizon(state) {
     events.push(...checkRiseTriggers(state, entry));
   }
 
+  // Anything watching for a card to leave the horizon fires now that the board
+  // has settled (Plead 010, Pride 046, Fuzzy Memory 082).
+  events.push(...flushHorizonTriggers(state));
+
   // The card has finished rising — if the deck ran dry, the sun sets now.
   events.push(...checkSunset(state));
 
   return events;
-}
-
-/** Remove a specific entry from the horizon (no-op if already gone). */
-function removeHorizonEntry(state, entry) {
-  const i = state.zones.horizon.indexOf(entry);
-  if (i !== -1) state.zones.horizon.splice(i, 1);
 }
 
 // ─── Sunset ───────────────────────────────────────────────────────────────────
@@ -229,6 +239,7 @@ export function checkSunset(state) {
     events.push({ type: 'CARD_TO_DUSK', cardId: entry.cardId, reason: 'sunset' });
   }
   state.zones.horizon = [];
+  state.pendingHorizonDepartures = [];
 
   const p1 = pointsOf(state, 'p1');
   const p2 = pointsOf(state, 'p2');
@@ -357,8 +368,8 @@ function checkPlayTriggers(state, newEntry, playedBy) {
         if (effect.type === 'duskSelf') {
           const idx = state.zones.horizon.indexOf(horizonEntry);
           if (idx !== -1) {
-            state.zones.horizon.splice(idx, 1);
-            sendToDusk(state, horizonEntry.cardId);
+            removeFromHorizon(state, idx);
+            sendToDusk(state, horizonEntry.cardId, true);
             events.push({ type: 'CARD_TO_DUSK_BY_TRIGGER', cardId: horizonEntry.cardId });
           }
         }
