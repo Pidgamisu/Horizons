@@ -167,6 +167,9 @@ export function advancePendingChoices(state) {
     putPointFromHorizonIntoZenithChoice: 'putPointFromHorizonIntoZenith',
     moveOnHorizonToTopChoice:            'moveOnHorizonToTop',
     putFromDuskToDeckTopChoice:          'putFromDuskToDeckTop',
+    opponentChoosesFromDuskChoice:       'opponentChoosesFromDusk',
+    duskFromHandThenMatchCostChoice:     'duskFromHandThenMatchCost',
+    returnTwoDifferentControllersChoice: 'returnTwoDifferentControllers',
   };
 
   state.pendingChoice = {

@@ -14,6 +14,8 @@ export const CHOICE_TRIGGER_TYPES = new Set([
   'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget',
   'putPointFromDuskIntoZenithChoice', 'putPointFromHorizonIntoZenithChoice',
   'moveOnHorizonToTopChoice', 'putFromDuskToDeckTopChoice',
+  'opponentChoosesFromDuskChoice', 'duskFromHandThenMatchCostChoice',
+  'returnTwoDifferentControllersChoice',
 ]);
 
 /** Does a pending trigger require a player choice (vs. resolving on its own)? */
@@ -297,6 +299,10 @@ function getHorizonEntryCard(entry) {
 export function horizonEntryMatchesFilter(entry, filter) {
   if (!filter || filter === 'any') return true;
   const card = getCard(entry.cardId);
+  // Enlightenment (075) targets by matching energy cost rather than by type.
+  if (typeof filter === 'object') {
+    return filter.costEquals == null || card.energyCost === filter.costEquals;
+  }
   if (filter === 'actionPlayedInResponseToPoint') {
     return card.type === 'action' && entry.respondedToCardType === 'point';
   }

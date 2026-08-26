@@ -614,6 +614,65 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
+    case 'gainControlOfRespondedCard': {
+      // Forever Borrow (036) — no choice: it takes the very card it responded to.
+      // This runs as an on-play effect, so self is index 0 and the responded-to
+      // card sits directly beneath it.
+      const target = state.zones.horizon[1];
+      if (!target || getCard(target.cardId).type !== 'action') {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'gainControlOfRespondedCard' });
+        break;
+      }
+      target.controlledBy = controller;
+      if (effect.onRise === 'returnToInitialControllerHand') {
+        target.returnToHandOnRise = target.playedBy;
+      }
+      events.push({ type: 'CONTROL_GAINED', cardId: target.cardId, newController: controller });
+      break;
+    }
+
+    case 'opponentChoosesFromDusk': {
+      // Reach Out to the Dark (057) — they pick, you receive.
+      const count = Math.min(effect.count ?? 1, state.zones.dusk.length);
+      if (count === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'opponentChoosesFromDusk' });
+        break;
+      }
+      state.pendingTriggers.push({
+        type: 'opponentChoosesFromDuskChoice',
+        player: opp,                // the opponent makes the choice
+        count,
+        recipient: controller,      // the caster receives the cards
+      });
+      events.push({ type: 'CHOICE_REQUIRED', player: opp, choiceType: 'opponentChoosesFromDusk', count });
+      break;
+    }
+
+    case 'duskFromHandThenMatchCostOnHorizon': {
+      // Enlightenment (075) — dusk a card, then optionally dusk a horizon card
+      // that shares its cost. The second step is queued once the first resolves,
+      // because the matching cost isn't known until then.
+      if (state.players[controller].hand.length === 0) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHandThenMatchCostOnHorizon' });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'duskFromHandThenMatchCostChoice', player: controller });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskFromHandThenMatchCost' });
+      break;
+    }
+
+    case 'returnTwoDifferentControllers': {
+      // Paradox (101) — needs one card from each player on the horizon.
+      const controllers = new Set(state.zones.horizon.map(e => controllerOf(e)));
+      if (state.zones.horizon.length < 2 || controllers.size < 2) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'returnTwoDifferentControllers' });
+        break;
+      }
+      state.pendingTriggers.push({ type: 'returnTwoDifferentControllersChoice', player: controller });
+      events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'returnTwoDifferentControllers' });
+      break;
+    }
+
     // Complex effects that need player interaction — all queued as pending choices
     case 'revealUntilType':
     case 'chooseNumber':

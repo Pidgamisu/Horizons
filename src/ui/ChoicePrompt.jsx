@@ -83,13 +83,15 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
 
     if (type === 'duskFromHand') {
       onRespond({ cardIds: selected })
-    } else if (type === 'putFromDuskToHand' || type === 'putFromDuskToDeckBottom' || type === 'putFromDuskToDeckTop') {
+    } else if (type === 'putFromDuskToHand' || type === 'putFromDuskToDeckBottom' || type === 'putFromDuskToDeckTop' || type === 'opponentChoosesFromDusk') {
       onRespond({ cardIds: selected })
     } else if (['duskFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl', 'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget', 'controllerMovesCardFromHorizonTarget', 'putPointFromHorizonIntoZenith', 'moveOnHorizonToTop'].includes(type)) {
       onRespond({ horizonIndex: parseInt(selected[0]) })
+    } else if (type === 'returnTwoDifferentControllers') {
+      onRespond({ horizonIndexes: selected.map((i) => parseInt(i)) })
     } else if (type === 'optional') {
       onRespond({ accept: true })
-    } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToDuskFromRevealedHand' || type === 'opponentChoosesOne' || type === 'putPointFromDuskIntoZenith') {
+    } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToDuskFromRevealedHand' || type === 'opponentChoosesOne' || type === 'putPointFromDuskIntoZenith' || type === 'duskFromHandThenMatchCost') {
       onRespond({ cardId: selected[0] })
     } else if (type === 'lookAtTopN') {
       onRespond({ duskCardId: selected[0] })
@@ -118,6 +120,9 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   const { type, count, filter } = choice
+  const filterLabel = typeof filter === 'object' && filter !== null
+    ? (filter.costEquals != null ? `card costing ${filter.costEquals}` : 'card')
+    : filter === 'any' || !filter ? 'card' : `${filter} card`
 
   // Horizon cards offered as targets, keyed by their real horizon index. A
   // rising card has already left the horizon, so there is nothing to exclude.
@@ -275,6 +280,30 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
     cards = myHand.map(id => ({ id, label: null }))
     canConfirm = selected.length === count
     confirmLabel = 'To the dusk'
+  }
+
+  else if (type === 'opponentChoosesFromDusk') {
+    title = `Choose ${count} card${count !== 1 ? 's' : ''} from the dusk for your opponent`
+    subtitle = 'They pick the card — you decide which ones they get'
+    cards = duskCards.map(id => ({ id, label: null }))
+    canConfirm = selected.length === count
+    confirmLabel = 'Give'
+  }
+
+  else if (type === 'duskFromHandThenMatchCost') {
+    title = 'Put a card from your hand into the dusk'
+    subtitle = 'You may then dusk a card on the horizon that shares its energy cost'
+    cards = myHand.map(id => ({ id, label: null }))
+    canConfirm = selected.length === 1
+    confirmLabel = 'To the dusk'
+  }
+
+  else if (type === 'returnTwoDifferentControllers') {
+    title = 'Return two cards on the horizon to their controllers'
+    subtitle = 'The two cards must be controlled by different players'
+    cards = horizonTargets()
+    canConfirm = selected.length === 2
+    confirmLabel = 'Return both'
   }
 
   else if (type === 'putPointFromDuskIntoZenith') {

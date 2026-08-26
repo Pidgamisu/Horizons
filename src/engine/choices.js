@@ -232,6 +232,74 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
+    case 'opponentChoosesFromDusk': {
+      // payload: { cardIds: string[] } — Reach Out to the Dark (057). The chooser
+      // is the opponent; the cards go to the caster's hand.
+      const { cardIds } = payload;
+      if (!Array.isArray(cardIds) || cardIds.length !== choice.count) {
+        error = `Must choose exactly ${choice.count} card(s).`; break;
+      }
+      for (const id of cardIds) {
+        if (!state.zones.dusk.includes(id)) { error = `Card ${id} is not in the dusk.`; break; }
+      }
+      if (error) break;
+      for (const id of cardIds) {
+        state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
+        state.players[choice.recipient].hand.push(id);
+        events.push({ type: 'CARD_FROM_DUSK_TO_HAND', cardId: id, player: choice.recipient });
+      }
+      break;
+    }
+
+    case 'duskFromHandThenMatchCost': {
+      // payload: { cardId: string } — Enlightenment (075) step 1. Dusking the
+      // hand card sets the cost that step 2 is allowed to target.
+      const { cardId } = payload;
+      if (!state.players[playerId].hand.includes(cardId)) {
+        error = 'Card is not in your hand.'; break;
+      }
+      const cost = getCard(cardId).energyCost;
+      duskCardFromHand(state, playerId, cardId);
+      events.push({ type: 'CARD_FROM_HAND_TO_DUSK', cardId, player: playerId });
+
+      const matchFilter = { costEquals: cost };
+      if (state.zones.horizon.some(e => horizonEntryMatchesFilter(e, matchFilter))) {
+        state.pendingTriggers.push({
+          type: 'duskFromHorizonChoice',
+          player: playerId,
+          filter: matchFilter,
+          optional: true,
+        });
+        events.push({ type: 'CHOICE_REQUIRED', player: playerId, choiceType: 'duskFromHorizon', filter: matchFilter });
+      } else {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHorizon', filter: matchFilter });
+      }
+      break;
+    }
+
+    case 'returnTwoDifferentControllers': {
+      // payload: { horizonIndexes: [number, number] } — Paradox (101)
+      const { horizonIndexes } = payload;
+      if (!Array.isArray(horizonIndexes) || horizonIndexes.length !== 2) {
+        error = 'Must choose exactly 2 cards.'; break;
+      }
+      const [a, b] = horizonIndexes;
+      const entryA = state.zones.horizon[a];
+      const entryB = state.zones.horizon[b];
+      if (!entryA || !entryB || a === b) { error = 'Invalid horizon selection.'; break; }
+      if (controllerOf(entryA) === controllerOf(entryB)) {
+        error = 'The two cards must be controlled by different players.'; break;
+      }
+      // Remove the higher index first so the lower one does not shift.
+      for (const idx of [a, b].sort((x, y) => y - x)) {
+        const entry = state.zones.horizon[idx];
+        removeFromHorizon(state, idx);
+        state.players[controllerOf(entry)].hand.push(entry.cardId);
+        events.push({ type: 'CARD_RETURNED_TO_HAND', cardId: entry.cardId, player: controllerOf(entry) });
+      }
+      break;
+    }
+
     case 'putHandCardOnDeckTop': {
       // payload: { cardId: string }
       const { cardId } = payload;
@@ -255,9 +323,12 @@ export function resolveChoice(state, playerId, payload) {
       entry.controlledBy = playerId;
       events.push({ type: 'CONTROL_GAINED', cardId: entry.cardId, newController: playerId });
 
-      // Reverse (42): when it takes effect, return to initial controller's hand
-      if (choice.onResolve?.type === 'returnToInitialControllerHand') {
-        events.push({ type: 'ON_RESOLVE_PENDING', effect: choice.onResolve, cardId: entry.cardId });
+      // Reverse (052): when it rises it goes back to whoever originally played
+      // it, instead of to the dusk.
+      const onResolve = typeof choice.onResolve === 'string' ? choice.onResolve : choice.onResolve?.type;
+      if (onResolve === 'returnToInitialControllerHand') {
+        entry.returnToHandOnRise = entry.playedBy;
+        events.push({ type: 'RETURN_ON_RISE_SET', cardId: entry.cardId, player: entry.playedBy });
       }
       break;
     }

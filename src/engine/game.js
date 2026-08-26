@@ -171,7 +171,13 @@ export function riseTopOfHorizon(state) {
 
   // 1. Off the horizon, into its destination.
   removeHorizonEntry(state, entry);
-  if (card.type === 'point') {
+  if (entry.returnToHandOnRise) {
+    // Reverse (052) / Forever Borrow (036): the borrowed card goes back to
+    // whoever originally played it instead of to the dusk or a zenith.
+    const owner = entry.returnToHandOnRise;
+    state.players[owner].hand.push(entry.cardId);
+    events.push({ type: 'CARD_RETURNED_TO_HAND', cardId: entry.cardId, player: owner });
+  } else if (card.type === 'point') {
     sendToZenith(state, controller, entry.cardId);
     events.push({ type: 'CARD_TO_ZENITH', cardId: entry.cardId, player: controller });
   } else {

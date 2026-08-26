@@ -744,14 +744,113 @@ describe('Card effects', () => {
         if (ev.type === 'UNHANDLED_EFFECT') unhandled.add(`${id}:${ev.effectType}`);
       }
     }
-    // The four multi-step cards still to be built are listed explicitly so this
-    // test fails the moment any OTHER card regresses.
-    const remaining = [
-      '036:gainControlOfRespondedCard',
-      '057:opponentChoosesFromDusk',
-      '075:duskFromHandThenMatchCostOnHorizon',
-      '101:returnTwoDifferentControllers',
-    ];
-    expect([...unhandled].sort()).toEqual(remaining.sort());
+    // Every card in the set must be executable — no unhandled effects at all.
+    expect([...unhandled].sort()).toEqual([]);
+  });
+});
+
+// ─── Multi-step cards ─────────────────────────────────────────────────────────
+
+describe('Multi-step cards', () => {
+  test('Forever Borrow (036) takes the action it responded to, which then returns to its owner', () => {
+    const { state } = freshGame();
+    // p2 has an action on the horizon; p1 responds with Forever Borrow.
+    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p2'));
+    const borrow = createHorizonEntry('036', 'p1', { respondedToCardIndex: 0, respondedToCardType: 'action' });
+    state.zones.horizon.unshift(borrow);
+
+    executeOnPlayEffects(state, borrow);
+
+    const stolen = state.zones.horizon[1];
+    expect(stolen.controlledBy).toBe('p1');       // control changed hands
+    expect(stolen.playedBy).toBe('p2');           // ownership did not
+
+    riseTopOfHorizon(state);                      // Forever Borrow itself rises
+    riseTopOfHorizon(state);                      // now the borrowed action rises
+
+    // It goes back to its original owner's hand instead of the dusk.
+    expect(state.players.p2.hand).toContain(ACTION);
+    expect(state.zones.dusk).not.toContain(ACTION);
+  });
+
+  test('Paradox (101) returns two cards controlled by different players', () => {
+    const { state } = freshGame();
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('004', 'p1'));
+    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
+
+    riseTopOfHorizon(state);
+    advancePendingChoices(state);
+    expect(state.pendingChoice.type).toBe('returnTwoDifferentControllers');
+
+    const { error } = resolveChoice(state, 'p1', { horizonIndexes: [0, 1] });
+    expect(error).toBeNull();
+    expect(state.players.p1.hand).toContain('004');
+    expect(state.players.p2.hand).toContain('002');
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('Paradox (101) refuses two cards controlled by the same player', () => {
+    const { state } = freshGame();
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('006', 'p1'));   // makes two controllers present
+    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
+
+    riseTopOfHorizon(state);
+    advancePendingChoices(state);
+    // Indexes 1 and 2 are both p2-controlled.
+    const { error } = resolveChoice(state, 'p1', { horizonIndexes: [1, 2] });
+    expect(error).toMatch(/different players/);
+  });
+
+  test('Paradox (101) does nothing when one player controls the whole horizon', () => {
+    const { state } = freshGame();
+    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));
+    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
+
+    const events = riseTopOfHorizon(state);
+    advancePendingChoices(state);
+
+    expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
+    expect(state.pendingChoice).toBeNull();
+    expect(state.zones.horizon).toHaveLength(2);   // nothing was returned
+  });
+
+  test('Enlightenment (075) only offers horizon cards matching the dusked cost', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002'];                                  // Momentum, cost 6
+    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));     // Inquire, cost 6 — matches
+    state.zones.horizon.unshift(createHorizonEntry('075', 'p1'));
+
+    riseTopOfHorizon(state);
+    advancePendingChoices(state);
+    expect(state.pendingChoice.type).toBe('duskFromHandThenMatchCost');
+
+    resolveChoice(state, 'p1', { cardId: '002' });
+    advancePendingChoices(state);
+
+    expect(state.zones.dusk).toContain('002');
+    expect(state.pendingChoice.type).toBe('duskFromHorizon');
+    expect(state.pendingChoice.filter.costEquals).toBe(6);
+  });
+
+  test('Reach Out to the Dark (057) lets the opponent choose which cards you get', () => {
+    const { state } = freshGame();
+    state.zones.dusk = ['002', '004', '050'];
+    state.zones.horizon.unshift(createHorizonEntry('057', 'p1'));
+
+    riseTopOfHorizon(state);
+    advancePendingChoices(state);
+
+    // The OPPONENT is the one prompted, even though the caster benefits.
+    expect(state.pendingChoice.player).toBe('p2');
+    expect(state.pendingChoice.type).toBe('opponentChoosesFromDusk');
+
+    resolveChoice(state, 'p2', { cardIds: ['002', '050'] });
+    expect(state.players.p1.hand).toContain('002');
+    expect(state.players.p1.hand).toContain('050');
+    expect(state.players.p2.hand).not.toContain('002');
   });
 });
