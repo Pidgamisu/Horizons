@@ -160,7 +160,7 @@ export function resolveChoice(state, playerId, payload) {
       break;
     }
 
-    case 'putFromTrashToDeckBottom': {
+    case 'putFromDuskToDeckBottom': {
       // payload: { cardIds: string[] }  — Overconfidence (71) ransom
       const { cardIds } = payload;
       if (!Array.isArray(cardIds) || cardIds.length !== (choice.count ?? 1)) {
@@ -220,7 +220,7 @@ export function resolveChoice(state, playerId, payload) {
       const owner = controllerOf(entry);
       // Step 2: that card's controller decides to pay the ransom or let it trash.
       state.pendingChoice = {
-        type: 'trashUnlessControllerPays',
+        type: 'duskUnlessControllerPays',
         player: owner,
         targetIndex: horizonIndex,
         targetCardId: entry.cardId,
@@ -231,7 +231,7 @@ export function resolveChoice(state, playerId, payload) {
       return { events, error: null }; // suspend for the controller's decision
     }
 
-    case 'trashUnlessControllerPays': {
+    case 'duskUnlessControllerPays': {
       // payload: { pay: boolean }
       // The targeted card's controller (choice.player) decides. The target was
       // chosen by the engine and stored as choice.targetIndex.
@@ -254,15 +254,15 @@ export function resolveChoice(state, playerId, payload) {
         }
         state.players[playerId].energy -= cost;
         events.push({ type: 'RANSOM_PAID', player: playerId, amount: cost });
-      } else if (ransom?.type === 'putFromTrashToDeckBottom') {
+      } else if (ransom?.type === 'putFromDuskToDeckBottom') {
         if (state.zones.dusk.length === 0) { error = 'No card in the trash to pay the ransom.'; break; }
         // Follow-up: the controller picks which trash card to put on the deck bottom.
         state.pendingChoice = {
-          type: 'putFromTrashToDeckBottom',
+          type: 'putFromDuskToDeckBottom',
           player: playerId,
           count: ransom.count ?? 1,
         };
-        events.push({ type: 'RANSOM_PAID', player: playerId, ransom: 'putFromTrashToDeckBottom' });
+        events.push({ type: 'RANSOM_PAID', player: playerId, ransom: 'putFromDuskToDeckBottom' });
         return { events, error: null }; // stay suspended for the follow-up choice
       } else {
         error = `Unhandled ransom type: ${ransom?.type}`; break;
@@ -321,16 +321,16 @@ export function resolveChoice(state, playerId, payload) {
     }
 
     case 'lookAtTopN': {
-      // payload: { trashCardId: string }  — Search (47): look at top 2, trash one
-      const { trashCardId } = payload;
+      // payload: { duskCardId: string }  — Search (47): look at top 2, trash one
+      const { duskCardId } = payload;
       const top = state.zones.deck.slice(0, choice.count);
-      if (!top.includes(trashCardId)) { error = 'Must choose one of the revealed cards.'; break; }
+      if (!top.includes(duskCardId)) { error = 'Must choose one of the revealed cards.'; break; }
 
       // Remove trashed card from deck top
-      const idx = state.zones.deck.indexOf(trashCardId);
+      const idx = state.zones.deck.indexOf(duskCardId);
       state.zones.deck.splice(idx, 1);
-      sendToDusk(state, trashCardId);
-      events.push({ type: 'DECK_TOP_TRASHED', cardId: trashCardId });
+      sendToDusk(state, duskCardId);
+      events.push({ type: 'DECK_TOP_TRASHED', cardId: duskCardId });
 
       // Draw a card (Search's second effect)
       const drawn = drawCards(state, playerId, 1);

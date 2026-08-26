@@ -4,13 +4,17 @@ const CW = 120  // card width
 const CH = 168  // card height
 const GAP = 10
 
+// Board layout follows the rulebook diagram (p1): deck and dusk to one side,
+// the horizon in the middle between the hands, and each player's zenith on
+// their own side of the table.
 const ZONES = {
-  opponentHand: { cx: 0, cy: -340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'opponent-hand' },
-  myHand:       { cx: 0, cy:  340, w: 900, h: CH + 20,  label: 'Hand',  zoneType: 'hand' },
-  horizon:        { cx: -220, cy: 0, w: CW + 40, h: 460,  label: 'Horizon', zoneType: 'horizon' },
-  trash:        { cx:  20,  cy: 0, w: CW + 40, h: CH + 40, label: 'Trash', zoneType: 'trash' },
-  deck:         { cx:  180, cy: -100, w: CW + 40, h: CH + 40, label: 'Deck', zoneType: 'deck' },
-  void:         { cx:  180, cy:  100, w: CW + 40, h: CH + 40, label: 'Void', zoneType: 'void' },
+  opponentHand: { cx:    0, cy: -340, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'opponent-hand' },
+  myHand:       { cx:    0, cy:  340, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'hand' },
+  horizon:      { cx:    0, cy:    0, w: CW + 40,  h: 460,      label: 'The Horizon', zoneType: 'horizon' },
+  deck:         { cx: -320, cy:  -95, w: CW + 40,  h: CH + 40,  label: 'Deck',    zoneType: 'deck' },
+  dusk:         { cx: -320, cy:   95, w: CW + 40,  h: CH + 40,  label: 'Dusk',    zoneType: 'dusk' },
+  oppZenith:    { cx:  320, cy:  -95, w: CW + 40,  h: CH + 40,  label: 'Their Zenith', zoneType: 'zenith-opp' },
+  myZenith:     { cx:  320, cy:   95, w: CW + 40,  h: CH + 40,  label: 'Your Zenith',  zoneType: 'zenith' },
 }
 
 const sid = (key) => createShapeId(key)
@@ -35,9 +39,13 @@ export class BoardManager {
       this._syncHorizon(state.zones?.horizon ?? [])
       this._syncHand(state.players?.[myPlayerId]?.hand ?? [], canAct)
       this._syncOpponentHand(state.players?.[opp]?.handSize ?? 0)
-      this._syncTrash(state.zones?.trash ?? [])
+      this._syncPile('dusk', state.zones?.dusk ?? [])
+      this._syncPile('myZenith', state.players?.[myPlayerId]?.zenith ?? [])
+      this._syncPile('oppZenith', state.players?.[opp]?.zenith ?? [])
       this._updateZoneCount('deck', state.zones?.deckSize ?? 0)
-      this._updateZoneCount('void', state.zones?.voidSize ?? 0)
+      this._updateZoneCount('dusk', state.zones?.dusk?.length ?? 0)
+      this._updateZoneCount('myZenith', state.players?.[myPlayerId]?.zenith?.length ?? 0)
+      this._updateZoneCount('oppZenith', state.players?.[opp]?.zenith?.length ?? 0)
       this._syncTargeting(state.pendingChoice, myPlayerId)
     }, { history: 'ignore', ignoreShapeLock: true })
   }
@@ -91,7 +99,6 @@ export class BoardManager {
         dimmed: false, w: CW, h: CH,
         horizonIndex: i,        // used for choice targeting
         horizonIsTop: i === 0,  // visual badge
-        resolving: !!entry.resolving, // this card's effect is currently resolving
       },
     }))
     // Create bottom-to-top so the top-of-horizon card (i=0) is drawn last and
@@ -144,22 +151,25 @@ export class BoardManager {
     this.editor.createShapes(shapes)
   }
 
-  // ── Trash ─────────────────────────────────────────────────────────────────────
+  // ── Face-up piles (dusk, zeniths) ─────────────────────────────────────────────
 
-  _syncTrash(codes) {
-    this._clearPrefix('card-trash-')
+  // The dusk and both zeniths are face-up piles: show the top few cards fanned
+  // by a few pixels so the pile reads as a stack, with the full contents
+  // available through the zone viewer.
+  _syncPile(name, codes) {
+    this._clearPrefix(`card-${name}-`)
     if (!codes.length) return
-    const z = ZONES.trash
+    const z = ZONES[name]
     const show = codes.slice(-3)
     this.editor.createShapes(show.map((code, i) => {
       const offset = (i - (show.length - 1) / 2) * 5
       return {
-        id: sid(`card-trash-${i}`),
+        id: sid(`card-${name}-${i}`),
         type: 'horizons-card',
         isLocked: true,
         x: z.cx - CW / 2 + offset, y: z.cy - CH / 2 + offset,
         props: {
-          cardId: code, faceUp: true, zone: 'trash',
+          cardId: code, faceUp: true, zone: z.zoneType,
           owner: null, selected: false, targeted: false, dimmed: false, w: CW, h: CH,
         },
       }
@@ -175,7 +185,7 @@ export class BoardManager {
     }
     const horizonChoiceTypes = ['duskFromHorizon','duskFromHorizonChoice','returnToControllerHand',
                               'returnHorizonCardToHandChoice','stealFromHorizon','stealFromHorizonChoice',
-                              'gainControl','gainControlChoice','trashUnlessControllerPays']
+                              'gainControl','gainControlChoice','duskUnlessControllerPays']
     if (horizonChoiceTypes.includes(choice.type)) {
       const updates = this.editor.getCurrentPageShapes()
         .filter(s => s.type === 'horizons-card')

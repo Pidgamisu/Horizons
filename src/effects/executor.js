@@ -306,12 +306,12 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'trashUnlessControllerPays': {
+    case 'duskUnlessControllerPays': {
       // Drown in Fog (59), Chains (74), Poke (87), Overconfidence (71).
       // Step 1: the caster picks which horizon card to target. Step 2 (set up when
       // this resolves) lets THAT card's controller pay the ransom or lose it.
       if (!horizonHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'trashUnlessControllerPays', filter: effect.filter });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskUnlessControllerPays', filter: effect.filter });
         break;
       }
       state.pendingTriggers.push({

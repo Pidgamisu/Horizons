@@ -3,7 +3,7 @@ import { cardImageSrc } from '../data/cardImages.js'
 const CARD_W = 110
 const CARD_H = 154
 
-// Modal overlay that shows every card in a zone (e.g. the trash pile), since
+// Modal overlay that shows every card in a zone (e.g. the dusk pile), since
 // the canvas only renders the top of the pile. Cards are passed top-first.
 export function ZoneViewer({ title, cardIds, onClose, badgeTop = true, onPlayCard = null }) {
   return (

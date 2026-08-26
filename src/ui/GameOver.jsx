@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 // ── GameOver ──────────────────────────────────────────────────────────────────
 
 export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain }) {
-  const iWon = winner === myPlayerId
+  const isDraw = winner === 'draw'
+  const iWon = !isDraw && winner === myPlayerId
   return (
     <div style={{
       position: 'absolute', inset: 0,
@@ -17,13 +18,16 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
         color: '#fff',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
       }}>
-        <div style={{ fontSize: 64 }}>{iWon ? '🎉' : '💀'}</div>
+        <div style={{ fontSize: 64 }}>{isDraw ? '🌅' : iWon ? '🎉' : '💀'}</div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
-                      color: iWon ? '#ff0099' : 'rgba(255,255,255,0.6)' }}>
-          {iWon ? 'You Win' : 'You Lose'}
+                      color: isDraw ? '#9aff4d' : iWon ? '#ff0099' : 'rgba(255,255,255,0.6)' }}>
+          {isDraw ? 'Draw' : iWon ? 'You Win' : 'You Lose'}
+        </div>
+        <div style={{ fontSize: 13, letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)' }}>
+          SUNSET — THE DECK RAN OUT
         </div>
         <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)' }}>
-          {myPoints} – {oppPoints}
+          {myPoints} – {oppPoints} in the zenith
         </div>
         <button
           onClick={onPlayAgain}

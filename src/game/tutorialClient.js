@@ -4,28 +4,29 @@
  * of GameClient (same methods + emitted events) so App.jsx and the board/HUD/
  * ActionBar render it exactly like a real game.
  *
- * The lesson: you play a point card, the opponent answers with Stop to trash it,
- * and you counter their Stop with Deny Hostility so your point resolves and
- * scores. Each "beat" is a hand-authored projection (the same shape the server
- * broadcasts) plus coaching metadata. The player can only take the taught action
- * at each step; anything else gets a gentle nudge and the beat doesn't advance.
+ * The lesson: you play a point card, the opponent answers with Delusion to send
+ * it to the dusk, and you counter with Deny Hostility so your point rises into
+ * your zenith. Each "beat" is a hand-authored projection (the same shape the
+ * server broadcasts) plus coaching metadata. The player can only take the taught
+ * action at each step; anything else gets a gentle nudge and the beat doesn't
+ * advance.
  */
 
-const POINT = '09' // Ambition       — point card, cost 5
-const STOP  = '44' // Stop           — action: trash a card on the horizon, cost 3
-const DENY  = '69' // Deny Hostility — action: trash an action played in response to a point, cost 1
-const FILL1 = '45' // Dig for Ideas  — voided for energy
-const FILL2 = '53' // Sort           — voided for energy
+const POINT = '042' // Splendor       — point, cost 5: each player gains 4 energy
+const STOP  = '053' // Delusion       — action, cost 2: put a point on the horizon into the dusk
+const DENY  = '079' // Deny Hostility — action, cost 1: dusk an action played in response to a point
+const FILL1 = '055' // Dig For Ideas  — voided for energy
+const FILL2 = '063' // Sort           — voided for energy
 // A fresh draw shown when the hand refills at end of turn (any real card ids).
-const REFILL = ['01', '21', '46', '60', '82']
+const REFILL = ['004', '020', '060', '083', '097']
 
 // Build a full per-player projection with sensible tutorial defaults; callers
 // override just the fields that change between beats. The horizon is ordered
-// newest-first (index 0 = top), matching the engine (push = unshift, resolve =
+// newest-first (index 0 = top), matching the engine (play = unshift, rise =
 // shift) and how BoardManager renders it.
 function proj({
   horizon = [], p1hand = [], p2handSize = 0, active = 'p1',
-  p1points = 0, p1energy = 0, p2energy = 3, trash = [], voidSize = 0, turnNumber = 1,
+  p1zenith = [], p1energy = 0, p2energy = 3, dusk = [], turnNumber = 1,
 }) {
   const entry = (e) => ({ cardId: e.cardId, playedBy: e.playedBy, controlledBy: e.playedBy })
   return {
@@ -33,15 +34,17 @@ function proj({
     priorityPassCount: 0, turnNumber, winner: null,
     players: {
       p1: {
-        hand: p1hand, handSize: p1hand.length, points: p1points, energy: p1energy,
+        hand: p1hand, handSize: p1hand.length,
+        zenith: p1zenith, points: p1zenith.length, energy: p1energy,
         timerSeconds: 1500, lockedFromPlaying: false, canPlayFromDusk: false,
       },
       p2: {
-        hand: [], handSize: p2handSize, points: 0, energy: p2energy,
+        hand: [], handSize: p2handSize,
+        zenith: [], points: 0, energy: p2energy,
         timerSeconds: 1500, lockedFromPlaying: false,
       },
     },
-    zones: { deckSize: 40, horizon: horizon.map(entry), trash, voidSize },
+    zones: { deckSize: 40, horizon: horizon.map(entry), dusk, reshufflesRemaining: 0 },
     pendingChoice: null,
     cardsPlayedThisTurn: horizon.length,
   }
@@ -50,6 +53,9 @@ function proj({
 const ON_HORIZON_POINT = { cardId: POINT, playedBy: 'p1' }
 const ON_HORIZON_STOP  = { cardId: STOP,  playedBy: 'p2' }
 const ON_HORIZON_DENY  = { cardId: DENY,  playedBy: 'p1' }
+
+const DUSK_START = [FILL1, FILL2]
+const DUSK_END = [FILL1, FILL2, DENY, STOP]
 
 // The scripted beats, in order. mode drives how a beat advances:
 //   'continue' — wait for the player to click Continue
@@ -65,63 +71,63 @@ const BEATS = [
   {
     mode: 'continue',
     state: proj({ p1hand: [POINT, DENY, FILL1, FILL2], p2handSize: 1, p1energy: 0 }),
-    narration: 'We want to play a **point card**, as each point card gains you **one point**. The goal of Horizons is to get to **5 points**.',
+    narration: 'We want to play a **point card**. When a point **rises** it goes into your **zenith** — your own face-up scoring pile. Whoever has the most points there at the end wins.',
   },
   {
     mode: 'action', expect: { action: 'void', cardId: FILL1 }, highlight: FILL1,
     state: proj({ p1hand: [POINT, DENY, FILL1, FILL2], p2handSize: 1, p1energy: 0 }),
-    narration: 'Let’s build up energy to play **Ambition**. Each card in your hand is worth **3 energy** when it’s voided. Click **Dig for Ideas**, then hit **Void (+3)** to send it away for energy.',
+    narration: 'Let’s build up energy to play **Splendor**. Each card in your hand is worth **3 energy** when it’s voided into the **dusk**. Click **Dig For Ideas**, then hit **Void (+3)**.',
   },
   {
     mode: 'action', expect: { action: 'void', cardId: FILL2 }, highlight: FILL2,
-    state: proj({ p1hand: [POINT, DENY, FILL2], p2handSize: 1, p1energy: 3, voidSize: 1 }),
-    narration: 'You gained **3 energy**! Your point card costs **5** total, so void **Sort**. You can have excess energy but it goes away at the end of each turn.',
+    state: proj({ p1hand: [POINT, DENY, FILL2], p2handSize: 1, p1energy: 3, dusk: [FILL1] }),
+    narration: 'You gained **3 energy**! Your point card costs **5**, so void **Sort** as well. Leftover energy is fine, but all of it goes away at the end of the turn.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: POINT }, highlight: POINT,
-    state: proj({ p1hand: [POINT, DENY], p2handSize: 1, p1energy: 6, voidSize: 2 }),
-    narration: 'Play your point card. Click **Ambition**, then hit **Play**.',
+    state: proj({ p1hand: [POINT, DENY], p2handSize: 1, p1energy: 6, dusk: DUSK_START }),
+    narration: 'Play your point card. Click **Splendor**, then hit **Play**.',
   },
   {
     mode: 'continue',
-    state: proj({ horizon: [ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 1, active: 'p2', p1energy: 1, voidSize: 2 }),
-    narration: 'Cards go onto the **horizon** before they take effect, so your opponent will have a chance to **respond** with an action.',
+    state: proj({ horizon: [ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 1, active: 'p2', p1energy: 1, dusk: DUSK_START }),
+    narration: 'Nothing happens yet. Cards wait on the **horizon** before they rise, so your opponent gets a chance to **respond** with an action.',
   },
   {
     mode: 'continue',
-    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
-    narration: 'And they do! They played **Stop** onto the horizon to trash your point. The horizon resolves **top-down**, so Stop would resolve before your point, but because plays wait here, you get to answer back.',
+    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, dusk: DUSK_START }),
+    narration: 'And they do! They played **Delusion** to send your point to the dusk. The horizon rises **top-down**, so Delusion would rise before your point — but because plays wait here, you get to answer back.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: DENY }, highlight: DENY,
-    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, voidSize: 2 }),
-    narration: 'Counter their Stop with **Deny Hostility**. It trashes an action played in response to a point card. Click it, then **Play**.',
+    state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, dusk: DUSK_START }),
+    narration: 'Counter with **Deny Hostility**. It sends an action played in response to a point straight to the dusk. Click it, then **Play**.',
   },
   {
     mode: 'action', expect: { action: 'pass' },
-    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, voidSize: 2 }),
-    narration: '**Deny Hostility** lands on top of the horizon. Your opponent has no answer and passes priority, and now you’ll pass priority too. When both players pass, the top card resolves. Hit **Pass** (or press Space).',
+    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, dusk: DUSK_START }),
+    narration: '**Deny Hostility** lands on top of the horizon. Your opponent has no answer and passes, and now you’ll pass too. When both players pass, the top card **rises**. Hit **Pass** (or press Space).',
   },
   {
     mode: 'continue',
     events: [{ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: STOP }],
-    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'With the horizon clear, your point card finally resolves and now you **score a point!** 🎉',
+    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
+    narration: 'Deny Hostility rises and takes Delusion with it — both land in the **dusk**. With the horizon clear your point rises into your **zenith**. That’s a point! 🎉',
   },
   {
     mode: 'continue',
-    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'Notice your hand is empty, you voided and played everything. That’s supposed to happen! At the **end of your turn** you draw until you have **5 cards** in hand.',
+    state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
+    narration: 'Notice your hand is empty — you voided and played everything. That’s supposed to happen! At the **end of your turn** you draw until you have **5 cards** in hand.',
   },
   {
     mode: 'continue',
-    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'Now your hand refilled but your opponent’s didn’t. This is because you only draw at the end of your own turn (and the first turn if you didn’t start) so you have to conserve resources during your opponent’s turn.',
+    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
+    narration: 'Now your hand refilled but your opponent’s didn’t. You only draw at the end of your own turn, so you have to conserve resources during theirs.',
   },
   {
     mode: 'done',
-    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1points: 1, p1energy: 0, p2energy: 0, trash: [STOP, DENY, POINT], voidSize: 2 }),
-    narration: 'That’s Horizons: **void** cards for energy, then play them onto the **horizon** where opponents can **respond** with actions. Your hand refills to **5** each turn, and the first to **5 points** wins. You’re ready!',
+    state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
+    narration: 'That’s Horizons: **void** for energy, play onto the **horizon** where opponents can **respond**, and let your points **rise** into your **zenith**. The deck is finite — when it runs out the sun sets and the biggest zenith wins. You’re ready!',
   },
 ]
 

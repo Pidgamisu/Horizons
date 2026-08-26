@@ -1,16 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
 
-function PointPips({ points, max = 5 }) {
+function ZenithScore({ points }) {
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-      {Array.from({ length: max }).map((_, i) => (
-        <div key={i} style={{
-          width: 10, height: 10, borderRadius: '50%',
-          background: i < points ? '#ff0099' : 'rgba(255,255,255,0.12)',
-          boxShadow: i < points ? '0 0 6px rgba(255,0,153,0.7)' : 'none',
-          transition: 'all 0.25s',
-        }} />
-      ))}
+    <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+      <span style={{
+        fontSize: 18, fontWeight: 700, color: '#9aff4d',
+        textShadow: '0 0 8px rgba(154,255,77,0.6)', minWidth: 14, textAlign: 'right',
+      }}>{points}</span>
+      <span style={{ fontSize: 10, letterSpacing: 0.6, color: 'rgba(255,255,255,0.5)' }}>
+        {points === 1 ? 'POINT' : 'POINTS'}
+      </span>
     </div>
   )
 }
@@ -91,7 +90,7 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
             </span>
           )}
         </div>
-        <PointPips points={state?.points ?? 0} />
+        <ZenithScore points={state?.zenith?.length ?? state?.points ?? 0} />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

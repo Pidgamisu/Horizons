@@ -50,7 +50,7 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
   )
 }
 
-export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnergy = 0, onRespond }) {
+export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy = 0, onRespond }) {
   const [selected, setSelected] = useState([])
 
   const toggle = (id) => {
@@ -74,16 +74,16 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     const { type } = choice
 
     // Binary "pay the ransom" choice — no card selection needed.
-    if (type === 'trashUnlessControllerPays') { onRespond({ pay: true }); return }
+    if (type === 'duskUnlessControllerPays') { onRespond({ pay: true }); return }
 
-    // "Any number" trash allows confirming with zero cards selected.
+    // "Any number" allows confirming with zero cards selected.
     if (type === 'duskAnyNumberFromHand') { onRespond({ cardIds: selected }); setSelected([]); return }
 
     if (selected.length === 0) return
 
     if (type === 'duskFromHand') {
       onRespond({ cardIds: selected })
-    } else if (type === 'putFromDuskToHand' || type === 'putFromTrashToDeckBottom') {
+    } else if (type === 'putFromDuskToHand' || type === 'putFromDuskToDeckBottom') {
       onRespond({ cardIds: selected })
     } else if (['duskFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl', 'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget', 'controllerMovesCardFromHorizonTarget'].includes(type)) {
       onRespond({ horizonIndex: parseInt(selected[0]) })
@@ -92,7 +92,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     } else if (type === 'putHandCardOnDeckTop' || type === 'chooseCardToDuskFromRevealedHand' || type === 'opponentChoosesOne') {
       onRespond({ cardId: selected[0] })
     } else if (type === 'lookAtTopN') {
-      onRespond({ trashCardId: selected[0] })
+      onRespond({ duskCardId: selected[0] })
     } else if (type === 'mayPlayFromHand') {
       onRespond({ play: true, cardId: selected[0] })
     } else if (type === 'additionalCost') {
@@ -109,7 +109,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
   const decline = () => {
     if (choice.type === 'optional') {
       onRespond({ accept: false })
-    } else if (choice.type === 'trashUnlessControllerPays') {
+    } else if (choice.type === 'duskUnlessControllerPays') {
       onRespond({ pay: false })
     } else if (choice.type === 'mayPlayFromHand') {
       onRespond({ play: false })
@@ -119,13 +119,11 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
 
   const { type, count, filter } = choice
 
-  // Horizon cards offered as targets, keyed by their real horizon index. A card
-  // that is currently resolving stays on the horizon but can't be chosen by its
-  // own effect, so it's excluded here (the engine enforces this too).
+  // Horizon cards offered as targets, keyed by their real horizon index. A
+  // rising card has already left the horizon, so there is nothing to exclude.
   const horizonTargets = () =>
     horizonCards
       .map((e, i) => ({ e, i }))
-      .filter(({ e }) => !e.resolving)
       .map(({ e, i }) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
 
   // ── Render by choice type ──────────────────────────────────────────────────
@@ -213,86 +211,86 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     confirmLabel = 'Target'
   }
 
-  else if (type === 'trashUnlessControllerPays') {
+  else if (type === 'duskUnlessControllerPays') {
     const ransom = choice.ransom
     const targetName = cardName(choice.targetCardId)
     isOptional = true
-    declineLabel = `Let ${targetName} be trashed`
+    declineLabel = `Let ${targetName} go to the dusk`
     if (ransom?.type === 'payEnergy') {
       const cost = choice.ransomCost ?? 0
       title = `Pay ${cost} energy to save ${targetName}?`
-      subtitle = `Otherwise it is trashed. You have ${myEnergy} energy.`
+      subtitle = `Otherwise it goes to the dusk. You have ${myEnergy} energy.`
       confirmLabel = `Pay ${cost}`
       canConfirm = myEnergy >= cost
     } else {
-      title = `Save ${targetName} from being trashed?`
-      subtitle = 'Pay by putting a card from the trash on the bottom of the deck.'
+      title = `Save ${targetName} from the dusk?`
+      subtitle = 'Pay by putting a card from the dusk on the bottom of the deck.'
       confirmLabel = 'Pay'
       canConfirm = true
     }
   }
 
   else if (type === 'lookAtTopN') {
-    title = 'Look at the top cards — trash one'
+    title = 'Look at the top cards — put one in the dusk'
     subtitle = 'Then draw a card'
     cards = (choice.revealed ?? []).map(id => ({ id, label: null }))
     canConfirm = selected.length === 1
-    confirmLabel = 'Trash'
+    confirmLabel = 'To the dusk'
   }
 
   else if (type === 'chooseCardToDuskFromRevealedHand') {
     const filterLabel = !filter || filter === 'any' ? 'card' : `${filter} card`
-    title = `Choose a ${filterLabel} to trash from your opponent’s hand`
+    title = `Choose a ${filterLabel} to put in the dusk from your opponent’s hand`
     subtitle = 'Their hand is revealed'
     const hand = choice.revealedHand ?? []
     cards = hand
       .filter(id => !filter || filter === 'any' || cardType(id) === filter)
       .map(id => ({ id, label: null }))
     canConfirm = selected.length === 1
-    confirmLabel = 'Trash'
+    confirmLabel = 'To the dusk'
   }
 
-  else if (type === 'putFromTrashToDeckBottom') {
-    title = `Put ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the trash on the bottom of the deck`
-    subtitle = 'Choose from the trash to pay the ransom'
-    cards = trashCards.map(id => ({ id, label: null }))
+  else if (type === 'putFromDuskToDeckBottom') {
+    title = `Put ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the dusk on the bottom of the deck`
+    subtitle = 'Choose from the dusk to pay the ransom'
+    cards = duskCards.map(id => ({ id, label: null }))
     canConfirm = selected.length === (count ?? 1)
     confirmLabel = 'Put on Deck Bottom'
   }
 
   else if (type === 'duskAnyNumberFromHand') {
     const bonus = choice.drawPlus ?? 0
-    title = 'Trash any number of cards from your hand'
+    title = 'Put any number of cards from your hand into the dusk'
     subtitle = `Then draw that many${bonus ? ` plus ${bonus}` : ''}. Select any number, or none.`
     cards = myHand.map(id => ({ id, label: null }))
     canConfirm = true // zero is a valid choice
     confirmLabel = selected.length
-      ? `Trash ${selected.length} & draw ${selected.length + bonus}`
-      : `Trash none & draw ${bonus}`
+      ? `Dusk ${selected.length} & draw ${selected.length + bonus}`
+      : `Dusk none & draw ${bonus}`
   }
 
   else if (type === 'duskFromHand') {
-    title = `Trash ${count} card${count !== 1 ? 's' : ''} from your hand`
-    subtitle = `Select ${count} card${count !== 1 ? 's' : ''} to trash`
+    title = `Put ${count} card${count !== 1 ? 's' : ''} from your hand into the dusk`
+    subtitle = `Select ${count} card${count !== 1 ? 's' : ''} to put in the dusk`
     cards = myHand.map(id => ({ id, label: null }))
     canConfirm = selected.length === count
-    confirmLabel = 'Trash'
+    confirmLabel = 'To the dusk'
   }
 
   else if (type === 'putFromDuskToHand') {
-    title = `Take ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the trash`
+    title = `Take ${count ?? 1} card${(count ?? 1) !== 1 ? 's' : ''} from the dusk`
     subtitle = 'Choose a card to put into your hand'
-    cards = trashCards.map(id => ({ id, label: null }))
+    cards = duskCards.map(id => ({ id, label: null }))
     canConfirm = selected.length === (count ?? 1)
   }
 
   else if (type === 'duskFromHorizon' || type === 'duskFromHorizonChoice') {
     const filterLabel = filter === 'any' ? 'card' : `${filter} card`
-    title = `Trash a ${filterLabel} from the horizon`
-    subtitle = 'Select a card to trash'
+    title = `Put a ${filterLabel} from the horizon into the dusk`
+    subtitle = 'Select a card to put in the dusk'
     cards = horizonTargets()
     canConfirm = selected.length === 1
-    confirmLabel = 'Trash'
+    confirmLabel = 'To the dusk'
   }
 
   else if (type === 'returnToControllerHand') {
@@ -347,7 +345,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, trashCards, myEnerg
     title = 'Pay additional cost'
     const costType = choice.cost?.type
     if (costType === 'duskFromHand') {
-      subtitle = 'Trash a card from your hand to play this card'
+      subtitle = 'Put a card from your hand into the dusk to play this card'
       cards = myHand.map(id => ({ id, label: null }))
       canConfirm = selected.length === 1
       confirmLabel = 'Pay & Play'

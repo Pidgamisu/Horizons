@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 
-// The four rule cards (in order). Their own art carries all styling.
-const RULE_PAGES = ['/rules/1.png', '/rules/2.png', '/rules/3.png', '/rules/4.png']
+// The rulebook pages (in order). Their own art carries all styling. The printed
+// rulebook's page 7 covers multiplayer reshuffles, which the 2-player app does
+// not use, so it is left out and Sunset follows Glossary directly.
+const RULE_PAGES = [
+  '/rules/1.png', '/rules/2.png', '/rules/3.png', '/rules/4.png',
+  '/rules/5.png', '/rules/6.png', '/rules/7.png',
+]
 
 /** Full-screen paged viewer for the printed rule cards. */
 export function RulesOverlay({ onClose }) {

@@ -39,7 +39,7 @@ function makePayload(s, ch) {
         : { cardIds: hand.slice(0, ch.cost?.count ?? 1) };
     case 'optional': return { accept: true };
     case 'revealUntilType': return { cardType: 'action' };
-    case 'lookAtTopN': return { trashCardId: (ch.revealed ?? s.zones.deck)[0] };
+    case 'lookAtTopN': return { duskCardId: (ch.revealed ?? s.zones.deck)[0] };
     case 'opponentChoosesOne': return ch.revealedCards?.length ? { cardId: ch.revealedCards[0] } : undefined;
     case 'controllerMovesCardFromStackTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
     case 'controllerMovesCardFromStack': return { destination: 'deckTop' };
@@ -48,8 +48,8 @@ function makePayload(s, ch) {
     case 'duskUnlessControllerPaysTarget': { const i=findStack(); return i>=0 ? { stackIndex:i } : { stackIndex:0 }; }
     case 'mayPlayFromHand': return { play: false };
     case 'mayPlayTopOfDeck': return { play: false };
-    case 'trashUnlessControllerPays': return { pay: false };
-    case 'putFromTrashToDeckBottom': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
+    case 'duskUnlessControllerPays': return { pay: false };
+    case 'putFromDuskToDeckBottom': return { cardIds: s.zones.dusk.slice(0, ch.count ?? 1) };
     case 'chooseCardToTrashFromRevealedHand': {
       const cand = (ch.revealedHand ?? []).filter(id => !ch.filter || ch.filter === 'any' || getCard(id).type === ch.filter);
       return cand.length ? { cardId: cand[0] } : undefined;
@@ -58,7 +58,7 @@ function makePayload(s, ch) {
   }
 }
 
-const CHOICE_TRIGGER_TYPES = new Set(['duskFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromDuskToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','trashUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','duskUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
+const CHOICE_TRIGGER_TYPES = new Set(['duskFromHandChoice','trashFromStackChoice','returnStackCardToHandChoice','stealFromStackChoice','gainControlChoice','putFromDuskToHandChoice','optionalEffectChoice','additionalCost','putHandCardOnDeckTop','revealUntilType','opponentChoosesOne','controllerMovesCardFromStack','lookAtTopN','chooseNumber','chooseCardToTrashFromRevealedHand','duskUnlessControllerPays','trashFromRevealed','conditionalPlay','trashFromRevealedHand','mayPlayFromHand','mayPlayTopOfDeck','moveFromStackToDeckTop','chooseCardType','confirmFreePlay','duskUnlessControllerPaysTarget','controllerMovesCardFromStackTarget','revealTopN','mayPlayFromHand','mayPlayTopOfDeck']);
 
 function sweepCard(card) {
   const s = setup();

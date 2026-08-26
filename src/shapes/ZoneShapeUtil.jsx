@@ -24,7 +24,7 @@ export class ZoneShapeUtil extends BaseBoxShapeUtil {
 
     // Single-card piles render as card-shaped slots; the deck is a stack of
     // card backs. Everything matches the card look (rounded 8px, card aspect).
-    if (zoneType === 'deck' || zoneType === 'trash' || zoneType === 'void') {
+    if (zoneType === 'deck' || zoneType === 'dusk' || zoneType === 'zenith' || zoneType === 'zenith-opp') {
       return <PileSlot kind={zoneType} label={label} count={count} w={w} h={h} />
     }
 
@@ -77,15 +77,17 @@ function PileSlot({ kind, label, count, w, h }) {
   const depth = isDeck ? Math.min(3, Math.max(0, n - 1)) : 0
 
   const tint = {
-    deck:  'rgba(255,0,153,0.05)',
-    trash: 'rgba(255,77,120,0.07)',
-    void:  'rgba(177,77,255,0.07)',
+    deck:          'rgba(255,0,153,0.05)',
+    dusk:          'rgba(255,153,77,0.07)',
+    'zenith':      'rgba(154,255,77,0.08)',
+    'zenith-opp':  'rgba(154,255,77,0.05)',
   }[kind] || 'rgba(255,255,255,0.04)'
 
   const stroke = {
-    deck:  'rgba(255,0,153,0.30)',
-    trash: 'rgba(255,77,120,0.32)',
-    void:  'rgba(177,77,255,0.34)',
+    deck:          'rgba(255,0,153,0.30)',
+    dusk:          'rgba(255,153,77,0.34)',
+    'zenith':      'rgba(154,255,77,0.40)',
+    'zenith-opp':  'rgba(154,255,77,0.26)',
   }[kind] || 'rgba(255,255,255,0.14)'
 
   return (

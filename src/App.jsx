@@ -13,6 +13,9 @@ import { ChoicePrompt } from './ui/ChoicePrompt.jsx'
 import { GameOver, Lobby, Toast, BrandBackdrop } from './ui/GameOver.jsx'
 import { CardTooltip } from './ui/CardTooltip.jsx'
 import { ZoneViewer } from './ui/ZoneViewer.jsx'
+
+// Face-up piles whose full contents are readable at any time (rulebook p5).
+const PILE_ZONES = new Set(['dusk', 'zenith', 'zenith-opp'])
 import { RulesOverlay } from './ui/Rules.jsx'
 import { CoachOverlay } from './ui/CoachOverlay.jsx'
 import { cardName, cardImageSrc } from './data/cardImages.js'
@@ -89,14 +92,14 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
         hitLocked: true,
         filter: (s) =>
           (s.type === 'horizons-card' && !!s.props.cardId) ||
-          (s.type === 'horizons-zone' && s.props.zoneType === 'trash'),
+          (s.type === 'horizons-zone' && PILE_ZONES.has(s.props.zoneType)),
       })
       if (!shape) return
-      // Clicking anywhere on the trash pile (a trashed card or the zone itself)
+      // Clicking anywhere on a face-up pile (a card in it or the zone itself)
       // opens the full-pile viewer, since the canvas only shows the top cards.
-      if (shape.type === 'horizons-zone') { onZoneClick('trash'); return }
+      if (shape.type === 'horizons-zone') { onZoneClick(shape.props.zoneType); return }
       const { cardId, zone } = shape.props
-      if (zone === 'trash') onZoneClick('trash')
+      if (PILE_ZONES.has(zone)) onZoneClick(zone)
       else if (zone === 'hand') onCardClick(cardId)
       else if (zone === 'horizon') onHorizonCardClick(cardId, editor)
     }
@@ -212,7 +215,7 @@ export default function App() {
       for (const ev of detail.events) {
         // Any effect that removes a card from the horizon before it resolves = countered.
         if (HORIZON_REMOVAL_EVENTS.has(ev.type)) addToast(`${cardName(ev.cardId)} countered!`)
-        if (ev.type === 'HORIZON_CLEARED') addToast(`Horizon cleared — ${ev.cards?.length ?? 0} trashed`)
+        if (ev.type === 'HORIZON_CLEARED') addToast(`Horizon cleared — ${ev.cards?.length ?? 0} to the dusk`)
         if (ev.type === 'HAND_REVEALED') {
           const me = client.playerId
           const opp = me === 'p1' ? 'p2' : 'p1'
@@ -286,7 +289,7 @@ export default function App() {
     setViewingZone(zoneType)
   }, [])
 
-  const handlePlayFromTrash = useCallback((cardId) => {
+  const handlePlayFromDusk = useCallback((cardId) => {
     client.playCard(cardId, { fromDusk: true })
     setViewingZone(null)
     setSelectedCard(null)
@@ -427,7 +430,7 @@ export default function App() {
           choice={pendingChoice}
           myHand={myState?.hand ?? []}
           horizonCards={gameState?.zones?.horizon ?? []}
-          trashCards={gameState?.zones?.trash ?? []}
+          duskCards={gameState?.zones?.dusk ?? []}
           myEnergy={myState?.energy ?? 0}
           onRespond={(payload) => { gameClient.choose(payload); setSelectedCard(null) }}
         />
@@ -437,12 +440,28 @@ export default function App() {
         <CardTooltip cardId={hoveredCard.cardId} point={hoveredCard.point} />
       )}
 
-      {viewingZone === 'trash' && (
+      {viewingZone === 'dusk' && (
         <ZoneViewer
-          title={myState?.canPlayFromDusk ? 'Trash — you may play from here' : 'Trash'}
-          cardIds={[...(gameState?.zones?.trash ?? [])].reverse()}
+          title={myState?.canPlayFromDusk ? 'Dusk — you may play from here' : 'Dusk'}
+          cardIds={[...(gameState?.zones?.dusk ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
-          onPlayCard={myState?.canPlayFromDusk ? handlePlayFromTrash : null}
+          onPlayCard={myState?.canPlayFromDusk ? handlePlayFromDusk : null}
+        />
+      )}
+
+      {viewingZone === 'zenith' && (
+        <ZoneViewer
+          title={`Your Zenith — ${myState?.zenith?.length ?? 0} point${(myState?.zenith?.length ?? 0) === 1 ? '' : 's'}`}
+          cardIds={[...(myState?.zenith ?? [])].reverse()}
+          onClose={() => setViewingZone(null)}
+        />
+      )}
+
+      {viewingZone === 'zenith-opp' && (
+        <ZoneViewer
+          title={`Their Zenith — ${oppState?.zenith?.length ?? 0} point${(oppState?.zenith?.length ?? 0) === 1 ? '' : 's'}`}
+          cardIds={[...(oppState?.zenith ?? [])].reverse()}
+          onClose={() => setViewingZone(null)}
         />
       )}
 
