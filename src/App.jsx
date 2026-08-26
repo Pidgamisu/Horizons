@@ -36,6 +36,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
   const editor = useEditor()
   const boardRef = useRef(null)
   const suppressClickRef = useRef(false)
+  const hasFitRef = useRef(false)
 
   useEffect(() => {
     if (!editor) return
@@ -47,17 +48,28 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     const idle = editor.getStateDescendant('select.idle')
     if (idle) idle.onDoubleClick = () => void 0
     boardRef.current = new BoardManager(editor)
+    hasFitRef.current = false
     // Re-sync game state now that editor is ready
     if (gameState && myPlayerId) {
       boardRef.current.syncState(gameState, myPlayerId)
     }
-    setTimeout(() => boardRef.current?.fitBoard(), 100)
     return () => { boardRef.current?.dispose(); boardRef.current = null }
   }, [editor])
 
   useEffect(() => {
     if (!editor || !boardRef.current || !gameState || !myPlayerId) return
     boardRef.current.syncState(gameState, myPlayerId)
+    // Fit once the board actually has cards on it. Fitting on a timer instead
+    // raced the first sync: the player who JOINS a game gets their state after
+    // the editor mounts, so the fit ran against an empty page and zoomed to
+    // nothing — their cards were laid out correctly but far too small to see,
+    // and nothing re-fit until something else moved the camera.
+    if (!hasFitRef.current && boardRef.current.hasCards()) {
+      hasFitRef.current = true
+      // Called directly, not via requestAnimationFrame: a hidden tab fires no
+      // frames, and the board must be framed correctly there too.
+      boardRef.current.fitBoard()
+    }
   }, [editor, gameState, myPlayerId])
 
   useEffect(() => {

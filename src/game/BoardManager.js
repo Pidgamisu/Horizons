@@ -330,6 +330,12 @@ export class BoardManager {
     if (updates.length) this.editor.updateShapes(updates)
   }
 
+  /** Does the board have any cards laid out yet? Used to fit the camera only
+   *  once there is something to fit. */
+  hasCards() {
+    return this.editor.getCurrentPageShapes().some(s => s.type === 'horizons-card')
+  }
+
   fitBoard() {
     this.editor.zoomToFit()
   }
