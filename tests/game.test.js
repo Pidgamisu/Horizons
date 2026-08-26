@@ -11,7 +11,7 @@ import {
 import { validatePlay } from '../src/engine/validation.js';
 import { resolveChoice } from '../src/engine/choices.js';
 import { executeOnPlayEffects } from '../src/effects/executor.js';
-import { advancePendingChoices } from '../src/server.js';
+import { advancePendingChoices, buildChoicePrompt } from '../src/server.js';
 import { ALL_CARD_IDS, getCard } from '../src/data/cardDb.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -852,5 +852,90 @@ describe('Multi-step cards', () => {
     expect(state.players.p1.hand).toContain('002');
     expect(state.players.p1.hand).toContain('050');
     expect(state.players.p2.hand).not.toContain('002');
+  });
+});
+
+// ─── Choice prompts only offer legal targets ──────────────────────────────────
+
+describe('Choice prompts', () => {
+  // A prompt must never show a card the engine would reject. The legal indexes
+  // are computed server-side with the engine's own matcher.
+  function promptFor(state, choice) {
+    return buildChoicePrompt(state, { player: 'p1', ...choice }, 'p1');
+  }
+
+  test('an action-only effect does not offer points', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [
+      createHorizonEntry('002', 'p2'),   // point
+      createHorizonEntry('050', 'p2'),   // action
+      createHorizonEntry('004', 'p2'),   // point
+    ];
+    const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'action' });
+    expect(prompt.legalHorizonIndexes).toEqual([1]);
+  });
+
+  test('a point-only effect does not offer actions', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [
+      createHorizonEntry('050', 'p2'),   // action
+      createHorizonEntry('002', 'p2'),   // point
+    ];
+    const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'point' });
+    expect(prompt.legalHorizonIndexes).toEqual([1]);
+  });
+
+  test('an "any" effect offers every card on the horizon', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [createHorizonEntry('050', 'p2'), createHorizonEntry('002', 'p2')];
+    const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'any' });
+    expect(prompt.legalHorizonIndexes).toEqual([0, 1]);
+  });
+
+  test('Change of Luck (068) only offers points', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [createHorizonEntry('050', 'p2'), createHorizonEntry('002', 'p2')];
+    const prompt = promptFor(state, { type: 'putPointFromHorizonIntoZenith', filter: 'point' });
+    expect(prompt.legalHorizonIndexes).toEqual([1]);
+  });
+
+  test('Deny Hostility (079) only offers actions played in response to a point', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [
+      createHorizonEntry('050', 'p2', { respondedToCardType: 'action' }),  // wrong response
+      createHorizonEntry('051', 'p2', { respondedToCardType: 'point' }),   // this one
+      createHorizonEntry('002', 'p2'),                                     // a point
+    ];
+    const prompt = promptFor(state, {
+      type: 'duskFromHorizon', filter: 'actionPlayedInResponseToPoint',
+    });
+    expect(prompt.legalHorizonIndexes).toEqual([1]);
+  });
+
+  test('Enlightenment (075) only offers cards matching the dusked cost', () => {
+    const { state } = freshGame();
+    // 002 Momentum costs 6, 004 Inquire costs 6, 050 Bounce Back costs 1.
+    state.zones.horizon = [
+      createHorizonEntry('050', 'p2'),
+      createHorizonEntry('002', 'p2'),
+      createHorizonEntry('004', 'p2'),
+    ];
+    const prompt = promptFor(state, { type: 'duskFromHorizon', filter: { costEquals: 6 } });
+    expect(prompt.legalHorizonIndexes).toEqual([1, 2]);
+  });
+
+  test('a non-horizon choice is passed through untouched', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [createHorizonEntry('002', 'p2')];
+    const prompt = promptFor(state, { type: 'duskFromHand', count: 1 });
+    expect(prompt.legalHorizonIndexes).toBe(undefined);
+  });
+
+  test('the opponent only learns that a choice is pending, not its contents', () => {
+    const { state } = freshGame();
+    state.zones.horizon = [createHorizonEntry('002', 'p2')];
+    const prompt = buildChoicePrompt(state, { player: 'p1', type: 'duskFromHorizon', filter: 'any' }, 'p2');
+    expect(prompt.waitingFor).toBe('opponent');
+    expect(prompt.legalHorizonIndexes).toBe(undefined);
   });
 });

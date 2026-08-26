@@ -126,10 +126,17 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
 
   // Horizon cards offered as targets, keyed by their real horizon index. A
   // rising card has already left the horizon, so there is nothing to exclude.
-  const horizonTargets = () =>
-    horizonCards
+  // Only cards this choice can actually take. The server computes the legal
+  // indexes with the engine's own matcher, so a prompt never shows a card that
+  // would be rejected — an "action only" effect simply doesn't display points.
+  // Indexes stay the real horizon indexes, since that's what the payload sends.
+  const horizonTargets = () => {
+    const legal = choice.legalHorizonIndexes
+    return horizonCards
       .map((e, i) => ({ e, i }))
+      .filter(({ i }) => !legal || legal.includes(i))
       .map(({ e, i }) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+  }
 
   // ── Render by choice type ──────────────────────────────────────────────────
 

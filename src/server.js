@@ -1,6 +1,6 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createGameState, initDeck, opponent, canPlayFromDusk, CHOICE_TRIGGER_TYPES } from './engine/state.js';
+import { createGameState, initDeck, opponent, canPlayFromDusk, CHOICE_TRIGGER_TYPES, horizonEntryMatchesFilter } from './engine/state.js';
 import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
 
@@ -90,7 +90,7 @@ function broadcastState(room) {
           reshufflesRemaining: state.reshufflesRemaining,
         },
         pendingChoice: state.pendingChoice
-          ? buildChoicePrompt(state.pendingChoice, slot)
+          ? buildChoicePrompt(state, state.pendingChoice, slot)
           : null,
         cardsPlayedThisTurn: state.cardsPlayedThisTurn.length,
       },
@@ -103,11 +103,29 @@ function broadcastState(room) {
  * Build a choice prompt for a specific player.
  * If the choice is for the other player, send { waitingFor: 'opponent' }.
  */
-function buildChoicePrompt(choice, forPlayer) {
+// Choice types whose targets are cards on the horizon. For these the prompt is
+// told which indexes are actually legal, so it never offers a card the engine
+// would reject (e.g. a point when the card can only take an action).
+const HORIZON_TARGET_CHOICES = new Set([
+  'duskFromHorizon', 'returnToControllerHand', 'stealFromHorizon', 'gainControl',
+  'moveFromHorizonToDeckTop', 'duskUnlessControllerPaysTarget',
+  'controllerMovesCardFromHorizonTarget', 'putPointFromHorizonIntoZenith',
+  'moveOnHorizonToTop', 'returnTwoDifferentControllers',
+]);
+
+export function buildChoicePrompt(state, choice, forPlayer) {
   if (choice.player !== forPlayer) {
     return { waitingFor: 'opponent', type: choice.type };
   }
-  return choice; // full choice data for the player who must respond
+  if (!HORIZON_TARGET_CHOICES.has(choice.type)) {
+    return choice; // full choice data for the player who must respond
+  }
+  // Computed with the engine's own matcher, so the prompt and the rules can
+  // never drift apart.
+  const legalHorizonIndexes = state.zones.horizon
+    .map((entry, i) => (horizonEntryMatchesFilter(entry, choice.filter) ? i : -1))
+    .filter(i => i !== -1);
+  return { ...choice, legalHorizonIndexes };
 }
 
 /**
