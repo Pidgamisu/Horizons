@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  drawCards, duskCardFromHand, duskHand, duskFromHorizon,
-  sendToDusk, sendToZenith, removeFromHorizon, shuffle, opponent, controllerOf,
+  drawCards, duskHand,
+  sendToDusk, shuffle, opponent, controllerOf,
   horizonHasTarget, reshuffleDuskIntoDeck, pointsOf, bothTypesToDuskThisTurn,
 } from '../engine/state.js';
 
@@ -749,15 +749,5 @@ function evaluateCardCondition(state, condition, playerId) {
   }
 }
 
-function evaluateResolutionCondition(state, condition) {
-  if (condition.type === 'countInDusk') {
-    const count = state.zones.dusk.filter(id => {
-      const c = getCard(id);
-      return condition.filter === 'any' || c.type === condition.filter;
-    }).length;
-    return count >= (condition.minimum ?? 0);
-  }
-  return false;
-}
 
 

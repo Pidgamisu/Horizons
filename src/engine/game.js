@@ -1,6 +1,6 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  createGameState, createHorizonEntry, createTurnFlags,
+  createHorizonEntry, createTurnFlags,
   drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost,
   isDeckSpent, pointsOf,
 } from './state.js';

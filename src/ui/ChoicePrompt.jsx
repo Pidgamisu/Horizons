@@ -146,7 +146,6 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   let isDestinationChoice = false
 
   if (type === 'controllerMovesCardFromHorizonTarget') {
-    const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller will move it to the top or bottom of the deck'
     cards = horizonTargets()
@@ -179,7 +178,6 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'mayPlayFromHand') {
-    const filterLabel = !filter || filter === 'any' ? 'card' : `${filter} card`
     title = `Play a ${filterLabel} from your hand for 0 energy?`
     subtitle = 'Choose one, or decline'
     cards = myHand
@@ -208,7 +206,6 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'duskUnlessControllerPaysTarget') {
-    const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Choose a ${filterLabel} on the horizon`
     subtitle = 'Its controller may pay the ransom to save it'
     cards = horizonTargets()
@@ -244,7 +241,6 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'chooseCardToDuskFromRevealedHand') {
-    const filterLabel = !filter || filter === 'any' ? 'card' : `${filter} card`
     title = `Choose a ${filterLabel} to put in the dusk from your opponent’s hand`
     subtitle = 'Their hand is revealed'
     const hand = choice.revealedHand ?? []
@@ -346,7 +342,6 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'duskFromHorizon' || type === 'duskFromHorizonChoice') {
-    const filterLabel = filter === 'any' ? 'card' : `${filter} card`
     title = `Put a ${filterLabel} from the horizon into the dusk`
     subtitle = 'Select a card to put in the dusk'
     cards = horizonTargets()

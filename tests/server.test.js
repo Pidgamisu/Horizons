@@ -115,7 +115,7 @@ describe('Connection and room management', () => {
 
 describe('Game actions over WebSocket', () => {
   test('voiding a card gives 3 energy', async () => {
-    const { p1, p2, p1State } = await startTestGame();
+    const { p1, p1State } = await startTestGame();
     const cardToVoid = p1State.state.players.p1.hand[0];
     p1.send({ type: 'VOID_CARD', cardId: cardToVoid });
     const state = await p1.nextState();
@@ -124,7 +124,7 @@ describe('Game actions over WebSocket', () => {
   });
 
   test('p2 cannot pass priority when p1 holds it', async () => {
-    const { p1, p2 } = await startTestGame();
+    const { p2 } = await startTestGame();
     p2.send({ type: 'PASS_PRIORITY' });
     const err = await p2.nextError();
     expect(err.code).toBe('NOT_YOUR_PRIORITY');
@@ -168,7 +168,7 @@ describe('Game actions over WebSocket', () => {
   });
 
   test('full turn: p1 voids cards, ends turn, draws back to 5', async () => {
-    const { p1, p2, p1State } = await startTestGame();
+    const { p1, p1State } = await startTestGame();
 
     // Void 3 cards sequentially, awaiting state after each
     const hand = [...p1State.state.players.p1.hand];

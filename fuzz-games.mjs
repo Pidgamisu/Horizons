@@ -10,7 +10,7 @@
  * The "rejected choice answers" list is mostly the fuzz picking an illegal
  * option on purpose; an "Unhandled ... type" line there is a real gap.
  */
-import { createGameState, initDeck, pointsOf } from './src/engine/state.js';
+import { createGameState, initDeck } from './src/engine/state.js';
 import { startGame, playCard, passPriority, voidCard } from './src/engine/game.js';
 import { resolveChoice } from './src/engine/choices.js';
 import { advancePendingChoices } from './src/server.js';

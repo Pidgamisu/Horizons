@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test tests/game.test.js tests/server.test.js"
+    "test": "eslint src tests cards-sweep.mjs fuzz-games.mjs && node --test tests/game.test.js tests/server.test.js",
+    "lint": "eslint src tests cards-sweep.mjs fuzz-games.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.0.0",
@@ -15,5 +16,10 @@
     "tldraw": "^5.1.1",
     "vite": "^5.0.0",
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0"
   }
 }

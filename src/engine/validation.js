@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
   computeActualCost, isHorizonLocked, canPlayFromDusk,
-  opponentPointResponseAllowed, opponent, controllerOf,
+  opponentPointResponseAllowed, controllerOf,
 } from './state.js';
 
 /**

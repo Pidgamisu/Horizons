@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import {
-  createGameState, createHorizonEntry, initDeck, drawCards, opponent, pointsOf,
+  createGameState, createHorizonEntry, initDeck, drawCards, pointsOf,
   computeActualCost, sendToDusk,
 } from '../src/engine/state.js';
 import {
