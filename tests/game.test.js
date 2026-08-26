@@ -984,3 +984,93 @@ describe('Prompt wording', () => {
     expect(missing).toEqual([]);
   });
 });
+
+// ─── Cards that watch the dusk ────────────────────────────────────────────────
+
+describe('Cards that watch the dusk', () => {
+  test('voiding records the card as having entered the dusk', () => {
+    // Voiding is the commonest way anything reaches the dusk, and the main way a
+    // POINT gets there at all. It bypassed sendToDusk, so nothing was recorded.
+    const { state } = freshGame();
+    state.players.p1.hand = ['002', '050'];   // a point and an action
+    voidCard(state, 'p1', '002');
+    voidCard(state, 'p1', '050');
+    expect(state.cardsToDuskThisTurn).toEqual(['002', '050']);
+  });
+
+  test('Delve (003) costs 2 less once a point and an action have been voided', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002', '050'];
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    voidCard(state, 'p1', '002');
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);   // one type only
+    voidCard(state, 'p1', '050');
+    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+  });
+
+  test('Delve (003) is not discounted by two cards of the same type', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002', '004'];   // two points
+    voidCard(state, 'p1', '002');
+    voidCard(state, 'p1', '004');
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+  });
+
+  test('a risen action counts toward it too, not just voids', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002'];
+    voidCard(state, 'p1', '002');
+    state.zones.horizon.unshift(createHorizonEntry('050', 'p1'));
+    riseTopOfHorizon(state);
+    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+  });
+
+  test('the record resets at end of turn', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002', '050'];
+    voidCard(state, 'p1', '002');
+    voidCard(state, 'p1', '050');
+    endTurn(state);
+    expect(state.cardsToDuskThisTurn).toHaveLength(0);
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+  });
+});
+
+// ─── Trigger timings the engine must handle ───────────────────────────────────
+
+describe('Trigger coverage', () => {
+  // A staticEffect trigger whose `on` the engine never checks is silently inert:
+  // the card looks encoded but does nothing. cards-sweep.mjs cannot see this,
+  // because it only reports unhandled *effects*.
+  test('every trigger timing used by the card set is either handled or known-missing', () => {
+    const engineSrc = ['engine/game.js', 'engine/state.js', 'effects/executor.js', 'engine/choices.js']
+      .map(p => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8')).join('\n');
+    const handled = new Set([...engineSrc.matchAll(/on === '([^']+)'/g)].map(m => m[1]));
+
+    const used = new Map();
+    for (const id of ALL_CARD_IDS) {
+      const card = getCard(id);
+      for (const se of card.staticEffects ?? []) {
+        if (se.type === 'trigger') used.set(se.on, [...(used.get(se.on) ?? []), id]);
+      }
+      for (const e of [...(card.effects ?? []), ...(card.onPlayEffects ?? [])]) {
+        if (e.type === 'registerTrigger') used.set(e.on, [...(used.get(e.on) ?? []), id]);
+      }
+    }
+
+    // Timings that are encoded on cards but NOT yet implemented in the engine.
+    // Those cards currently do nothing. Remove entries as they are built.
+    const KNOWN_MISSING = new Set([
+      'putIntoDuskFromNonHorizon',        // 009 Wasted Ambition
+      'leavesHorizon',                    // 010 Plead, 046 Pride, 082 Fuzzy Memory
+      'leavesHorizonWithoutRising',       // 040 Agoraphobia, 041 Contentment
+      'opponentRespondsToThis',           // 044 Purity
+      'selfCardLeavesHorizonWithoutRising', // 064 Understand Despair
+    ]);
+
+    const unaccounted = [...used.keys()]
+      .filter(on => !handled.has(on) && !KNOWN_MISSING.has(on))
+      .sort();
+    expect(unaccounted).toEqual([]);
+  });
+});

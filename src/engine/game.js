@@ -322,7 +322,11 @@ export function voidCard(state, playerId, cardId) {
   if (idx === -1) return [{ type: 'ERROR', code: 'CARD_NOT_IN_HAND' }];
 
   hand.splice(idx, 1);
-  state.zones.dusk.push(cardId);
+  // Must go through sendToDusk: that is what records the card as having entered
+  // the dusk this turn, which Delve (003) and Angst (020) read. Voiding is the
+  // commonest way anything reaches the dusk — and the main way a POINT gets
+  // there at all, since points otherwise rise into a zenith.
+  sendToDusk(state, cardId);
   state.players[playerId].energy += 3;
 
   return [{ type: 'CARD_VOIDED', player: playerId, cardId, energyNow: state.players[playerId].energy }];
