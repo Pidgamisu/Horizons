@@ -939,3 +939,48 @@ describe('Choice prompts', () => {
     expect(prompt.legalHorizonIndexes).toBe(undefined);
   });
 });
+
+// ─── Prompts never show raw identifiers ───────────────────────────────────────
+
+describe('Prompt wording', () => {
+  const promptSrc = readFileSync(new URL('../src/ui/ChoicePrompt.jsx', import.meta.url), 'utf8');
+
+  // Effect types the card data actually offers through an `optional` choice.
+  function optionalEffectTypes() {
+    const types = new Set();
+    for (const id of ALL_CARD_IDS) {
+      const walk = (effects) => {
+        for (const e of effects ?? []) {
+          if (e.type === 'optional') for (const sub of e.effects ?? []) types.add(sub.type);
+          if (e.effects) walk(e.effects);
+        }
+      };
+      walk(getCard(id).effects);
+      walk(getCard(id).onPlayEffects);
+    }
+    return [...types];
+  }
+
+  test('every effect offered by an optional choice has player-facing wording', () => {
+    // Guards the bug where the prompt printed "shuffleDuskIntoDeck" verbatim.
+    const described = new Set(
+      [...promptSrc.matchAll(/^\s{2}(\w+):\s*\(/gm)].map(m => m[1])
+    );
+    const missing = optionalEffectTypes().filter(t => !described.has(t)).sort();
+    expect(missing).toEqual([]);
+  });
+
+  test('every additional cost in the card set has a prompt branch', () => {
+    // Without a branch the prompt renders no controls and the player is stuck,
+    // unable to pay and unable to decline.
+    const costTypes = new Set();
+    for (const id of ALL_CARD_IDS) {
+      for (const c of getCard(id).additionalCosts ?? []) costTypes.add(c.type);
+    }
+    const handled = new Set(
+      [...promptSrc.matchAll(/costType === '([^']+)'/g)].map(m => m[1])
+    );
+    const missing = [...costTypes].filter(t => !handled.has(t)).sort();
+    expect(missing).toEqual([]);
+  });
+});

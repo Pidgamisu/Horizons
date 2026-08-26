@@ -3,6 +3,32 @@ import { cardImageSrc, cardName, cardType } from '../data/cardImages.js'
 
 const CARD_IMG_SIZE = { w: 90, h: 126 }
 
+const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`)
+
+// Player-facing wording for the effects an optional choice offers. Without this
+// the prompt would show the raw effect type ("shuffleDuskIntoDeck").
+const EFFECT_TEXT = {
+  shuffleDuskIntoDeck: () => 'shuffle the dusk into the deck',
+  duskFromHand: (e) => `put ${plural(e.count ?? 1, 'a card', 'cards')} from your hand into the dusk`,
+  duskHand: () => 'put your hand into the dusk',
+  draw: (e) => `draw ${plural(e.count ?? 1, 'a card', 'cards')}`,
+  gainEnergy: (e) => `gain ${e.amount} energy`,
+  putFromDuskToHand: (e) => `put ${plural(e.count ?? 1, 'a card', 'cards')} from the dusk into your hand`,
+  putFromDuskToDeckTop: (e) => `put ${plural(e.count ?? 1, 'a card', 'cards')} from the dusk on top of the deck`,
+  putPointFromDuskIntoZenith: () => 'put a point from the dusk into your zenith',
+  duskFromHorizon: () => 'put a card on the horizon into the dusk',
+}
+
+/** "Put a card from your hand into the dusk, then draw a card?" */
+export function describeEffects(effects) {
+  if (!effects?.length) return null
+  const parts = effects.map(e => EFFECT_TEXT[e.type]?.(e)).filter(Boolean)
+  // Unknown effect → no description at all, rather than leaking an identifier.
+  if (parts.length !== effects.length) return null
+  const sentence = parts.join(', then ')
+  return `${sentence[0].toUpperCase()}${sentence.slice(1)}?`
+}
+
 function MiniCard({ cardId, selected, targeted, onClick, label }) {
   return (
     <div
@@ -149,6 +175,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   let canConfirm = selected.length > 0
   let isCardTypeChoice = false
   let isNumberChoice = false
+  let isAmountChoice = false
   let isFreePlayChoice = false
   let isDestinationChoice = false
 
@@ -390,9 +417,10 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
 
   else if (type === 'optional') {
     isOptional = true
-    title = 'Optional effect'
-    subtitle = choice.effects?.[0]?.type ?? 'Do you want to use this effect?'
+    title = describeEffects(choice.effects) ?? 'Use this effect?'
+    subtitle = 'This is optional — you may decline.'
     confirmLabel = 'Yes'
+    declineLabel = 'No'
     canConfirm = true
   }
 
@@ -407,6 +435,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   else if (type === 'additionalCost') {
     title = 'Pay additional cost'
     const costType = choice.cost?.type
+    const costCount = choice.cost?.count ?? 1
     if (costType === 'duskFromHand') {
       subtitle = 'Put a card from your hand into the dusk to play this card'
       cards = myHand.map(id => ({ id, label: null }))
@@ -417,6 +446,17 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
       cards = myHand.map(id => ({ id, label: null }))
       canConfirm = selected.length === 1
       confirmLabel = 'Pay & Play'
+    } else if (costType === 'putFromDuskToDeckBottom') {
+      // Abyss (048)
+      subtitle = `Put ${costCount} cards from the dusk on the bottom of the deck to play this card`
+      cards = duskCards.map(id => ({ id, label: null }))
+      canConfirm = selected.length === costCount
+      confirmLabel = 'Pay & Play'
+    } else if (costType === 'payAnyAmount') {
+      // Auction (045), Bid (058) — the amount paid feeds the card's own text.
+      isAmountChoice = true
+      title = 'Pay any amount of energy'
+      subtitle = `How much do you want to pay? You have ${myEnergy}.`
     }
   }
 
@@ -473,6 +513,10 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
             <button onClick={() => onRespond({ destination: 'deckTop' })} style={btnStyle('primary')}>Top of Deck</button>
             <button onClick={() => onRespond({ destination: 'deckBottom' })} style={btnStyle('primary')}>Bottom of Deck</button>
           </>
+        ) : isAmountChoice ? (
+          Array.from({ length: Math.min(myEnergy, 12) + 1 }, (_, n) => (
+            <button key={n} onClick={() => onRespond({ amount: n })} style={btnStyle('primary')}>{n}</button>
+          ))
         ) : isNumberChoice ? (
           [0, 1, 2, 3, 4, 5, 6, 7].map(n => (
             <button key={n} onClick={() => onRespond({ number: n })} style={btnStyle('primary')}>{n}</button>
