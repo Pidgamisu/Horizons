@@ -72,6 +72,33 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     }
   }, [editor, gameState, myPlayerId])
 
+  // Re-frame the board when the canvas changes size. Without this the camera is
+  // fitted once and never again, so resizing the window (or anything else that
+  // resizes the canvas) leaves the board badly framed — too small, or cropped.
+  useEffect(() => {
+    if (!editor || typeof ResizeObserver === 'undefined') return
+    const container = editor.getContainer()
+    if (!container) return
+
+    let timer = null
+    let lastW = container.clientWidth
+    let lastH = container.clientHeight
+
+    const observer = new ResizeObserver(() => {
+      const { clientWidth: w, clientHeight: h } = container
+      if (w === lastW && h === lastH) return   // ResizeObserver also fires on observe
+      lastW = w
+      lastH = h
+      if (!hasFitRef.current) return            // nothing laid out to frame yet
+      // Debounced, so dragging a window edge refits once at the end rather than
+      // on every intermediate size.
+      clearTimeout(timer)
+      timer = setTimeout(() => boardRef.current?.refitIfResized(), 150)
+    })
+    observer.observe(container)
+    return () => { clearTimeout(timer); observer.disconnect() }
+  }, [editor])
+
   useEffect(() => {
     if (!editor || !boardRef.current) return
     boardRef.current.selectedCardId = selectedCard

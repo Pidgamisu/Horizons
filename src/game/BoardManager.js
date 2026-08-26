@@ -34,6 +34,7 @@ export class BoardManager {
     this.selectedCardId = null
     this.myPlayerId = null
     this._lastSync = null
+    this._fitSize = null
 
     // A hidden tab gets no animation frames, so it lays cards out without
     // animating. Re-sync when it comes back so anything that moved while it was
@@ -41,6 +42,9 @@ export class BoardManager {
     this._onVisibility = () => {
       if (document.visibilityState !== 'visible' || !this._lastSync) return
       this.syncState(this._lastSync.state, this._lastSync.myPlayerId)
+      // A resize while the tab was hidden produces no ResizeObserver callback,
+      // so check for one here too.
+      this.refitIfResized()
     }
     document.addEventListener('visibilitychange', this._onVisibility)
   }
@@ -336,7 +340,27 @@ export class BoardManager {
     return this.editor.getCurrentPageShapes().some(s => s.type === 'horizons-card')
   }
 
+  _containerSize() {
+    const c = this.editor.getContainer?.()
+    return c ? { w: c.clientWidth, h: c.clientHeight } : null
+  }
+
   fitBoard() {
     this.editor.zoomToFit()
+    this._fitSize = this._containerSize()
+  }
+
+  /**
+   * Re-frame only if the canvas is a different size than when it was last
+   * fitted. ResizeObserver is delivered through the rendering lifecycle, so a
+   * hidden tab never gets the callback — this lets the visibility handler catch
+   * a resize that happened while the tab was away.
+   */
+  refitIfResized() {
+    if (!this._fitSize || !this.hasCards()) return false
+    const now = this._containerSize()
+    if (!now || (now.w === this._fitSize.w && now.h === this._fitSize.h)) return false
+    this.fitBoard()
+    return true
   }
 }
