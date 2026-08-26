@@ -3,7 +3,8 @@
 Guidance for working in this repo. Horizons is a two-player, real-time digital card game
 (MTG-style stack & priority — the shared LIFO zone is called the **horizon** in this game)
 built on **tldraw v5** + **React** for the client and a
-**WebSocket** (`ws`) game server. Goal: first to 5 points wins.
+**WebSocket** (`ws`) game server. The deck is finite: when it runs out the game ends
+(**Sunset**) and whoever has the most points in their **zenith** wins.
 
 ## ⚠️ Repo layout vs. README
 
@@ -20,15 +21,15 @@ src/
   server.js             ← WebSocket server: room management + per-player state broadcast
                           (each player sees only their own hand)
   engine/               ← Pure game logic, no I/O — the authoritative rules engine
-    state.js            ← GameState model, zones, deck/draw/trash helpers, static-effect queries
+    state.js            ← GameState model, zones, deck/draw/dusk helpers, static-effect queries
     game.js             ← Turn flow, priority passing, horizon resolution (startGame, playCard,
-                          passPriority, resolveTopOfHorizon, endTurn, voidCard)
+                          passPriority, riseTopOfHorizon, checkSunset, endTurn, voidCard)
     validation.js       ← Play-legality checks (validatePlay)
-    choices.js          ← Resolving player choices (trash N, pick target, etc.) (resolveChoice)
+    choices.js          ← Resolving player choices (dusk N, pick target, etc.) (resolveChoice)
   effects/
     executor.js         ← Effect execution engine (executeEffects, executeOnPlayEffects)
   data/
-    cards.json          ← All 90 cards (ids "00"–"89") with structured effects
+    cards.json          ← All 105 cards (ids "000"–"104") with structured effects
     cardDb.js           ← Card lookup by id
 
   main.jsx              ← Client entry point (React root)
@@ -70,8 +71,14 @@ npm run build
 # Game server (WebSocket) → ws://localhost:8080
 node src/index.js          # override port with: PORT=9000 node src/index.js
 
-# Tests (Node's built-in runner) — 66 tests, all passing
+# Tests (Node's built-in runner) — 78 tests, all passing
 npm test
+
+# Every card executes through the engine — expect 105/105, 0 issues
+node cards-sweep.mjs
+
+# Random full games to Sunset — expect 0 hardlocked, 0 crashed
+node fuzz-games.mjs 100
 # equivalently:
 node --test tests/game.test.js tests/server.test.js
 ```
@@ -87,18 +94,33 @@ game in one and join via the shared room URL in the other.
 
 ## Core model (how a turn works)
 
-- **Zones:** deck, hand (per player), horizon (shared, LIFO), trash, void.
-- **Energy:** gained by *voiding* a card from hand (+3 each). Wiped at end of turn.
-- **Horizon:** last-in-first-out. Playing a card pushes it; both players pass priority to resolve
-  the top entry. Point cards require an empty horizon on your turn; action cards can be played in
-  response. (Internally the zone key is `state.zones.horizon`.)
-- **Static vs. triggered effects:** `cards.json` separates `effects` (triggered, run on resolve
+- **Zones:** deck, hand (per player), horizon (shared, LIFO), **dusk** (one shared face-up
+  pile holding risen actions *and* voided cards), **zenith** (per player, face-up, risen points).
+- **Energy:** gained by *voiding* a card from hand into the dusk (+3 each). Wiped at end of
+  turn for **both** players.
+- **Horizon:** last-in-first-out. Playing a card pushes it; when both players pass, the top
+  entry **rises**. Points need an empty horizon on your own turn; actions can also be played in
+  response to a card an *opponent* controls on top. (Zone key: `state.zones.horizon`.)
+- **Rising:** a card **leaves the horizon before its text runs** — into the dusk if it's an
+  action, into its controller's zenith if it's a point — then its controller does the card's
+  text. A rising card is therefore never a legal target for its own effect.
+- **Scoring:** one point per point card in your zenith. There is no points counter; use
+  `pointsOf(state, playerId)`.
+- **Sunset:** the deck is finite. A 2-player game gets zero reshuffles (reshuffles =
+  players − 2), so when the deck runs dry the current card finishes rising, the horizon is
+  dumped into the dusk, and the bigger zenith wins. Ties are a draw. Sunset can fire mid-turn.
+- **Static vs. triggered effects:** `cards.json` separates `effects` (triggered, run on rise
   via `executor.js`) from `staticEffects` (continuous, queried by `state.js` — e.g. `lockHorizon`).
-- **End of turn:** energy wiped, trash → void, draw back up to 5; 25-minute priority clock per player.
+- **End of turn:** energy wiped for both players, draw back up to 5 (no maximum hand size);
+  25-minute priority clock per player. The dusk persists — it is one pile all game.
 
 ## Conventions
 
-- Card ids are zero-padded strings `"00"`–`"89"` matching `public/cards/NN.png`.
+- Card ids are zero-padded strings `"000"`–`"104"` matching `public/cards/NNN.png`.
+  `000`–`049` are points, `050`–`104` are actions.
+- **Card text beats the rules.** Where a card contradicts the rulebook it wins — Answer Fate
+  (047) grants a reshuffle a 2-player game normally never gets, and Strafe (006) / Forever
+  Borrow (036) are points playable in response. Encode the card, not the general rule.
 - Engine functions take `state` first and **return event arrays** describing what happened;
   the server broadcasts derived per-player projections. Don't mutate state outside the engine.
 - When adding a card mechanic, prefer extending the structured effect schema in `cards.json`
