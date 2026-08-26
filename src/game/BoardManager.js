@@ -33,11 +33,32 @@ export class BoardManager {
     this.editor = editor
     this.selectedCardId = null
     this.myPlayerId = null
+    this._lastSync = null
+
+    // A hidden tab gets no animation frames, so it lays cards out without
+    // animating. Re-sync when it comes back so anything that moved while it was
+    // away is placed correctly, even if no new state arrives in the meantime.
+    this._onVisibility = () => {
+      if (document.visibilityState !== 'visible' || !this._lastSync) return
+      this.syncState(this._lastSync.state, this._lastSync.myPlayerId)
+    }
+    document.addEventListener('visibilitychange', this._onVisibility)
+  }
+
+  dispose() {
+    document.removeEventListener('visibilitychange', this._onVisibility)
+  }
+
+  /** Can this tab actually run a tween? tldraw animates on requestAnimationFrame,
+   *  which a hidden tab never fires. */
+  _canAnimate() {
+    return typeof document === 'undefined' || document.visibilityState === 'visible'
   }
 
   syncState(state, myPlayerId) {
     if (!state || state.phase === 'waiting') return
     this.myPlayerId = myPlayerId
+    this._lastSync = { state, myPlayerId }
     const opp = myPlayerId === 'p1' ? 'p2' : 'p1'
     // Server-driven sync: run as a single transaction that is kept out of the
     // user's undo history, and bypass shape-lock since our shapes are locked.
@@ -45,6 +66,7 @@ export class BoardManager {
     // the on-card Play/Void buttons.
     const canAct = state.activePlayer === myPlayerId &&
       !(state.pendingChoice && state.pendingChoice.player === myPlayerId)
+    const canAnimate = this._canAnimate()
 
     this.editor.run(() => {
       this._syncZones(state)
@@ -64,7 +86,7 @@ export class BoardManager {
       // bringToFront (restack) and updateShapes (targeting, zone counts) both
       // cancel an in-flight animation, so nothing that touches a card shape may
       // run after animateShapes.
-      const toAnimate = this._reconcileCards(desired)
+      const toAnimate = this._reconcileCards(desired, canAnimate)
       this._restackHorizon(horizonIds)
 
       this._updateZoneCount('deck', state.zones?.deckSize ?? 0)
@@ -207,7 +229,7 @@ export class BoardManager {
 
   // ── Reconciliation ───────────────────────────────────────────────────────────
 
-  _reconcileCards(desired) {
+  _reconcileCards(desired, canAnimate) {
     const desiredById = new Map(desired.map(d => [d.id, d]))
     const existing = this.editor.getCurrentPageShapes().filter(s => s.type === 'horizons-card')
     const existingById = new Map(existing.map(s => [s.id, s]))
@@ -224,9 +246,12 @@ export class BoardManager {
       const shape = existingById.get(d.id)
       const moved = (a, b) => Math.abs(a - b) > 1
       if (!shape) {
-        // New card: appear at its spawn point and glide to its resting place.
+        // New card: glide in from its spawn point — but ONLY when this tab can
+        // actually run the animation. A hidden tab gets no animation frames, so
+        // spawning there would strand the card on the deck forever; it is placed
+        // at its resting position directly instead.
         const spawn = d.spawn ?? { x: d.x, y: d.y }
-        const willAnimate = moved(spawn.x, d.x) || moved(spawn.y, d.y)
+        const willAnimate = canAnimate && (moved(spawn.x, d.x) || moved(spawn.y, d.y))
         toCreate.push({
           id: d.id, type: 'horizons-card', isLocked: true,
           x: willAnimate ? spawn.x : d.x,
@@ -241,11 +266,15 @@ export class BoardManager {
         // Only write props that actually changed. updateShapes cancels an
         // in-flight animation on that shape, so a redundant write during a
         // second sync would snap a card mid-glide.
-        if (!samePropsAs(shape.props, d.props)) {
-          toUpdate.push({ id: d.id, type: 'horizons-card', props: d.props })
-        }
-        if (moved(shape.x, d.x) || moved(shape.y, d.y)) {
-          toAnimate.push({ id: d.id, type: 'horizons-card', x: d.x, y: d.y })
+        const propsChanged = !samePropsAs(shape.props, d.props)
+        const hasMoved = moved(shape.x, d.x) || moved(shape.y, d.y)
+        if (hasMoved && !canAnimate) {
+          // No animation frames available — move it outright, so a background
+          // tab still shows every card where it belongs.
+          toUpdate.push({ id: d.id, type: 'horizons-card', x: d.x, y: d.y, props: d.props })
+        } else {
+          if (propsChanged) toUpdate.push({ id: d.id, type: 'horizons-card', props: d.props })
+          if (hasMoved) toAnimate.push({ id: d.id, type: 'horizons-card', x: d.x, y: d.y })
         }
       }
     }

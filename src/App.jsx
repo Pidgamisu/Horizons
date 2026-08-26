@@ -52,7 +52,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
       boardRef.current.syncState(gameState, myPlayerId)
     }
     setTimeout(() => boardRef.current?.fitBoard(), 100)
-    return () => { boardRef.current = null }
+    return () => { boardRef.current?.dispose(); boardRef.current = null }
   }, [editor])
 
   useEffect(() => {
