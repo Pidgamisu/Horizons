@@ -76,27 +76,31 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
   // fitted once and never again, so resizing the window (or anything else that
   // resizes the canvas) leaves the board badly framed — too small, or cropped.
   useEffect(() => {
-    if (!editor || typeof ResizeObserver === 'undefined') return
+    if (!editor) return
     const container = editor.getContainer()
     if (!container) return
 
-    let timer = null
-    let lastW = container.clientWidth
-    let lastH = container.clientHeight
+    // Refit immediately rather than on a debounce, so the board tracks the
+    // canvas as it is being resized instead of snapping once the drag stops.
+    // refitIfResized() is a no-op when the size hasn't actually changed, and
+    // ResizeObserver already coalesces to one callback per frame, so this is
+    // cheap even mid-drag.
+    const refit = () => { if (hasFitRef.current) boardRef.current?.refitIfResized() }
 
-    const observer = new ResizeObserver(() => {
-      const { clientWidth: w, clientHeight: h } = container
-      if (w === lastW && h === lastH) return   // ResizeObserver also fires on observe
-      lastW = w
-      lastH = h
-      if (!hasFitRef.current) return            // nothing laid out to frame yet
-      // Debounced, so dragging a window edge refits once at the end rather than
-      // on every intermediate size.
-      clearTimeout(timer)
-      timer = setTimeout(() => boardRef.current?.refitIfResized(), 150)
-    })
-    observer.observe(container)
-    return () => { clearTimeout(timer); observer.disconnect() }
+    let observer = null
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(refit)
+      observer.observe(container)
+    }
+    // Fallback: ResizeObserver is delivered through the rendering lifecycle, so
+    // it can be missed where frames aren't being produced. A window resize event
+    // is a plain event and fires regardless.
+    window.addEventListener('resize', refit)
+
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', refit)
+    }
   }, [editor])
 
   useEffect(() => {
