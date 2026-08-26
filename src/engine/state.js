@@ -78,7 +78,6 @@ export function createPlayerState() {
     hand:              [],
     zenith:            [],        // CardId[] — face-up pile of risen points; 1 point each
     energy:            0,
-    timerSeconds:      25 * 60,   // 25 minutes
     isHoldingPriority: false,
 
     // Per-turn play restriction flags

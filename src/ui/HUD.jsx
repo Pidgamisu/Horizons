@@ -1,4 +1,3 @@
-import { useEffect, useState, useRef } from 'react'
 
 function ZenithScore({ points }) {
   return (
@@ -11,49 +10,6 @@ function ZenithScore({ points }) {
         {points === 1 ? 'POINT' : 'POINTS'}
       </span>
     </div>
-  )
-}
-
-/** Client-side countdown. Resets whenever serverSeconds changes. */
-function Timer({ serverSeconds, active }) {
-  const [displayed, setDisplayed] = useState(serverSeconds ?? 1500)
-  const intervalRef = useRef(null)
-  const lastServerRef = useRef(serverSeconds)
-
-  useEffect(() => {
-    // Snap to server value whenever it changes by >2s (server sync)
-    if (Math.abs((serverSeconds ?? 0) - lastServerRef.current) > 2) {
-      setDisplayed(serverSeconds ?? 1500)
-    }
-    lastServerRef.current = serverSeconds ?? 1500
-  }, [serverSeconds])
-
-  useEffect(() => {
-    if (active) {
-      intervalRef.current = setInterval(() => {
-        setDisplayed(prev => Math.max(0, prev - 1))
-      }, 1000)
-    } else {
-      clearInterval(intervalRef.current)
-    }
-    return () => clearInterval(intervalRef.current)
-  }, [active])
-
-  const mins = Math.floor(displayed / 60)
-  const secs = displayed % 60
-  const low  = displayed < 120
-
-  return (
-    <span style={{
-      fontVariantNumeric: 'tabular-nums',
-      fontSize: 13, fontWeight: 600,
-      color: low ? '#ff6b6b' : 'rgba(255,255,255,0.55)',
-      background: active ? 'rgba(255,0,153,0.15)' : 'transparent',
-      padding: '2px 8px', borderRadius: 5,
-      transition: 'color 0.3s, background 0.3s',
-    }}>
-      {mins}:{String(secs).padStart(2, '0')}
-    </span>
   )
 }
 
@@ -96,7 +52,6 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <Stat value={state?.energy ?? 0} label="energy" color="#4fc3f7" />
         <Stat value={handCount}           label="hand"   color="rgba(255,255,255,0.7)" />
-        <Timer serverSeconds={state?.timerSeconds} active={holdingPriority} />
       </div>
 
       {onConcede && (

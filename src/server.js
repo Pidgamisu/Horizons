@@ -65,7 +65,6 @@ function broadcastState(room) {
             zenith: state.players[slot].zenith,
             points: state.players[slot].zenith.length,
             energy: state.players[slot].energy,
-            timerSeconds: state.players[slot].timerSeconds,
             lockedFromPlaying: state.players[slot].lockedFromPlaying,
             canPlayFromDusk: canPlayFromDusk(state, slot), // Consult the Past (38)
           },
@@ -75,7 +74,6 @@ function broadcastState(room) {
             zenith: state.players[opp].zenith,
             points: state.players[opp].zenith.length,
             energy: state.players[opp].energy,
-            timerSeconds: state.players[opp].timerSeconds,
             lockedFromPlaying: state.players[opp].lockedFromPlaying,
           },
         },

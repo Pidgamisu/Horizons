@@ -36,12 +36,12 @@ function proj({
       p1: {
         hand: p1hand, handSize: p1hand.length,
         zenith: p1zenith, points: p1zenith.length, energy: p1energy,
-        timerSeconds: 1500, lockedFromPlaying: false, canPlayFromDusk: false,
+        lockedFromPlaying: false, canPlayFromDusk: false,
       },
       p2: {
         hand: [], handSize: p2handSize,
         zenith: [], points: 0, energy: p2energy,
-        timerSeconds: 1500, lockedFromPlaying: false,
+        lockedFromPlaying: false,
       },
     },
     zones: { deckSize: 40, horizon: horizon.map(entry), dusk, reshufflesRemaining: 0 },
