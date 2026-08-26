@@ -47,9 +47,8 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
 }
 
 // ── BrandBackdrop ─────────────────────────────────────────────────────────────
-// The title art, shared by the lobby and the waiting-for-opponent screen so they
-// look identical. The wordmark and copyright are part of the artwork itself, so
-// nothing is drawn over it — children sit in the empty lower half.
+// Aurora backdrop + the HORIZONS wordmark, shared by the lobby and the
+// waiting-for-opponent screen so they look identical. Renders children below.
 
 export function BrandBackdrop({ children }) {
   return (
@@ -57,20 +56,35 @@ export function BrandBackdrop({ children }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexDirection: 'column', gap: 44,
       width: '100%', height: '100%',
-      // The wordmark sits in the upper third of the art, so reserve that space
-      // and centre the controls in what's left rather than over the title.
-      paddingTop: 'min(34vh, 380px)',
-      boxSizing: 'border-box',
-      overflowY: 'auto',
       backgroundColor: '#07070f',
-      // Only a light bottom vignette — enough to keep buttons legible without
-      // muting the artwork the way the old heavy scrim did.
+      // A light scrim only: the artwork is already dark, and a heavy one flattens
+      // the aurora. Just enough to keep the controls legible.
       backgroundImage:
-        'linear-gradient(to bottom, rgba(5,5,12,0) 40%, rgba(5,5,12,0.45) 100%), url(/lobby-bg.png)',
+        'linear-gradient(to bottom, rgba(5,5,12,0.15) 0%, rgba(5,5,12,0.1) 45%, rgba(5,5,12,0.5) 100%), url(/lobby-bg.png)',
       backgroundSize: 'cover, cover',
       backgroundPosition: 'center, center',
       backgroundRepeat: 'no-repeat, no-repeat',
     }}>
+      {/* HORIZONS wordmark + copyright — crisp layer over the photo */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          // Rubik Spray Paint is a single-weight display face, so the weight and
+          // tight tracking of the old wordmark would fight it.
+          fontFamily: "'Rubik Spray Paint', 'Rubik', system-ui, sans-serif",
+          fontSize: 82, fontWeight: 400, letterSpacing: '0.04em',
+          color: '#ffd6f5',
+          textShadow: '0 0 26px rgba(255,0,153,0.85), 0 0 60px rgba(255,0,153,0.45), 0 2px 30px rgba(0,0,0,0.5)',
+          lineHeight: 1.15,
+        }}>
+          HORIZONS
+        </div>
+        <div style={{
+          fontSize: 11, color: 'rgba(255,255,255,0.62)',
+          marginTop: 10, letterSpacing: '0.05em',
+        }}>
+          © 2026 Nathaniel Robert Lefcourt
+        </div>
+      </div>
       {children}
     </div>
   )
