@@ -1085,7 +1085,7 @@
         "type": "duskUnlessControllerPays",
         "filter": "any",
         "ransom": {
-          "type": "energy",
+          "type": "payEnergy",
           "amount": "paidAmount"
         }
       }
@@ -1311,7 +1311,7 @@
         "type": "duskUnlessControllerPays",
         "filter": "any",
         "ransom": {
-          "type": "energy",
+          "type": "payEnergy",
           "amount": "countInDusk:any"
         }
       }
@@ -1598,7 +1598,7 @@
         "type": "duskUnlessControllerPays",
         "filter": "action",
         "ransom": {
-          "type": "energy",
+          "type": "payEnergy",
           "amount": "countOnHorizon:any"
         }
       }
@@ -1833,7 +1833,7 @@
         "type": "duskUnlessControllerPays",
         "filter": "action",
         "ransom": {
-          "type": "energy",
+          "type": "payEnergy",
           "amount": 1
         }
       },

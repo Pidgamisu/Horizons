@@ -256,7 +256,9 @@ export function getHorizonCostModifier(state, forPlayer) {
     for (const se of card.staticEffects ?? []) {
       if (se.type === 'modifyPlayCost') {
         const isOpponent = controllerOf(entry) !== forPlayer;
-        if (se.target === 'opponent' && isOpponent) delta += se.amount;
+        // Auction (045) charges whatever its controller paid as an extra cost.
+        const amount = se.amount === 'paidAmount' ? (entry.paidAmount ?? 0) : se.amount;
+        if (se.target === 'opponent' && isOpponent) delta += amount;
       }
     }
   }
@@ -317,6 +319,13 @@ export function horizonHasTarget(state, filter) {
 export function computeActualCost(state, cardId, playerId, context = {}) {
   const card = getCard(cardId);
   let cost = card.energyCost;
+
+  // Pray To Me (043) — while it is on the horizon its controller's actions are free.
+  if (card.type === 'action' && state.zones.horizon.some(entry =>
+    getCard(entry.cardId).staticEffects?.some(se => se.type === 'setActionCostZero') &&
+    controllerOf(entry) === playerId)) {
+    return 0;
+  }
 
   // Horizon-based modifiers (Efficiency 15, Glacial Pace 19)
   cost += getHorizonCostModifier(state, playerId);

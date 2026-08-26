@@ -389,6 +389,17 @@ export function resolveChoice(state, playerId, payload) {
         };
         events.push({ type: 'RANSOM_PAID', player: playerId, ransom: 'putFromDuskToDeckBottom' });
         return { events, error: null }; // stay suspended for the follow-up choice
+      } else if (ransom?.type === 'giveFromDuskToCaster') {
+        // Debate (081): this ransom is paid to the caster, not to the table.
+        if (state.zones.dusk.length === 0) { error = 'No cards in the dusk to pay the ransom.'; break; }
+        state.pendingChoice = {
+          type: 'opponentChoosesFromDusk',
+          player: playerId,
+          count: Math.min(ransom.count ?? 1, state.zones.dusk.length),
+          recipient: choice.caster ?? opponent(playerId),
+        };
+        events.push({ type: 'RANSOM_PAID', player: playerId, ransom: 'giveFromDuskToCaster' });
+        return { events, error: null };
       } else {
         error = `Unhandled ransom type: ${ransom?.type}`; break;
       }
@@ -630,6 +641,38 @@ export function resolveChoice(state, playerId, payload) {
           state.players[playerId].hand.splice(state.players[playerId].hand.indexOf(cardId), 1);
           state.zones.deck.unshift(cardId);
           events.push({ type: 'CARD_TO_DECK_TOP', cardId, player: playerId });
+          break;
+        }
+        case 'payAnyAmount': {
+          // Auction (045), Bid (058) — the amount paid is remembered on the
+          // horizon entry, because the card's own text refers back to it.
+          const amount = Math.floor(payload.amount ?? 0);
+          if (!Number.isFinite(amount) || amount < 0) { error = 'Invalid amount.'; break; }
+          if (state.players[playerId].energy < amount) {
+            error = `Not enough energy. You have ${state.players[playerId].energy}.`; break;
+          }
+          state.players[playerId].energy -= amount;
+          const paidEntry = state.zones.horizon.find(e => e.cardId === choice.cardId);
+          if (paidEntry) paidEntry.paidAmount = amount;
+          events.push({ type: 'ENERGY_SPENT', player: playerId, amount, reason: 'additionalCost' });
+          break;
+        }
+        case 'putFromDuskToDeckBottom': {
+          // Abyss (048)
+          const { cardIds } = payload;
+          const need = cost.count ?? 1;
+          if (!Array.isArray(cardIds) || cardIds.length !== need) {
+            error = `Must choose exactly ${need} card(s) from the dusk.`; break;
+          }
+          for (const id of cardIds) {
+            if (!state.zones.dusk.includes(id)) { error = `Card ${id} is not in the dusk.`; break; }
+          }
+          if (error) break;
+          for (const id of cardIds) {
+            state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
+            state.zones.deck.push(id);
+            events.push({ type: 'CARD_FROM_DUSK_TO_DECK_BOTTOM', cardId: id, player: playerId });
+          }
           break;
         }
         default:

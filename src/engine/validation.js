@@ -129,6 +129,15 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     }
   }
 
+  // Costs paid out of the dusk (Abyss 048) gate the play the same way.
+  const duskCosts = (card.additionalCosts ?? []).filter(c => c.type === "putFromDuskToDeckBottom");
+  if (duskCosts.length) {
+    const needed = duskCosts.reduce((n, c) => n + (c.count ?? 1), 0);
+    if (state.zones.dusk.length < needed) {
+      return `${card.name} needs ${needed} cards in the dusk to pay its additional cost.`;
+    }
+  }
+
   return null; // legal
 }
 

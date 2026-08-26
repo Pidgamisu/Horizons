@@ -329,11 +329,18 @@ function executeEffect(state, effect, controller, entry, ctx) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'duskUnlessControllerPays', filter: effect.filter });
         break;
       }
+      // Bid (058) sets its ransom from what the caster paid on the way in. The
+      // entry is gone from the horizon by now, so resolve it here while we
+      // still hold a reference to it.
+      const ransom = effect.ransom?.amount === 'paidAmount'
+        ? { ...effect.ransom, amount: entry?.paidAmount ?? 0 }
+        : effect.ransom;
       state.pendingTriggers.push({
         type: 'duskUnlessControllerPaysTarget',
         player: controller,
         filter: effect.filter,
-        ransom: effect.ransom,
+        ransom,
+        caster: controller,
       });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskUnlessControllerPaysTarget', filter: effect.filter });
       break;

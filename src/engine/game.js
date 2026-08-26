@@ -49,7 +49,7 @@ export function playCard(state, playerId, cardId, context = {}) {
 
     // Pay additional costs (validated separately, surfaced as pending choices)
     for (const addCost of card.additionalCosts ?? []) {
-      state.pendingTriggers.push({ type: 'additionalCost', player: playerId, cost: addCost });
+      state.pendingTriggers.push({ type: 'additionalCost', player: playerId, cost: addCost, cardId });
       events.push({ type: 'ADDITIONAL_COST_REQUIRED', player: playerId, cost: addCost });
     }
   } else {
