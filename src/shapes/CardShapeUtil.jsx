@@ -74,7 +74,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
         )}
 
 
-        {onHorizon && !resolving && horizonIndex !== null && (
+        {onHorizon && horizonIndex !== null && (
           <div style={{
             position: 'absolute', top: 4, right: 4,
             background: horizonIsTop ? '#ff0099' : 'rgba(0,0,0,0.65)',

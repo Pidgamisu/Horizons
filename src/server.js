@@ -138,8 +138,8 @@ function sanitizeEventForPlayer(event, forPlayer, state) {
  */
 export function advancePendingChoices(state) {
   // Filter out non-choice triggers (like registerTurnTrigger). CHOICE_TRIGGER_TYPES
-  // is shared with the resolution engine so the "defer the resolving card's trash
-  // while a choice is outstanding" logic stays in lockstep with what surfaces here.
+  // is the single source of truth for which triggers surface to a player, shared
+  // with the engine so the two never drift apart.
   const idx = state.pendingTriggers.findIndex(t => CHOICE_TRIGGER_TYPES.has(t.type));
   if (idx === -1) return false;
 
