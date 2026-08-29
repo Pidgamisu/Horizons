@@ -109,9 +109,9 @@ const BEATS = [
     narration: 'You can answer, because their card is on top now. **Deny Hostility** sends an **action** that was played in response to a **point** to the **dusk**. Click it, then **Play**.',
   },
   {
-    mode: 'action', expect: { action: 'pass' },
-    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, dusk: DUSK_START }),
-    narration: 'Three cards are stacked up. Nothing resolves until **both** players **pass** in a row, then the top card **rises**. Your opponent has already passed, so hit **Pass** (or press Space).',
+    mode: 'continue',
+    state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p2', p1energy: 0, p2energy: 0, dusk: DUSK_START }),
+    narration: 'Three cards are stacked up. **Deny Hostility** is on top and it is yours, so there is nothing for you to answer. Only your opponent can **respond** to it. They have no cards left, so they **pass**, and once nobody responds the top card **rises**.',
   },
   {
     mode: 'continue',
@@ -125,14 +125,14 @@ const BEATS = [
     narration: 'With the **horizon** clear, your **point** finally **rises** into your **zenith**, not the **dusk**. That’s one **point**. Every **point** in your **zenith** is worth exactly one, whatever it cost.',
   },
   {
-    mode: 'continue',
+    mode: 'action', expect: { action: 'pass' },
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Your hand is empty and that’s fine. Emptying it is the idea. At the **end of your turn** you draw back up to **5 cards**. There’s no maximum hand size.',
+    narration: 'Your hand is empty and that’s fine. Emptying it is the idea. The **horizon** is clear and it is still your turn, so this is where you **pass**, to end it. Hit **Pass** (or press Space).',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Refilled. Notice your opponent didn’t. You only draw at the end of your **own** turn, so anything you spend during theirs isn’t replaced until yours comes round.',
+    narration: 'You drew back up to **5 cards**, and there is no maximum hand size. Notice your opponent didn’t draw. You only refill at the end of your **own** turn, so anything you spend during theirs isn’t replaced until yours comes round.',
   },
   {
     mode: 'continue',
