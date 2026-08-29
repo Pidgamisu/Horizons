@@ -35,6 +35,7 @@ export class BoardManager {
     this.myPlayerId = null
     this._lastSync = null
     this._fitSize = null
+    this._settleTimer = null
 
     // A hidden tab gets no animation frames, so it lays cards out without
     // animating. Re-sync when it comes back so anything that moved while it was
@@ -51,6 +52,29 @@ export class BoardManager {
 
   dispose() {
     document.removeEventListener('visibilitychange', this._onVisibility)
+    clearTimeout(this._settleTimer)
+  }
+
+  /**
+   * Backstop for the glide. An animation can fail to finish for reasons the
+   * board cannot see, and a card left part-way is worse than one that never
+   * moved, so once the tween should be over any shape that did not arrive is
+   * placed outright. setTimeout is used deliberately: unlike animation frames it
+   * still fires in a tab that is not painting.
+   */
+  _scheduleSettle(targets) {
+    clearTimeout(this._settleTimer)
+    this._settleTimer = setTimeout(() => {
+      const late = targets
+        .filter(t => {
+          const s = this.editor.getShape(t.id)
+          return s && (Math.abs(s.x - t.x) > 1 || Math.abs(s.y - t.y) > 1)
+        })
+        .map(t => ({ id: t.id, type: 'horizons-card', x: t.x, y: t.y }))
+      if (!late.length) return
+      this.editor.run(() => this.editor.updateShapes(late),
+        { history: 'ignore', ignoreShapeLock: true })
+    }, ANIM.animation.duration + 150)
   }
 
   /** Can this tab actually run a tween? tldraw animates on requestAnimationFrame,
@@ -99,7 +123,10 @@ export class BoardManager {
       this._updateZoneCount('oppZenith', state.players?.[opp]?.zenith?.length ?? 0)
       this._syncTargeting(state.pendingChoice, myPlayerId)
 
-      if (toAnimate.length) this.editor.animateShapes(toAnimate, ANIM)
+      if (toAnimate.length) {
+        this.editor.animateShapes(toAnimate, ANIM)
+        this._scheduleSettle(toAnimate)
+      }
     }, { history: 'ignore', ignoreShapeLock: true })
 
     // Nothing on this board is ever the player's to undo, and an animation's
@@ -255,19 +282,16 @@ export class BoardManager {
       const shape = existingById.get(d.id)
       const moved = (a, b) => Math.abs(a - b) > 1
       if (!shape) {
-        // New card: glide in from its spawn point — but ONLY when this tab can
-        // actually run the animation. A hidden tab gets no animation frames, so
-        // spawning there would strand the card on the deck forever; it is placed
-        // at its resting position directly instead.
-        const spawn = d.spawn ?? { x: d.x, y: d.y }
-        const willAnimate = canAnimate && (moved(spawn.x, d.x) || moved(spawn.y, d.y))
+        // A new card is always created where it belongs. It used to be spawned
+        // at the deck and walked into place by the animation, which meant that
+        // if the tween didn't run the card was simply left on the deck — the
+        // whole hand piled up invisibly on one spot. Placement must never depend
+        // on an animation actually playing.
         toCreate.push({
           id: d.id, type: 'horizons-card', isLocked: true,
-          x: willAnimate ? spawn.x : d.x,
-          y: willAnimate ? spawn.y : d.y,
+          x: d.x, y: d.y,
           props: d.props,
         })
-        if (willAnimate) toAnimate.push({ id: d.id, type: 'horizons-card', x: d.x, y: d.y })
       } else {
         // Existing card: refresh its props in place, and glide it if it moved —
         // a play, a rise, or a pile reflowing as it recentres.
