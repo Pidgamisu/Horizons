@@ -72,6 +72,28 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     }
   }, [editor, gameState, myPlayerId])
 
+  // Undo has no meaning here: the board is entirely server-driven and the player
+  // never authors a shape. It isn't harmless either — BoardManager syncs with
+  // history:'ignore', but an animation applies its movement on later ticks,
+  // outside that block, so those writes land in the undo stack. Ctrl+Z then
+  // rewinds cards to wherever they used to be while the game state stays put,
+  // leaving the board showing a position that isn't real.
+  useEffect(() => {
+    if (!editor) return
+    const onKeyDown = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      if (key !== 'z' && key !== 'y') return
+      // Never swallow it while the player is typing (the room code field).
+      const t = e.target
+      if (t?.closest?.('input, textarea, [contenteditable="true"]')) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [editor])
+
   // Re-frame the board when the canvas changes size. Without this the camera is
   // fitted once and never again, so resizing the window (or anything else that
   // resizes the canvas) leaves the board badly framed — too small, or cropped.

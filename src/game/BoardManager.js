@@ -101,6 +101,11 @@ export class BoardManager {
 
       if (toAnimate.length) this.editor.animateShapes(toAnimate, ANIM)
     }, { history: 'ignore', ignoreShapeLock: true })
+
+    // Nothing on this board is ever the player's to undo, and an animation's
+    // tick-driven writes land outside the block above, so drop whatever reached
+    // the stack rather than letting it grow.
+    this.editor.clearHistory()
   }
 
   // ── Zones ────────────────────────────────────────────────────────────────────
