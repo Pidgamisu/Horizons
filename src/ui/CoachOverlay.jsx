@@ -12,13 +12,14 @@ const TERM_COLOURS = [
   [/\bpoints?\b/i, '#ff6b9d'],  // pink
 ]
 
-const EMPHASIS = '#ff66c4'
-
+// Anything bold that isn't game vocabulary — card names, button labels — stays
+// the colour of the surrounding text and is distinguished by weight alone, so
+// colour in the coaching text only ever means "this is a game term".
 function termColour(text) {
   for (const [pattern, colour] of TERM_COLOURS) {
     if (pattern.test(text)) return colour
   }
-  return EMPHASIS
+  return 'inherit'
 }
 
 // Render **bold** spans inside otherwise plain coaching text.

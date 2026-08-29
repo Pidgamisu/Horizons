@@ -1,5 +1,5 @@
 /**
- * TutorialClient — a scripted, on-rails client that teaches the horizon + priority
+ * TutorialClient, a scripted, on-rails client that teaches the horizon + priority
  * exchange without an engine or a second player. It mirrors the public surface
  * of GameClient (same methods + emitted events) so App.jsx and the board/HUD/
  * ActionBar render it exactly like a real game.
@@ -12,11 +12,11 @@
  * advance.
  */
 
-const POINT = '042' // Splendor       — point, cost 5: each player gains 4 energy
-const STOP  = '053' // Delusion       — action, cost 2: put a point on the horizon into the dusk
-const DENY  = '079' // Deny Hostility — action, cost 1: dusk an action played in response to a point
-const FILL1 = '055' // Dig For Ideas  — voided for energy
-const FILL2 = '063' // Sort           — voided for energy
+const POINT = '042' // Splendor      , point, cost 5: each player gains 4 energy
+const STOP  = '053' // Delusion      , action, cost 2: put a point on the horizon into the dusk
+const DENY  = '079' // Deny Hostility, action, cost 1: dusk an action played in response to a point
+const FILL1 = '055' // Dig For Ideas , voided for energy
+const FILL2 = '063' // Sort          , voided for energy
 // A fresh draw shown when the hand refills at end of turn (any real card ids).
 const REFILL = ['004', '020', '060', '083', '097']
 
@@ -58,10 +58,10 @@ const DUSK_START = [FILL1, FILL2]
 const DUSK_END = [FILL1, FILL2, DENY, STOP]
 
 // The scripted beats, in order. mode drives how a beat advances:
-//   'continue' — wait for the player to click Continue
-//   'action'   — wait for a specific player action (expect)
-//   'auto'     — advance automatically after autoMs (opponent move / resolution)
-//   'done'     — final beat; the overlay shows Finish (exits the tutorial)
+//   'continue', wait for the player to click Continue
+//   'action'  , wait for a specific player action (expect)
+//   'auto'    , advance automatically after autoMs (opponent move / resolution)
+//   'done'    , final beat; the overlay shows Finish (exits the tutorial)
 const BEATS = [
   {
     mode: 'continue',
@@ -71,7 +71,7 @@ const BEATS = [
   {
     mode: 'continue',
     state: proj({ p1hand: [POINT, DENY, FILL1, FILL2], p2handSize: 1, p1energy: 0 }),
-    narration: 'Four zones matter. The **horizon** in the middle is where played cards wait. The **dusk** on the left is one shared face-up pile. Each player has a **zenith** on their right — that’s where their **points** pile up.',
+    narration: 'Four zones matter. The **horizon** in the middle is where played cards wait. The **dusk** on the left is one shared face-up pile. Each player has a **zenith** on their right, where their **points** pile up.',
   },
   {
     mode: 'continue',
@@ -91,7 +91,7 @@ const BEATS = [
   {
     mode: 'action', expect: { action: 'play', cardId: POINT }, highlight: POINT,
     state: proj({ p1hand: [POINT, DENY], p2handSize: 1, p1energy: 6, dusk: DUSK_START }),
-    narration: 'Six energy. A **point** can only be played on your own turn while the **horizon** is empty — both are true right now. Click **Splendor**, then hit **Play**.',
+    narration: 'Six energy. A **point** can only be played on your own turn while the **horizon** is empty. Both are true right now. Click **Splendor**, then hit **Play**.',
   },
   {
     mode: 'continue',
@@ -101,7 +101,7 @@ const BEATS = [
   {
     mode: 'continue',
     state: proj({ horizon: [ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [DENY], p2handSize: 0, active: 'p1', p1energy: 1, p2energy: 0, dusk: DUSK_START }),
-    narration: 'And they do. **Delusion** is an **action** that sends a **point** on the **horizon** to the **dusk** — aimed at your Splendor. It went on top, and the **horizon** rises from the top down, so Delusion would go first.',
+    narration: 'And they do. **Delusion** is an **action** that sends a **point** on the **horizon** to the **dusk**, aimed at your Splendor. It went on top, and the **horizon** rises from the top down, so Delusion would go first.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: DENY }, highlight: DENY,
@@ -111,33 +111,33 @@ const BEATS = [
   {
     mode: 'action', expect: { action: 'pass' },
     state: proj({ horizon: [ON_HORIZON_DENY, ON_HORIZON_STOP, ON_HORIZON_POINT], p1hand: [], p2handSize: 0, active: 'p1', p1energy: 0, p2energy: 0, dusk: DUSK_START }),
-    narration: 'Three cards are stacked up. Nothing resolves until **both** players **pass** in a row — then the top card **rises**. Your opponent has already passed, so hit **Pass** (or press Space).',
+    narration: 'Three cards are stacked up. Nothing resolves until **both** players **pass** in a row, then the top card **rises**. Your opponent has already passed, so hit **Pass** (or press Space).',
   },
   {
     mode: 'continue',
     events: [{ type: 'CARD_TO_DUSK_FROM_HORIZON', cardId: STOP }],
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Deny Hostility **rises** first and removes Delusion — a card taken off the **horizon** never rises, so its text never happens. Both land in the **dusk**, where every risen **action** ends up.',
+    narration: 'Deny Hostility **rises** first and removes Delusion. A card taken off the **horizon** never rises, so its text never happens. Both land in the **dusk**, where every risen **action** ends up.',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'With the **horizon** clear, your **point** finally **rises** — into your **zenith**, not the **dusk**. That’s one **point**. Every **point** in your **zenith** is worth exactly one, whatever it cost.',
+    narration: 'With the **horizon** clear, your **point** finally **rises** into your **zenith**, not the **dusk**. That’s one **point**. Every **point** in your **zenith** is worth exactly one, whatever it cost.',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: [], p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Your hand is empty and that’s fine — emptying it is the idea. At the **end of your turn** you draw back up to **5 cards**. There’s no maximum hand size.',
+    narration: 'Your hand is empty and that’s fine. Emptying it is the idea. At the **end of your turn** you draw back up to **5 cards**. There’s no maximum hand size.',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Refilled. Notice your opponent didn’t — you only draw at the end of your **own** turn, so anything you spend during theirs isn’t replaced until yours comes round.',
+    narration: 'Refilled. Notice your opponent didn’t. You only draw at the end of your **own** turn, so anything you spend during theirs isn’t replaced until yours comes round.',
   },
   {
     mode: 'continue',
     state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'Those draws are also the clock. Nothing reshuffles, so the deck only ever runs down — and when it runs out the **sun sets**: the **horizon** empties into the **dusk** and the game is over on the spot.',
+    narration: 'Those draws are also the clock. Nothing reshuffles, so the deck only ever runs down, and when it runs out the **sun sets**: the **horizon** empties into the **dusk** and the game is over on the spot.',
   },
   {
     mode: 'done',
@@ -182,12 +182,12 @@ export class TutorialClient extends EventTarget {
     const expect = beat?.mode === 'action' ? beat.expect : null
     if (expect?.action === 'play') {
       if (expect.cardId === cardId) return this.next()
-      return this._nudge('That’s not the card we need right now — follow the highlighted card.')
+      return this._nudge('That’s not the card we need right now, follow the highlighted card.')
     }
     if (expect?.action === 'void') {
-      return this._nudge('Use **Void** here to gain energy — not Play.')
+      return this._nudge('Use **Void** here to gain energy, not Play.')
     }
-    this._nudge('Hold on — just follow the current step.')
+    this._nudge('Hold on, just follow the current step.')
   }
 
   voidCard(cardId) {
@@ -198,9 +198,9 @@ export class TutorialClient extends EventTarget {
       return this._nudge('Void the highlighted card to gain energy.')
     }
     if (expect?.action === 'play') {
-      return this._nudge('No need to void now — **Play** the highlighted card.')
+      return this._nudge('No need to void now, **Play** the highlighted card.')
     }
-    this._nudge('No need to void right now — follow the current step.')
+    this._nudge('No need to void right now, follow the current step.')
   }
 
   passPriority() {
@@ -209,7 +209,7 @@ export class TutorialClient extends EventTarget {
     if (expect?.action === 'pass') return this.next()
     if (expect?.action === 'play') return this._nudge('You need to play the highlighted card here, not pass.')
     if (expect?.action === 'void') return this._nudge('Void the highlighted card here, not pass.')
-    this._nudge('Nothing to pass right now — watch what happens, or click Continue.')
+    this._nudge('Nothing to pass right now, watch what happens, or click Continue.')
   }
   choose() { /* no choice prompts in this scripted scenario */ }
   concede() { /* exiting is handled by the tutorial’s own Exit control */ }
