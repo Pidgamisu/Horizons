@@ -1,10 +1,32 @@
 import { useEffect, useState } from 'react'
 import { cardImageSrc, cardName } from '../data/cardImages.js'
 
+// The game's vocabulary is colour-coded the same way as the printed rulebook,
+// so a term means the same thing on the page and on screen. Order matters:
+// "point card" must read as a point, not match something earlier.
+const TERM_COLOURS = [
+  [/\bzenith\b/i, '#9aff4d'],   // green
+  [/\bdusk\b/i, '#ffab5e'],     // orange
+  [/\bhorizon\b/i, '#5ee7f5'],  // cyan
+  [/\bactions?\b/i, '#5bb8ff'], // blue
+  [/\bpoints?\b/i, '#ff6b9d'],  // pink
+]
+
+const EMPHASIS = '#ff66c4'
+
+function termColour(text) {
+  for (const [pattern, colour] of TERM_COLOURS) {
+    if (pattern.test(text)) return colour
+  }
+  return EMPHASIS
+}
+
 // Render **bold** spans inside otherwise plain coaching text.
 function renderText(text) {
   return text.split(/\*\*(.+?)\*\*/g).map((chunk, i) =>
-    i % 2 === 1 ? <strong key={i} style={{ color: '#ff66c4' }}>{chunk}</strong> : chunk
+    i % 2 === 1
+      ? <strong key={i} style={{ color: termColour(chunk) }}>{chunk}</strong>
+      : chunk
   )
 }
 
