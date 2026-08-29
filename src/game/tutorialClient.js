@@ -142,7 +142,7 @@ const BEATS = [
   {
     mode: 'done',
     state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'That’s the whole game. **Void** for **energy**, play onto the **horizon**, **respond** to what your opponent does there, and let your **points** **rise** into your **zenith** before the deck runs dry. You’re ready.',
+    narration: 'That’s Horizons! Void cards for energy, then interact with your opponent on the **horizon** in order to have the most **points** in your **zenith** before the deck runs out and the **horizon** enters the **dusk**.',
   },
 ]
 
