@@ -66,12 +66,16 @@ export function BrandBackdrop({ children }) {
       backgroundRepeat: 'no-repeat, no-repeat',
     }}>
       {/* HORIZONS wordmark + copyright — crisp layer over the photo */}
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: 'center', width: '100%', padding: '0 12px' }}>
         <div style={{
           // Rubik Spray Paint is a single-weight display face, so the weight and
           // tight tracking of the old wordmark would fight it.
           fontFamily: "'Rubik Spray Paint', 'Rubik', system-ui, sans-serif",
-          fontSize: 82, fontWeight: 400, letterSpacing: '0.04em',
+          // Fluid, because a fixed 82px renders "HORIZONS" 475px wide and a
+          // phone is 375: it ran off both edges, losing the H and the S.
+          fontSize: 'clamp(32px, 15vw, 82px)',
+          fontWeight: 400, letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
           color: '#ffd6f5',
           textShadow: '0 0 26px rgba(255,0,153,0.85), 0 0 60px rgba(255,0,153,0.45), 0 2px 30px rgba(0,0,0,0.5)',
           lineHeight: 1.15,
