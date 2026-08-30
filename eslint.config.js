@@ -1,4 +1,3 @@
-import js from '@eslint/js';
 import globals from 'globals';
 
 // Deliberately minimal. This config exists to catch the bug class that a card
@@ -34,7 +33,7 @@ export default [
         varsIgnorePattern: '^_',
         caughtErrors: 'none',
       }],
-      // A few of js.configs.recommended's genuine footguns, without the rest.
+      // A few of the recommended set's genuine footguns, without the rest.
       'no-dupe-keys': 'error',
       'no-dupe-args': 'error',
       'no-unreachable': 'error',
