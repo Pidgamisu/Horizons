@@ -136,13 +136,21 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
 
     const container = editor.getContainer()
 
-    const handleClick = (e) => {
-      // Clicks on the on-card Play/Void buttons are theirs to handle.
-      if (e.target?.closest?.('button')) return
-      // Resolve which card was clicked using the editor's own hit-testing.
-      // Cards are locked, so hitLocked is required; hitInside catches clicks
+    // Taps are recognised from the pointer events themselves rather than from a
+    // click. A touch screen often never produces one here: tldraw handles the
+    // canvas's pointer events for panning and pinching, and once those are
+    // consumed the browser has no tap to synthesise a click from. DOM buttons
+    // kept working because they are real elements, so the symptom was that
+    // cards alone ignored being tapped.
+    const TAP_SLOP = 12      // px of travel still counted as a tap, not a drag
+    const TAP_TIMEOUT = 800  // ms; longer is a press, and pans are slow too
+    let down = null
+
+    const resolveTap = (clientX, clientY) => {
+      // Resolve which card was tapped using the editor's own hit-testing.
+      // Cards are locked, so hitLocked is required; hitInside catches taps
       // anywhere within the filled card, not just its edge.
-      const point = editor.screenToPage({ x: e.clientX, y: e.clientY })
+      const point = editor.screenToPage({ x: clientX, y: clientY })
       const shape = editor.getShapeAtPoint(point, {
         hitInside: true,
         hitLocked: true,
@@ -151,7 +159,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
           (s.type === 'horizons-zone' && PILE_ZONES.has(s.props.zoneType)),
       })
       if (!shape) return
-      // Clicking anywhere on a face-up pile (a card in it or the zone itself)
+      // Tapping anywhere on a face-up pile (a card in it or the zone itself)
       // opens the full-pile viewer, since the canvas only shows the top cards.
       if (shape.type === 'horizons-zone') { onZoneClick(shape.props.zoneType); return }
       const { cardId, zone } = shape.props
@@ -160,8 +168,29 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
       else if (zone === 'horizon') onHorizonCardClick(cardId, editor)
     }
 
-    container.addEventListener('click', handleClick)
-    return () => container.removeEventListener('click', handleClick)
+    const onPointerDown = (e) => {
+      // The on-card Play/Void buttons are theirs to handle.
+      if (e.target?.closest?.('button')) { down = null; return }
+      down = { x: e.clientX, y: e.clientY, at: Date.now(), id: e.pointerId }
+    }
+    const onPointerUp = (e) => {
+      const start = down
+      down = null
+      if (!start || start.id !== e.pointerId) return
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP) return
+      if (Date.now() - start.at > TAP_TIMEOUT) return
+      resolveTap(e.clientX, e.clientY)
+    }
+    const onPointerCancel = () => { down = null }
+
+    container.addEventListener('pointerdown', onPointerDown)
+    container.addEventListener('pointerup', onPointerUp)
+    container.addEventListener('pointercancel', onPointerCancel)
+    return () => {
+      container.removeEventListener('pointerdown', onPointerDown)
+      container.removeEventListener('pointerup', onPointerUp)
+      container.removeEventListener('pointercancel', onPointerCancel)
+    }
   }, [editor, onCardClick, onHorizonCardClick, onZoneClick])
 
 
