@@ -518,7 +518,7 @@ export default function App() {
 
       {viewingZone === 'zenith' && (
         <ZoneViewer
-          title={`Your Zenith — ${myState?.zenith?.length ?? 0} point${(myState?.zenith?.length ?? 0) === 1 ? '' : 's'}`}
+          title="Your Zenith"
           cardIds={[...(myState?.zenith ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
         />
@@ -526,7 +526,7 @@ export default function App() {
 
       {viewingZone === 'zenith-opp' && (
         <ZoneViewer
-          title={`Their Zenith — ${oppState?.zenith?.length ?? 0} point${(oppState?.zenith?.length ?? 0) === 1 ? '' : 's'}`}
+          title="Their Zenith"
           cardIds={[...(oppState?.zenith ?? [])].reverse()}
           onClose={() => setViewingZone(null)}
         />
