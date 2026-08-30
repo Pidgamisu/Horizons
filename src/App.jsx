@@ -236,12 +236,18 @@ export default function App() {
   // The client the UI is driving: the networked singleton, or a scripted
   // TutorialClient. Both share the same surface + emitted events.
   const [client, setActiveClient] = useState(gameClient)
+  // 'live' | 'reconnecting' | 'lost'. The board is entirely server-driven, so a
+  // dropped socket leaves it frozen on the last state it received — visually
+  // identical to a game that is simply waiting. Without this the player has no
+  // way to tell the difference, and every click silently does nothing.
+  const [connection, setConnection] = useState('live')
   const isTutorial = client instanceof TutorialClient
   const rootRef = useRef(null)
 
   const connect = useCallback((id) => {
     setClient(gameClient)
     setActiveClient(gameClient)
+    setConnection('live')
     gameClient.connect(id)
     setRoomId(id)
     setScreen('waiting')
@@ -298,7 +304,12 @@ export default function App() {
         }
       }
     }
-    const onError = ({ detail }) => addToast(`⚠ ${detail.message}`, 'error')
+    const onError = ({ detail }) => {
+      if (detail.code === 'RECONNECT_FAILED') setConnection('lost')
+      addToast(`⚠ ${detail.message}`, 'error')
+    }
+    const onConnected = () => setConnection('live')
+    const onDropped = () => setConnection(c => (c === 'lost' ? c : 'reconnecting'))
     const onDisconn = () => addToast('Opponent disconnected. Waiting…', 'warning')
 
     client.addEventListener('joined', onJoined)
@@ -306,6 +317,8 @@ export default function App() {
     client.addEventListener('events', onEvents)
     client.addEventListener('gameError', onError)
     client.addEventListener('opponentDisconnected', onDisconn)
+    client.addEventListener('connected', onConnected)
+    client.addEventListener('disconnected', onDropped)
 
     return () => {
       client.removeEventListener('joined', onJoined)
@@ -313,6 +326,8 @@ export default function App() {
       client.removeEventListener('events', onEvents)
       client.removeEventListener('gameError', onError)
       client.removeEventListener('opponentDisconnected', onDisconn)
+      client.removeEventListener('connected', onConnected)
+      client.removeEventListener('disconnected', onDropped)
     }
   }, [client, myPlayerId])
 
@@ -442,7 +457,15 @@ export default function App() {
       <Lobby onConnect={connect} onStartTutorial={startTutorial} />
     </>
   )
-  if (screen === 'waiting') return <WaitingScreen roomId={roomId} />
+  // The waiting screen is also reachable with a dead socket — a drop before the
+  // first state arrives, or a reload while offline — and on its own it is
+  // indistinguishable from simply waiting for an opponent who hasn't joined yet.
+  if (screen === 'waiting') return (
+    <>
+      <WaitingScreen roomId={roomId} />
+      {!isTutorial && connection !== 'live' && <ConnectionBanner status={connection} />}
+    </>
+  )
 
   return (
     <div ref={rootRef} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -594,12 +617,51 @@ export default function App() {
 
       {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
 
+      {!isTutorial && connection !== 'live' && <ConnectionBanner status={connection} />}
+
       <div style={{
         position: 'absolute', top: 76, left: '50%', transform: 'translateX(-50%)',
         display: 'flex', flexDirection: 'column', gap: 6, zIndex: 400, pointerEvents: 'none'
       }}>
         {toasts.map(t => <Toast key={t.id} msg={t.msg} type={t.type} />)}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Shown whenever the socket is not live. The board keeps rendering underneath
+ * (the last state is still worth seeing) but the player is told why nothing
+ * they do is landing, and given the one action that actually recovers it.
+ */
+function ConnectionBanner({ status }) {
+  const lost = status === 'lost'
+  return (
+    <div style={{
+      position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 600, pointerEvents: 'all',
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '10px 16px', borderRadius: 10,
+      background: lost ? 'rgba(60,10,20,0.96)' : 'rgba(48,32,8,0.96)',
+      border: `1px solid ${lost ? 'rgba(255,80,110,0.5)' : 'rgba(255,176,32,0.5)'}`,
+      color: '#fff', fontSize: 13, fontWeight: 600,
+      boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+    }}>
+      <span style={{ color: lost ? '#ff8fa3' : '#ffd08a' }}>
+        {lost ? 'Disconnected from the server.' : 'Connection lost, reconnecting…'}
+      </span>
+      {lost && (
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            border: 'none', borderRadius: 7, padding: '6px 14px',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            background: '#ff0099', color: '#fff',
+          }}
+        >
+          Reload
+        </button>
+      )}
     </div>
   )
 }
