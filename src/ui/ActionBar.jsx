@@ -2,15 +2,19 @@ export function ActionBar({
   holdingPriority,
   myChoicePending,
   onPass,
+  narrow = false,
 }) {
   const canAct = holdingPriority && !myChoicePending
 
   return (
     <div style={{
       position: 'absolute',
-      bottom: 20,
-      left: '50%',
-      transform: 'translateX(-50%)',
+      // Centred on a wide screen; pinned to the bottom right on a phone, where
+      // the centre is taken by the player's own stats bar.
+      bottom: narrow ? 8 : 20,
+      ...(narrow
+        ? { right: 8 }
+        : { left: '50%', transform: 'translateX(-50%)' }),
       display: 'flex',
       alignItems: 'center',
       gap: 10,

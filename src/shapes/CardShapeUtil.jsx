@@ -20,13 +20,14 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       horizonIndex: null,
       horizonIsTop: false,
       playable: false,
+      chunky: false,
       w: CW,
       h: CH,
     }
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
@@ -99,9 +100,9 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             background: 'linear-gradient(to top, rgba(7,7,15,0.92) 60%, rgba(7,7,15,0))',
             pointerEvents: 'none',
           }}>
-            <CardActionButton label="Play" bg="#ff0099"
+            <CardActionButton label="Play" bg="#ff0099" chunky={chunky}
               onClick={() => getClient().playCard(cardId)} />
-            <CardActionButton label="Void" sub="+3" bg="rgba(255,255,255,0.16)"
+            <CardActionButton label="Void" sub="+3" bg="rgba(255,255,255,0.16)" chunky={chunky}
               onClick={() => getClient().voidCard(cardId)} />
           </div>
         )}
@@ -117,7 +118,7 @@ getIndicatorPath() { return undefined }
   canBind() { return false }
 }
 
-function CardActionButton({ label, sub, bg, onClick }) {
+function CardActionButton({ label, sub, bg, onClick, chunky = false }) {
   // Act on pointerdown: it always fires on the button itself, before tldraw's
   // canvas listeners or the hold-gesture timer can interfere with a click.
   return (
@@ -128,7 +129,11 @@ function CardActionButton({ label, sub, bg, onClick }) {
         width: '100%',
         background: bg, color: '#fff',
         border: 'none', borderRadius: 6,
-        padding: '6px 0', fontSize: 13, fontWeight: 700,
+        // These are drawn in board units and shrunk by the camera, so on a
+        // phone they have to be oversized here to end up thumb-sized on screen.
+        padding: chunky ? '18px 0' : '6px 0',
+        fontSize: chunky ? 22 : 13,
+        fontWeight: 700,
         letterSpacing: '0.04em', cursor: 'pointer',
       }}
     >

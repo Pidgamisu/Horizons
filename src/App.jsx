@@ -18,7 +18,8 @@ import { ZoneViewer } from './ui/ZoneViewer.jsx'
 const PILE_ZONES = new Set(['dusk', 'zenith', 'zenith-opp'])
 import { RulesOverlay } from './ui/Rules.jsx'
 import { CoachOverlay } from './ui/CoachOverlay.jsx'
-import { cardName, cardImageSrc } from './data/cardImages.js'
+import { useIsNarrow } from './ui/useIsNarrow.js'
+import { cardName } from './data/cardImages.js'
 
 const CUSTOM_SHAPE_UTILS = [CardShapeUtil, ZoneShapeUtil]
 
@@ -32,10 +33,9 @@ const HORIZON_REMOVAL_EVENTS = new Set([
   'CARD_TO_DUSK_BY_TRIGGER',
 ])
 
-function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizonCardClick, onCardHover, onZoneClick, onCardHold, onCardHoldEnd }) {
+function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizonCardClick, onCardHover, onZoneClick }) {
   const editor = useEditor()
   const boardRef = useRef(null)
-  const suppressClickRef = useRef(false)
   const hasFitRef = useRef(false)
 
   useEffect(() => {
@@ -65,10 +65,11 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     // nothing — their cards were laid out correctly but far too small to see,
     // and nothing re-fit until something else moved the camera.
     if (!hasFitRef.current && boardRef.current.hasCards()) {
-      hasFitRef.current = true
       // Called directly, not via requestAnimationFrame: a hidden tab fires no
-      // frames, and the board must be framed correctly there too.
-      boardRef.current.fitBoard()
+      // frames, and the board must be framed correctly there too. It declines
+      // when the canvas has no real size yet, and then this stays false so the
+      // next resize does the framing instead of skipping it forever.
+      hasFitRef.current = boardRef.current.fitBoard()
     }
   }, [editor, gameState, myPlayerId])
 
@@ -127,14 +128,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
 
   useEffect(() => {
     if (!editor || !boardRef.current) return
-    boardRef.current.selectedCardId = selectedCard
-    const updates = editor.getCurrentPageShapes()
-      .filter(s => s.type === 'horizons-card' && s.props.zone === 'hand')
-      .filter(s => s.props.selected !== (s.props.cardId === selectedCard))
-      .map(s => ({ id: s.id, type: 'horizons-card', props: { selected: s.props.cardId === selectedCard } }))
-    if (updates.length) {
-      editor.run(() => editor.updateShapes(updates), { history: 'ignore', ignoreShapeLock: true })
-    }
+    boardRef.current.setSelectedCard(selectedCard)
   }, [editor, selectedCard])
 
   useEffect(() => {
@@ -145,9 +139,6 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     const handleClick = (e) => {
       // Clicks on the on-card Play/Void buttons are theirs to handle.
       if (e.target?.closest?.('button')) return
-      // A press-and-hold (enlarge) ends in a click — swallow that one so it
-      // doesn't also select/open the card.
-      if (suppressClickRef.current) { suppressClickRef.current = false; return }
       // Resolve which card was clicked using the editor's own hit-testing.
       // Cards are locked, so hitLocked is required; hitInside catches clicks
       // anywhere within the filled card, not just its edge.
@@ -173,50 +164,6 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     return () => container.removeEventListener('click', handleClick)
   }, [editor, onCardClick, onHorizonCardClick, onZoneClick])
 
-  // Press-and-hold a face-up card to preview it enlarged. A short hold timer
-  // distinguishes a hold from a click; releasing ends the preview and suppresses
-  // the trailing click so it doesn't select/open the card.
-  useEffect(() => {
-    if (!editor) return
-    const container = editor.getContainer()
-    let holdTimer = null
-    let holding = false
-
-    const faceUpCardAt = (e) => {
-      const point = editor.screenToPage({ x: e.clientX, y: e.clientY })
-      return editor.getShapeAtPoint(point, {
-        hitInside: true, hitLocked: true,
-        filter: (s) => s.type === 'horizons-card' && !!s.props.cardId && s.props.faceUp,
-      })
-    }
-
-    const onPointerDown = (e) => {
-      suppressClickRef.current = false // self-heal: a fresh press never stays suppressed
-      if (e.button !== 0) return
-      if (e.target?.closest?.('button')) return // never hold-preview from a button press
-      const shape = faceUpCardAt(e)
-      if (!shape) return
-      const cardId = shape.props.cardId
-      holdTimer = setTimeout(() => {
-        holding = true
-        onCardHold(cardId)
-      }, 300)
-    }
-    const endHold = () => {
-      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null }
-      if (holding) { holding = false; suppressClickRef.current = true; onCardHoldEnd() }
-    }
-
-    container.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointerup', endHold)
-    container.addEventListener('pointerleave', endHold)
-    return () => {
-      container.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('pointerup', endHold)
-      container.removeEventListener('pointerleave', endHold)
-      if (holdTimer) clearTimeout(holdTimer)
-    }
-  }, [editor, onCardHold, onCardHoldEnd])
 
   return null
 }
@@ -232,10 +179,10 @@ export default function App() {
   const [viewingZone, setViewingZone] = useState(null)
   const [revealedHand, setRevealedHand] = useState(null)
   const [showRules, setShowRules] = useState(false)
-  const [enlargedCard, setEnlargedCard] = useState(null)
   // The client the UI is driving: the networked singleton, or a scripted
   // TutorialClient. Both share the same surface + emitted events.
   const [client, setActiveClient] = useState(gameClient)
+  const narrow = useIsNarrow()
   // 'live' | 'reconnecting' | 'lost'. The board is entirely server-driven, so a
   // dropped socket leaves it frozen on the last state it received — visually
   // identical to a game that is simply waiting. Without this the player has no
@@ -362,8 +309,6 @@ export default function App() {
     setHoveredCard(cardId ? { cardId, point } : null)
   }, [])
 
-  const handleCardHold = useCallback((cardId) => setEnlargedCard(cardId), [])
-  const handleCardHoldEnd = useCallback(() => setEnlargedCard(null), [])
 
   const handleZoneClick = useCallback((zoneType) => {
     setViewingZone(zoneType)
@@ -474,7 +419,12 @@ export default function App() {
           licenseKey="tldraw-nathaniel-lefcourt-2031-06-29/WyJBcndlb0lIQSIsWyIqLmhvcml6b25zY2FyZGdhbWUuY29tIl0sOSwiMjAzMS0wNi0yOSJd.Q0PRtvJv0XqsyXrQ6EoSYar9yN9xpsGmG/5kMtaXm8m8jcfe54SkKrGkbj23uRrgbQCIzU2fG8zSPT/pG/c1YA"
           shapeUtils={CUSTOM_SHAPE_UTILS}
           hideUi
-          components={{ Background: DarkBackground }}
+          // ContextMenu is disabled outright: on a touch screen tldraw opens it
+          // on long-press, which is the same gesture the game uses to enlarge a
+          // card, so holding a card popped up an editor menu (Edit / Copy as /
+          // Export as) over the board. Players never author shapes here, so the
+          // menu has nothing useful to offer either.
+          components={{ Background: DarkBackground, ContextMenu: null }}
         >
           <GameCanvas
             gameState={gameState}
@@ -484,8 +434,6 @@ export default function App() {
             onHorizonCardClick={handleHorizonCardClick}
             onCardHover={handleCardHover}
             onZoneClick={handleZoneClick}
-            onCardHold={handleCardHold}
-            onCardHoldEnd={handleCardHoldEnd}
           />
         </Tldraw>
       </div>
@@ -498,6 +446,7 @@ export default function App() {
           holdingPriority={holdingPriority}
           turnNumber={gameState.turnNumber}
           onConcede={isTutorial ? undefined : handleConcede}
+          narrow={narrow}
         />
       )}
 
@@ -510,6 +459,7 @@ export default function App() {
           holdingPriority={holdingPriority}
           myChoicePending={myChoicePending}
           onPass={handlePass}
+          narrow={narrow}
         />
       )}
 
@@ -585,7 +535,8 @@ export default function App() {
         onClick={() => setShowRules(true)}
         title="How to play"
         style={{
-          position: 'absolute', bottom: 20, right: 16, zIndex: 200,
+          position: 'absolute', zIndex: 200,
+          ...(narrow ? { top: 10, right: 8 } : { bottom: 20, right: 16 }),
           width: 34, height: 34, borderRadius: '50%',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(255,0,153,0.18)', color: '#fff',
@@ -596,24 +547,6 @@ export default function App() {
         ?
       </button>
 
-      {/* Hold-to-enlarge card preview */}
-      {enlargedCard && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 450,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.62)', pointerEvents: 'none',
-        }}>
-          <img
-            src={cardImageSrc(enlargedCard)}
-            alt={cardName(enlargedCard)}
-            draggable={false}
-            style={{
-              height: 'min(82vh, 600px)', maxWidth: '88vw', objectFit: 'contain',
-              borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,0.75)',
-            }}
-          />
-        </div>
-      )}
 
       {showRules && <RulesOverlay onClose={() => setShowRules(false)} />}
 

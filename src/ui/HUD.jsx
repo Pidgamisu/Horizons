@@ -13,7 +13,7 @@ function ZenithScore({ points }) {
   )
 }
 
-function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', onConcede }) {
+function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', onConcede, compact = false }) {
   const isRight = align === 'right'
   const handCount = state?.handSize ?? state?.hand?.length ?? 0
 
@@ -22,13 +22,16 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
       display: 'flex',
       flexDirection: isRight ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 14,
-      padding: '10px 18px',
+      gap: compact ? 10 : 14,
+      padding: compact ? '6px 12px' : '10px 18px',
       background: holdingPriority ? 'rgba(255,0,153,0.12)' : 'rgba(255,255,255,0.04)',
       borderRadius: 10,
       border: `1px solid ${holdingPriority ? 'rgba(255,0,153,0.4)' : 'rgba(255,255,255,0.06)'}`,
       transition: 'all 0.25s',
-      minWidth: 290,
+      // A fixed 290 is wider than half a phone, which is what made the bottom
+      // panel sit under the Pass button.
+      minWidth: compact ? 0 : 290,
+      ...(compact ? { maxWidth: '100%', overflow: 'hidden' } : {}),
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1,
                     alignItems: isRight ? 'flex-end' : 'flex-start' }}>
@@ -49,9 +52,11 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
         <ZenithScore points={state?.zenith?.length ?? state?.points ?? 0} />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 10 : 14 }}>
         <Stat value={state?.energy ?? 0} label="energy" color="#4fc3f7" />
-        <Stat value={handCount}           label="hand"   color="rgba(255,255,255,0.7)" />
+        {!compact && (
+          <Stat value={handCount} label="hand" color="rgba(255,255,255,0.7)" />
+        )}
       </div>
 
       {onConcede && (
@@ -64,12 +69,12 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
             background: 'transparent',
             color: 'rgba(255,100,100,0.55)',
             border: '1px solid rgba(255,100,100,0.25)',
-            borderRadius: 7, padding: '6px 10px',
+            borderRadius: 7, padding: compact ? '6px 8px' : '6px 10px',
             fontSize: 11, fontWeight: 700, cursor: 'pointer',
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}
         >
-          Concede
+          {compact ? 'Quit' : 'Concede'}
         </button>
       )}
     </div>
@@ -86,7 +91,46 @@ function Stat({ value, label, color }) {
   )
 }
 
-export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber, onConcede }) {
+export function HUD({ myState, oppState, isMyTurn, holdingPriority, turnNumber, onConcede, narrow = false }) {
+  // On a phone the board fills the screen and BoardManager reserves a band at
+  // the top and bottom for exactly these two bars. They run the full width
+  // rather than sitting in corners, which is what made them overlap each other
+  // and the Pass button.
+  if (narrow) {
+    return (
+      <>
+        <div style={{
+          position: 'absolute', top: 6, left: 8, right: 52,
+          pointerEvents: 'none', zIndex: 100,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <PlayerPanel label="Opponent" state={oppState} holdingPriority={!holdingPriority}
+                         isMyTurn={!isMyTurn} align="left" compact />
+          </div>
+          <div style={{
+            flexShrink: 0, textAlign: 'center', color: 'rgba(255,255,255,0.5)',
+            fontSize: 15, fontWeight: 800, lineHeight: 1,
+            padding: '6px 9px', borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ fontSize: 8, letterSpacing: '0.1em', opacity: 0.6 }}>TURN</div>
+            {turnNumber ?? 1}
+          </div>
+        </div>
+
+        {/* Left of the Pass button, which pins itself to the bottom right. */}
+        <div style={{
+          position: 'absolute', bottom: 8, left: 8, right: 152,
+          pointerEvents: 'none', zIndex: 100,
+        }}>
+          <PlayerPanel label="You" state={myState} holdingPriority={holdingPriority}
+                       isMyTurn={isMyTurn} align="left" onConcede={onConcede} compact />
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <style>{`
