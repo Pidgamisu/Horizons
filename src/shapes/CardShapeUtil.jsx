@@ -17,6 +17,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       selected: false,
       targeted: false,
       dimmed: false,
+      mine: false,
       horizonIndex: null,
       horizonIsTop: false,
       playable: false,
@@ -27,17 +28,24 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, mine, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
+    const OWNER = mine
+      ? { line: '#ff4fb0', glow: 'rgba(255,79,176,0.55)', label: 'YOURS' }
+      : { line: '#4dffb0', glow: 'rgba(77,255,176,0.55)', label: 'THEIRS' }
+
     const border = targeted ? '2px solid #00e5ff'
       : selected ? '2px solid #ff0099'
+      // On the horizon a card belongs to someone, and which someone decides
+      // whether you may respond to it and whose card you are about to lose.
+      : onHorizon ? `2px solid ${OWNER.line}`
       : '1px solid rgba(255,255,255,0.10)'
 
     const glow = targeted ? '0 0 14px rgba(0,229,255,0.55)'
       : selected ? '0 0 12px rgba(255,0,153,0.6)'
-      : onHorizon ? '0 4px 16px rgba(0,0,0,0.5)'
+      : onHorizon ? `0 4px 16px rgba(0,0,0,0.5), 0 0 10px ${OWNER.glow}`
       : 'none'
 
     // Clicks are resolved by the editor (see App.jsx via editor.getShapeAtPoint),
@@ -74,6 +82,18 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
           />
         )}
 
+
+        {onHorizon && (
+          <div style={{
+            position: 'absolute', top: 4, left: 4,
+            background: OWNER.line, color: '#12122a',
+            fontSize: 9, fontWeight: 800,
+            padding: '2px 5px', borderRadius: 4,
+            letterSpacing: '0.06em',
+          }}>
+            {OWNER.label}
+          </div>
+        )}
 
         {onHorizon && horizonIndex !== null && (
           <div style={{

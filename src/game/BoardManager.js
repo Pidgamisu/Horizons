@@ -292,6 +292,7 @@ export class BoardManager {
     const ids = []
     entries.forEach((entry, i) => {
       const id = sid(`card-${entry.cardId}`)
+      const controller = entry.controlledBy ?? entry.playedBy
       ids.push(id)
       out.push({
         id,
@@ -301,7 +302,11 @@ export class BoardManager {
         // fly in from their hand.
         spawn: this._anchor(entry.playedBy === this.myPlayerId ? 'myHand' : 'opponentHand'),
         props: {
-          cardId: entry.cardId, faceUp: true, zone: 'horizon', owner: entry.playedBy,
+          cardId: entry.cardId, faceUp: true, zone: 'horizon', owner: controller,
+          // Control, not who played it: a card taken with Reverse or Change of
+          // Luck answers to its new controller, and that is what decides who may
+          // respond to it and whose it is to lose.
+          mine: controller === this.myPlayerId,
           selected: false, targeted: false, dimmed: false, playable: false,
           horizonIndex: i, horizonIsTop: i === 0, w: CW, h: CH,
         },

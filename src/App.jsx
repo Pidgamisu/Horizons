@@ -499,6 +499,7 @@ export default function App() {
           horizonCards={gameState?.zones?.horizon ?? []}
           duskCards={gameState?.zones?.dusk ?? []}
           myEnergy={myState?.energy ?? 0}
+          myPlayerId={myPlayerId}
           onRespond={(payload) => { gameClient.choose(payload); setSelectedCard(null) }}
         />
       )}

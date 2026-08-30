@@ -29,7 +29,7 @@ export function describeEffects(effects) {
   return `${sentence[0].toUpperCase()}${sentence.slice(1)}?`
 }
 
-function MiniCard({ cardId, selected, targeted, onClick, label }) {
+function MiniCard({ cardId, selected, targeted, onClick, label, owner }) {
   return (
     <div
       onClick={onClick}
@@ -63,6 +63,16 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
                       alignItems: 'center', justifyContent: 'center',
                       color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>✦</div>
       )}
+      {owner && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          background: owner === 'mine' ? '#ff4fb0' : '#4dffb0',
+          color: '#12122a', fontSize: 9, fontWeight: 800,
+          textAlign: 'center', padding: '2px 0', letterSpacing: '0.06em',
+        }}>
+          {owner === 'mine' ? 'YOURS' : 'THEIRS'}
+        </div>
+      )}
       {label && (
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -76,7 +86,7 @@ function MiniCard({ cardId, selected, targeted, onClick, label }) {
   )
 }
 
-export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy = 0, onRespond }) {
+export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy = 0, myPlayerId, onRespond }) {
   const [selected, setSelected] = useState([])
 
   const toggle = (id) => {
@@ -150,6 +160,10 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
     ? (filter.costEquals != null ? `card costing ${filter.costEquals}` : 'card')
     : filter === 'any' || !filter ? 'card' : `${filter} card`
 
+  // "a action card" — the filter is dropped in verbatim, and one of the two
+  // values it can take starts with a vowel.
+  const anLabel = /^[aeiou]/i.test(filterLabel) ? `an ${filterLabel}` : `a ${filterLabel}`
+
   // Horizon cards offered as targets, keyed by their real horizon index. A
   // rising card has already left the horizon, so there is nothing to exclude.
   // Only cards this choice can actually take. The server computes the legal
@@ -161,7 +175,14 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
     return horizonCards
       .map((e, i) => ({ e, i }))
       .filter(({ i }) => !legal || legal.includes(i))
-      .map(({ e, i }) => ({ id: String(i), label: i === 0 ? 'TOP' : null, cardId: e.cardId }))
+      .map(({ e, i }) => ({
+        id: String(i),
+        label: i === 0 ? 'TOP' : null,
+        cardId: e.cardId,
+        // Control, not who played it — see BoardManager. This is the thing you
+        // most need to know when picking a card to counter.
+        owner: (e.controlledBy ?? e.playedBy) === myPlayerId ? 'mine' : 'theirs',
+      }))
   }
 
   // ── Render by choice type ──────────────────────────────────────────────────
@@ -180,7 +201,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   let isDestinationChoice = false
 
   if (type === 'controllerMovesCardFromHorizonTarget') {
-    title = `Choose a ${filterLabel} on the horizon`
+    title = `Choose ${anLabel} on the horizon`
     subtitle = 'Its controller will move it to the top or bottom of the deck'
     cards = horizonTargets()
     canConfirm = selected.length === 1
@@ -212,7 +233,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'mayPlayFromHand') {
-    title = `Play a ${filterLabel} from your hand for 0 energy?`
+    title = `Play ${anLabel} from your hand for 0 energy?`
     subtitle = 'Choose one, or decline'
     cards = myHand
       .filter(id => !filter || filter === 'any' || cardType(id) === filter)
@@ -240,7 +261,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'duskUnlessControllerPaysTarget') {
-    title = `Choose a ${filterLabel} on the horizon`
+    title = `Choose ${anLabel} on the horizon`
     subtitle = 'Its controller may pay the ransom to save it'
     cards = horizonTargets()
     canConfirm = selected.length === 1
@@ -275,7 +296,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'chooseCardToDuskFromRevealedHand') {
-    title = `Choose a ${filterLabel} to put in the dusk from your opponent’s hand`
+    title = `Choose ${anLabel} to put in the dusk from your opponent’s hand`
     subtitle = 'Their hand is revealed'
     const hand = choice.revealedHand ?? []
     cards = hand
@@ -376,7 +397,7 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
   }
 
   else if (type === 'duskFromHorizon' || type === 'duskFromHorizonChoice') {
-    title = `Put a ${filterLabel} from the horizon into the dusk`
+    title = `Put ${anLabel} from the horizon into the dusk`
     subtitle = 'Select a card to put in the dusk'
     cards = horizonTargets()
     canConfirm = selected.length === 1
@@ -494,9 +515,10 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
           marginBottom: 14,
           paddingBottom: 4,
         }}>
-          {cards.map(({ id, label, cardId: cid }) => (
+          {cards.map(({ id, label, cardId: cid, owner }) => (
             <MiniCard
               key={id}
+              owner={owner}
               cardId={cid ?? id}
               selected={selected.includes(id)}
               onClick={() => toggle(id)}
