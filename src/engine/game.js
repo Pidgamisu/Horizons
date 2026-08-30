@@ -46,6 +46,8 @@ export function playCard(state, playerId, cardId, context = {}) {
     const cost = computeActualCost(state, cardId, playerId, context);
     state.players[playerId].energy -= cost;
     events.push({ type: 'ENERGY_SPENT', player: playerId, amount: cost });
+    // A one-shot grant: it applied to this card, so it is spent.
+    if (state.turnFlags.nextCardFreeFor === playerId) state.turnFlags.nextCardFreeFor = null;
 
     // Pay additional costs (validated separately, surfaced as pending choices)
     for (const addCost of card.additionalCosts ?? []) {

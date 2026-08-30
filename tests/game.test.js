@@ -1168,3 +1168,65 @@ describe('Cards that watch a departure', () => {
     expect(state.players.p1.hand.length).toBe(before + 2);
   });
 });
+
+// ─── thenGrant riders ─────────────────────────────────────────────────────────
+// Four cards put a card into the dusk and then do something to that card's
+// controller. The rider was encoded as a bare string while the resolver switched
+// on grant.type, so every one of them silently did only the first half — no
+// error, no crash, nothing for cards-sweep or the fuzzer to notice. These pin
+// the second half down.
+describe('thenGrant riders fire', () => {
+  function duskWithRider(cardId, targetId) {
+    const state = createGameState();
+    initDeck(state);
+    startGame(state);
+    state.zones.horizon = [
+      createHorizonEntry(cardId, 'p1'),
+      createHorizonEntry(targetId, 'p2'),
+    ];
+    state.players.p1.energy = 10;
+    state.players.p2.energy = 0;
+    state.players.p2.hand = ['004', '012'];
+    riseTopOfHorizon(state);
+    flushHorizonTriggers(state);
+    expect(advancePendingChoices(state)).toBe(true);
+    const { error } = resolveChoice(state, state.pendingChoice.player, { horizonIndex: 0 });
+    expect(error).toBe(null);
+    return state;
+  }
+
+  test('Unwanted Gift (089) gives the target controller 3 energy', () => {
+    expect(duskWithRider('089', '050').players.p2.energy).toBe(3);
+  });
+
+  test('Relapse (095) makes the target controller draw two', () => {
+    expect(duskWithRider('095', '050').players.p2.hand.length).toBe(4);
+  });
+
+  test('Drain Motive (092) locks the target controller out of the turn', () => {
+    expect(duskWithRider('092', '004').turnFlags.lockedPlayer).toBe('p2');
+  });
+
+  test('Metamorphosis (071) makes the target controller next card free', () => {
+    const state = duskWithRider('071', '050');
+    expect(state.turnFlags.nextCardFreeFor).toBe('p2');
+    expect(computeActualCost(state, '012', 'p2')).toBe(0);
+  });
+
+  test('the free-card grant is spent by the card it pays for', () => {
+    // Driven on a clean turn: continuing from the rider state would have to
+    // fight the priority pass that playing a card triggers.
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    state.players[me].hand = ['004', '012'];
+    state.players[me].energy = 10;
+    state.turnFlags.nextCardFreeFor = me;
+
+    expect(computeActualCost(state, '004', me)).toBe(0);
+    playCard(state, me, '004');
+    expect(state.players[me].energy).toBe(10);
+    expect(state.turnFlags.nextCardFreeFor).toBe(null);
+    // Full price once the grant is gone.
+    expect(computeActualCost(state, '012', me)).toBe(getCard('012').energyCost);
+  });
+});

@@ -1351,7 +1351,7 @@
       {
         "type": "duskFromHorizon",
         "filter": "any",
-        "thenGrant": "targetControllerNextCardFree"
+        "thenGrant": { "type": "nextCardFree", "player": "trashedCardController" }
       }
     ],
     "staticEffects": []
@@ -1700,7 +1700,7 @@
       {
         "type": "duskFromHorizon",
         "filter": "action",
-        "thenGrant": "targetControllerGains3"
+        "thenGrant": { "type": "gainEnergy", "amount": 3, "player": "trashedCardController" }
       }
     ],
     "staticEffects": []
@@ -1749,7 +1749,7 @@
       {
         "type": "duskFromHorizon",
         "filter": "point",
-        "thenGrant": "lockTargetController"
+        "thenGrant": { "type": "lockPlayer", "player": "trashedCardController" }
       }
     ],
     "staticEffects": []
@@ -1799,7 +1799,7 @@
       {
         "type": "duskFromHorizon",
         "filter": "any",
-        "thenGrant": "targetControllerDrawsTwo"
+        "thenGrant": { "type": "draw", "count": 2, "player": "trashedCardController" }
       }
     ],
     "staticEffects": []

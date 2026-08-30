@@ -93,6 +93,7 @@ export function createTurnFlags() {
     allCardsCostLess:         0,      // Possess Love (83) — stacks as delta
     lockedPlayer:             null,   // Stifle Speech (52) — playerId locked from playing this turn
     protectNextSelfAction: null, // Injustice (67) — playerId whose next action this turn is protected from action responses
+    nextCardFreeFor:          null,   // Metamorphosis (071) — playerId whose next card this turn costs 0
     shareTheLootActive:       false,  // Share the Loot (75)
   };
 }
@@ -338,6 +339,10 @@ export function horizonHasTarget(state, filter) {
 export function computeActualCost(state, cardId, playerId, context = {}) {
   const card = getCard(cardId);
   let cost = card.energyCost;
+
+  // Metamorphosis (071) — cleared by playCard once the card is actually played,
+  // not here, since this is also called to test affordability.
+  if (state.turnFlags.nextCardFreeFor === playerId) return 0;
 
   // Pray To Me (043) — while it is on the horizon its controller's actions are free.
   if (card.type === 'action' && state.zones.horizon.some(entry =>

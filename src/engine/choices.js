@@ -746,6 +746,16 @@ function executeThenGrant(state, grant, grantTarget, originalController) {
       const drawn = drawCards(state, player, grant.count);
       events.push({ type: 'CARDS_DRAWN', player, cards: drawn });
       break;
+    case 'lockPlayer':
+      // Drain Motive (092) — the card's controller is done playing this turn.
+      state.turnFlags.lockedPlayer = player;
+      events.push({ type: 'OPPONENT_LOCKED_FROM_PLAYING', player });
+      break;
+    case 'nextCardFree':
+      // Metamorphosis (071) — consumed by the next card that player plays.
+      state.turnFlags.nextCardFreeFor = player;
+      events.push({ type: 'NEXT_CARD_FREE', player });
+      break;
   }
   return events;
 }
