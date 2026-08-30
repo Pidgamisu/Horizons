@@ -392,6 +392,14 @@ export function createServer(port = 8080) {
       broadcastEvents(room, events);
       broadcastState(room);
       console.log(`Game started in room ${roomId}`);
+    } else if (room.started && room.state) {
+      // A player rejoining a game already in progress: a reload, a dropped
+      // socket, a phone waking from sleep. State is otherwise only ever sent at
+      // the moment the second player first connects, so without this they get
+      // JOINED and nothing after it, and sit on the waiting screen forever
+      // while the game they are still in carries on without them.
+      broadcastState(room);
+      console.log(`${playerId} rejoined in-progress room ${roomId}`);
     }
 
     // Message handler
