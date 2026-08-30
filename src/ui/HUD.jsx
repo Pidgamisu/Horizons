@@ -1,17 +1,4 @@
 
-function ZenithScore({ points }) {
-  return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-      <span style={{
-        fontSize: 18, fontWeight: 700, color: '#9aff4d',
-        textShadow: '0 0 8px rgba(154,255,77,0.6)', minWidth: 14, textAlign: 'right',
-      }}>{points}</span>
-      <span style={{ fontSize: 10, letterSpacing: 0.6, color: 'rgba(255,255,255,0.5)' }}>
-        {points === 1 ? 'POINT' : 'POINTS'}
-      </span>
-    </div>
-  )
-}
 
 function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', onConcede, compact = false }) {
   const isRight = align === 'right'
@@ -33,7 +20,7 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
       minWidth: compact ? 0 : 290,
       ...(compact ? { maxWidth: '100%', overflow: 'hidden' } : {}),
     }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1,
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1,
                     alignItems: isRight ? 'flex-end' : 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7,
                       flexDirection: isRight ? 'row-reverse' : 'row' }}>
@@ -49,7 +36,6 @@ function PlayerPanel({ label, state, holdingPriority, isMyTurn, align = 'left', 
             </span>
           )}
         </div>
-        <ZenithScore points={state?.zenith?.length ?? state?.points ?? 0} />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 10 : 14 }}>
