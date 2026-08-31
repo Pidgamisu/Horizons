@@ -18,6 +18,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       targeted: false,
       dimmed: false,
       mine: false,
+      pileCount: null,
       horizonIndex: null,
       horizonIsTop: false,
       playable: false,
@@ -28,7 +29,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, mine, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, mine, pileCount, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
@@ -82,6 +83,24 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
           />
         )}
 
+
+        {pileCount !== null && (
+          <div style={{
+            position: 'absolute', bottom: chunky ? 8 : 5, left: '50%',
+            transform: 'translateX(-50%)',
+            // Drawn in board units and shrunk by the camera, same as the
+            // Play/Void buttons, so it needs to be oversized on a phone.
+            fontSize: chunky ? 22 : 12,
+            fontWeight: 800, color: '#fff',
+            background: 'rgba(0,0,0,0.78)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 10,
+            padding: chunky ? '4px 14px' : '2px 9px',
+            letterSpacing: '0.04em',
+          }}>
+            {pileCount}
+          </div>
+        )}
 
         {onHorizon && (
           <div style={{

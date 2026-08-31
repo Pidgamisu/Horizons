@@ -170,9 +170,11 @@ export class BoardManager {
       const horizonIds = this._collectHorizon(state.zones?.horizon ?? [], desired)
       this._collectMyHand(state.players?.[myPlayerId]?.hand ?? [], canAct, desired)
       this._collectOpponentHand(state.players?.[opp]?.handSize ?? 0, desired)
-      this._collectPile('dusk', state.zones?.dusk ?? [], desired)
-      this._collectPile('myZenith', state.players?.[myPlayerId]?.zenith ?? [], desired)
-      this._collectPile('oppZenith', state.players?.[opp]?.zenith ?? [], desired)
+      const pileIds = [
+        ...this._collectPile('dusk', state.zones?.dusk ?? [], desired),
+        ...this._collectPile('myZenith', state.players?.[myPlayerId]?.zenith ?? [], desired),
+        ...this._collectPile('oppZenith', state.players?.[opp]?.zenith ?? [], desired),
+      ]
 
       // Reconcile first and note which cards moved; the glide is kicked off LAST.
       // bringToFront (restack) and updateShapes (targeting, zone counts) both
@@ -181,6 +183,7 @@ export class BoardManager {
       const toAnimate = this._reconcileCards(desired, canAnimate)
       // Overlapping hands need a settled order or the fan reads as a jumble and
       // a tap can land on the card behind. Horizon last: it must sit above all.
+      this._restackFan(pileIds)
       this._restackFan(this._handIds(state.players?.[myPlayerId]?.hand ?? []))
       this._restackFan(Array.from(
         { length: state.players?.[opp]?.handSize ?? 0 }, (_, i) => sid(`oppcard-${i}`)))
@@ -379,10 +382,12 @@ export class BoardManager {
   // by a few pixels so the pile reads as a stack, with the full contents
   // available through the zone viewer.
   _collectPile(name, codes, out) {
-    if (!codes.length) return
+    if (!codes.length) return []
     const z = this.zones[name]
     const show = codes.slice(-3)
+    const ids = []
     show.forEach((code, i) => {
+      ids.push(sid(`card-${code}`))
       const offset = (i - (show.length - 1) / 2) * 5
       out.push({
         id: sid(`card-${code}`),
@@ -394,10 +399,15 @@ export class BoardManager {
         props: {
           cardId: code, faceUp: true, zone: z.zoneType, owner: null,
           selected: false, targeted: false, dimmed: false, playable: false,
+          // Only the top card shows the tally, or the ones underneath would
+          // print it again a few pixels away.
+          pileCount: i === show.length - 1 ? codes.length : null,
+          chunky: this.mode !== 'wide',
           horizonIndex: null, horizonIsTop: false, w: CW, h: CH,
         },
       })
     })
+    return ids
   }
 
   // ── Reconciliation ───────────────────────────────────────────────────────────
