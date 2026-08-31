@@ -1,7 +1,7 @@
 import { getCard } from '../data/cardDb.js';
 import {
   createHorizonEntry, createTurnFlags,
-  drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost,
+  drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost, revealablePoints,
   isDeckSpent, pointsOf, removeFromHorizon, removeHorizonEntry,
 } from './state.js';
 import { validatePlay } from './validation.js';
@@ -46,6 +46,18 @@ export function playCard(state, playerId, cardId, context = {}) {
     const cost = computeActualCost(state, cardId, playerId, context);
     state.players[playerId].energy -= cost;
     events.push({ type: 'ENERGY_SPENT', player: playerId, amount: cost });
+
+    // Dawn (049) buys its discount by showing points to the opponent. The
+    // discount was being applied silently, so the card was free and the price
+    // — the information — was never actually paid.
+    const revealMod = (card.costModifiers ?? []).find(
+      m => m.condition === 'revealThreePointsFromHand');
+    if (revealMod && cost === 0) {
+      const shown = revealablePoints(state, playerId, cardId).slice(0, 3);
+      if (shown.length === 3) {
+        events.push({ type: 'POINTS_REVEALED', player: playerId, cards: shown });
+      }
+    }
     // A one-shot grant: it applied to this card, so it is spent.
     if (state.turnFlags.nextCardFreeFor === playerId) state.turnFlags.nextCardFreeFor = null;
 

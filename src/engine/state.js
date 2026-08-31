@@ -349,6 +349,16 @@ export function horizonHasTarget(state, filter) {
   return state.zones.horizon.some(e => horizonEntryMatchesFilter(e, filter));
 }
 
+/**
+ * The points in hand a player could reveal, excluding the card they are playing
+ * — Dawn (049) is itself a point and would otherwise count towards its own
+ * requirement.
+ */
+export function revealablePoints(state, playerId, excludeCardId) {
+  return state.players[playerId].hand
+    .filter(id => id !== excludeCardId && getCard(id).type === 'point');
+}
+
 export function computeActualCost(state, cardId, playerId, context = {}) {
   const card = getCard(cardId);
   let cost = card.energyCost;
@@ -370,7 +380,9 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
   // Turn flag modifier (Possess Love 83)
   cost += state.turnFlags.allCardsCostLess;
 
-  // Card-specific cost modifiers
+  // Card-specific cost modifiers. The card's own id goes along so a condition
+  // can tell itself apart from the rest of the hand.
+  const condContext = { ...context, cardId };
   for (const mod of card.costModifiers ?? []) {
     switch (mod.type) {
       case 'discountPerCard': {
@@ -389,12 +401,12 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
         break;
       }
       case 'discountIfCondition':
-        if (evaluateCondition(state, mod.condition, playerId, context)) {
+        if (evaluateCondition(state, mod.condition, playerId, condContext)) {
           cost -= mod.amount;
         }
         break;
       case 'freeIfCondition':
-        if (evaluateCondition(state, mod.condition, playerId, context)) {
+        if (evaluateCondition(state, mod.condition, playerId, condContext)) {
           cost = 0;
         }
         break;
@@ -417,7 +429,7 @@ function evaluateCondition(state, condition, playerId, context) {
     case 'voidedBothTypesThisTurn':   // Delve (003)
       return voidedBothTypesThisTurn(state, playerId);
     case 'revealThreePointsFromHand': // Dawn (049)
-      return state.players[playerId].hand.filter(id => getCard(id).type === 'point').length >= 3;
+      return revealablePoints(state, playerId, context?.cardId).length >= 3;
     case 'playedBothTypesThisTurn': {
       const types = new Set(state.cardsPlayedThisTurn.map(p => getCard(p.cardId).type));
       return types.has('point') && types.has('action');

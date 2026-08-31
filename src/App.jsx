@@ -273,6 +273,12 @@ export default function App() {
             else setRevealedHand({ title: "Opponent's hand (revealed)", cardIds: ev.cards })
           }
         }
+        if (ev.type === 'POINTS_REVEALED') {
+          // Dawn's discount is paid for in information, so the opponent has to
+          // actually see the three cards, not just be told a number.
+          if (ev.player === client.playerId) addToast('You revealed three points')
+          else setRevealedHand({ title: 'Opponent revealed three points', cardIds: ev.cards })
+        }
         if (ev.type === 'CONTROL_GAINED') addToast('Gained control of a card')
         if (ev.type === 'HORIZON_POSITIONS_SWAPPED') addToast('Horizon order swapped!')
         if (ev.type === 'GAME_OVER') {

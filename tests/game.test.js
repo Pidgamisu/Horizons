@@ -1306,3 +1306,40 @@ describe('the reworked cards do what their new text says', () => {
     expect(prompt.legalHorizonIndexes.map(i => state.zones.horizon[i].cardId)).toEqual(['053']);
   });
 });
+
+// ─── Dawn's reveal ────────────────────────────────────────────────────────────
+describe('Dawn (049) pays for its discount by revealing', () => {
+  test('does not count itself towards the three points', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    // Dawn is itself a point and is still in hand while its cost is worked out.
+    state.players[me].hand = ['049', '002', '004'];
+    expect(computeActualCost(state, '049', me)).toBe(6);
+    state.players[me].hand = ['049', '002', '004', '006'];
+    expect(computeActualCost(state, '049', me)).toBe(0);
+  });
+
+  test('playing it free actually reveals three points, and never itself', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    state.players[me].hand = ['049', '002', '004', '006', '050'];
+    state.players[me].energy = 0;
+
+    const events = playCard(state, me, '049');
+    const reveal = events.find(e => e.type === 'POINTS_REVEALED');
+    expect(reveal).toBeTruthy();
+    expect(reveal.player).toBe(me);
+    expect(reveal.cards).toHaveLength(3);
+    expect(reveal.cards.includes('049')).toBe(false);
+    expect(reveal.cards.every(id => getCard(id).type === 'point')).toBe(true);
+  });
+
+  test('paying full price reveals nothing', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    state.players[me].hand = ['049', '050'];
+    state.players[me].energy = 10;
+    const events = playCard(state, me, '049');
+    expect(events.some(e => e.type === 'POINTS_REVEALED')).toBe(false);
+  });
+});

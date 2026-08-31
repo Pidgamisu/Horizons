@@ -39,6 +39,9 @@ function buildMatchers(actual, negate) {
     toBeGreaterThan(n) {
       check(actual > n, `expected ${actual} ${negate ? 'not ' : ''}to be greater than ${n}`);
     },
+    toBeTruthy() {
+      check(!!actual, `expected ${JSON.stringify(actual)} ${negate ? 'not ' : ''}to be truthy`);
+    },
     toBeNull() {
       check(actual === null, `expected ${JSON.stringify(actual)} ${negate ? 'not ' : ''}to be null`);
     },
