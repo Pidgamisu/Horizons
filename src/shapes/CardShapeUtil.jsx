@@ -22,6 +22,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       horizonIndex: null,
       horizonIsTop: false,
       playable: false,
+      voidOnly: false,
       chunky: false,
       w: CW,
       h: CH,
@@ -29,7 +30,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, chunky, mine, pileCount, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, voidOnly, chunky, mine, pileCount, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
@@ -139,9 +140,13 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             background: 'linear-gradient(to top, rgba(7,7,15,0.92) 60%, rgba(7,7,15,0))',
             pointerEvents: 'none',
           }}>
-            <CardActionButton label="Play" bg="#ff0099" chunky={chunky}
-              onClick={() => getClient().playCard(cardId)} />
-            <CardActionButton label="Void" sub="+3" bg="rgba(255,255,255,0.16)" chunky={chunky}
+            {/* While voidOnly, the hand is open purely to fund an owed payment —
+                playing is still frozen behind the prompt, so Play is hidden. */}
+            {!voidOnly && (
+              <CardActionButton label="Play" bg="#ff0099" chunky={chunky}
+                onClick={() => getClient().playCard(cardId)} />
+            )}
+            <CardActionButton label="Void" sub="+3" bg={voidOnly ? '#ff0099' : 'rgba(255,255,255,0.16)'} chunky={chunky}
               onClick={() => getClient().voidCard(cardId)} />
           </div>
         )}

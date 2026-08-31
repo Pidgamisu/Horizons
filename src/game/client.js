@@ -2,6 +2,7 @@
  * GameClient — WebSocket connection to the Horizons game server.
  * Emits events that the React layer subscribes to.
  */
+import { pendingEnergyPayment } from '../engine/state.js'
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:8080'
 
@@ -193,6 +194,11 @@ export class GameClient extends EventTarget {
 
   get myChoicePending() {
     return this.pendingChoice?.player === this.playerId
+  }
+
+  /** Owe energy on the open prompt? Then voiding is legal without priority. */
+  get owesEnergyPayment() {
+    return this.gameState ? pendingEnergyPayment(this.gameState, this.playerId) : false
   }
 }
 

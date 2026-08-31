@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import {
   createGameState, createHorizonEntry, initDeck, drawCards, pointsOf,
-  computeActualCost, duskFromHorizon,
+  computeActualCost, duskFromHorizon, pendingEnergyPayment,
 } from '../src/engine/state.js';
 import {
   startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
@@ -165,6 +165,122 @@ describe('Voiding', () => {
     for (const card of [...state.players.p1.hand].slice(0, 3)) voidCard(state, 'p1', card);
     expect(state.players.p1.energy).toBe(9);
     expect(state.zones.dusk).toHaveLength(3);
+  });
+});
+
+// ─── Voiding to fund an owed payment ──────────────────────────────────────────
+//
+// A ransom is paid by the targeted card's CONTROLLER, who is usually not the
+// player holding priority and whose energy was wiped at the last end of turn.
+// Without this, "unless its controller pays 1 energy" resolves as unconditional
+// removal rather than as the choice the card describes.
+
+describe('Voiding to fund an owed payment', () => {
+  /** Drive Poke (097) to the point where `debtor` is being asked for a ransom. */
+  function ransomPending({ pokeCaster }) {
+    const { state } = freshGame();
+    giveCard(state, 'p1', ACTION);        // p1 puts an action on the horizon
+    giveCard(state, pokeCaster, '097');
+    setEnergy(state, 'p1', 9);
+    setEnergy(state, 'p2', 9);
+    playCard(state, 'p1', ACTION);
+
+    let target = ACTION;
+    if (pokeCaster === 'p1') {
+      // p1 needs an opponent-controlled action to point Poke at.
+      giveCard(state, 'p2', ACTION_B);
+      playCard(state, 'p2', ACTION_B);
+      target = ACTION_B;
+    }
+    playCard(state, pokeCaster, '097');
+
+    // Both pass so Poke rises and its text runs.
+    passPriority(state, opponentOf(pokeCaster));
+    passPriority(state, pokeCaster);
+    advancePendingChoices(state);
+
+    // Step 1: the caster picks which action on the horizon to ransom.
+    const idx = state.zones.horizon.findIndex(e => e.cardId === target);
+    resolveChoice(state, pokeCaster, { horizonIndex: idx });
+    return { state, target };
+  }
+
+  const opponentOf = p => (p === 'p1' ? 'p2' : 'p1');
+
+  test('a broke debtor voids to pay the ransom and keeps the card', () => {
+    const { state, target } = ransomPending({ pokeCaster: 'p2' });
+    expect(state.pendingChoice.type).toBe('duskUnlessControllerPays');
+    expect(state.pendingChoice.player).toBe('p1');
+
+    setEnergy(state, 'p1', 0);
+    expect(pendingEnergyPayment(state, 'p1')).toBe(true);
+
+    const events = voidCard(state, 'p1', state.players.p1.hand[0]);
+    expect(eventTypes(events)).toContain('CARD_VOIDED');
+    expect(state.players.p1.energy).toBe(3);
+
+    const { error } = resolveChoice(state, 'p1', { pay: true });
+    expect(error).toBe(null);
+    expect(state.players.p1.energy).toBe(2);
+    expect(state.zones.horizon.some(e => e.cardId === target)).toBe(true);
+  });
+
+  test('the debtor may void even while the opponent holds priority', () => {
+    const { state, target } = ransomPending({ pokeCaster: 'p1' });
+    expect(state.pendingChoice.player).toBe('p2');
+    // The whole point: p2 owes the ransom at a moment that is not their priority.
+    expect(state.activePlayer).not.toBe('p2');
+
+    setEnergy(state, 'p2', 0);
+    expect(eventTypes(voidCard(state, 'p2', state.players.p2.hand[0]))).toContain('CARD_VOIDED');
+
+    const { error } = resolveChoice(state, 'p2', { pay: true });
+    expect(error).toBe(null);
+    expect(state.zones.horizon.some(e => e.cardId === target)).toBe(true);
+  });
+
+  test('declining still sends the card to the dusk', () => {
+    const { state, target } = ransomPending({ pokeCaster: 'p2' });
+    setEnergy(state, 'p1', 0);
+    resolveChoice(state, 'p1', { pay: false });
+    expect(state.zones.horizon.some(e => e.cardId === target)).toBe(false);
+    expect(state.zones.dusk).toContain(target);
+  });
+
+  test('voiding without priority is still refused when nothing is owed', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', ACTION);
+    setEnergy(state, 'p1', 9);
+    playCard(state, 'p1', ACTION);        // priority passes to p2
+    expect(state.activePlayer).toBe('p2');
+    expect(pendingEnergyPayment(state, 'p1')).toBe(false);
+
+    const events = voidCard(state, 'p1', state.players.p1.hand[0]);
+    expect(events[0].type).toBe('ERROR');
+    expect(events[0].code).toBe('NOT_YOUR_PRIORITY');
+  });
+
+  test('only energy ransoms open the hand — a dusk ransom does not', () => {
+    const { state } = freshGame();
+    state.pendingChoice = {
+      type: 'duskUnlessControllerPays', player: 'p1',
+      ransom: { type: 'giveFromDuskToCaster', count: 3 },
+    };
+    expect(pendingEnergyPayment(state, 'p1')).toBe(false);
+    // ...and never for the player who is not being asked.
+    state.pendingChoice.ransom = { type: 'payEnergy', amount: 1 };
+    expect(pendingEnergyPayment(state, 'p1')).toBe(true);
+    expect(pendingEnergyPayment(state, 'p2')).toBe(false);
+  });
+
+  test("Auction/Bid's pay-any-amount also opens the hand", () => {
+    const { state } = freshGame();
+    state.pendingChoice = {
+      type: 'additionalCost', player: 'p2', cost: { type: 'payAnyAmount' }, cardId: '045',
+    };
+    expect(pendingEnergyPayment(state, 'p2')).toBe(true);
+    state.pendingChoice.cost = { type: 'duskFromHand', count: 1 };
+    expect(pendingEnergyPayment(state, 'p2')).toBe(false);
   });
 });
 

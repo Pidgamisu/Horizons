@@ -1,4 +1,5 @@
 import { createShapeId } from 'tldraw'
+import { pendingEnergyPayment } from '../engine/state.js'
 
 const CW = 120  // card width
 const CH = 168  // card height
@@ -158,6 +159,10 @@ export class BoardManager {
     // the on-card Play/Void buttons.
     const canAct = state.activePlayer === myPlayerId &&
       !(state.pendingChoice && state.pendingChoice.player === myPlayerId)
+    // Funding a ransom (or an Auction/Bid bid) is the one moment voiding is
+    // legal without priority. The hand opens up, but only the Void button:
+    // playing is still frozen until the prompt is answered.
+    const voidOnly = !canAct && pendingEnergyPayment(state, myPlayerId)
     const canAnimate = this._canAnimate()
 
     this.editor.run(() => {
@@ -168,7 +173,7 @@ export class BoardManager {
       // it's what turns a zone change into a position change we can tween.
       const desired = []
       const horizonIds = this._collectHorizon(state.zones?.horizon ?? [], desired)
-      this._collectMyHand(state.players?.[myPlayerId]?.hand ?? [], canAct, desired)
+      this._collectMyHand(state.players?.[myPlayerId]?.hand ?? [], canAct || voidOnly, voidOnly, desired)
       this._collectOpponentHand(state.players?.[opp]?.handSize ?? 0, desired)
       const pileIds = [
         ...this._collectPile('dusk', state.zones?.dusk ?? [], desired),
@@ -310,7 +315,7 @@ export class BoardManager {
           // Luck answers to its new controller, and that is what decides who may
           // respond to it and whose it is to lose.
           mine: controller === this.myPlayerId,
-          selected: false, targeted: false, dimmed: false, playable: false,
+          selected: false, targeted: false, dimmed: false, playable: false, voidOnly: false,
           horizonIndex: i, horizonIsTop: i === 0, w: CW, h: CH,
         },
       })
@@ -329,7 +334,7 @@ export class BoardManager {
     return Math.min(CW + GAP, (zoneWidth - 20 - CW) / (n - 1))
   }
 
-  _collectMyHand(cards, canAct, out) {
+  _collectMyHand(cards, canAct, voidOnly, out) {
     if (!cards.length) return
     const z = this.zones.myHand
     const pitch = this._handPitch(z.w, cards.length)
@@ -349,7 +354,7 @@ export class BoardManager {
         props: {
           cardId: code, faceUp: true, zone: 'hand', owner: 'me',
           selected: this.selectedCardId === code, targeted: false, dimmed: false,
-          playable: canAct, chunky: this.mode !== 'wide',
+          playable: canAct, voidOnly, chunky: this.mode !== 'wide',
           horizonIndex: null, horizonIsTop: false, w: CW, h: CH,
         },
       })
@@ -371,7 +376,7 @@ export class BoardManager {
         spawn: this._anchor('deck'),
         props: {
           cardId: null, faceUp: false, zone: 'opponent-hand', owner: 'opp',
-          selected: false, targeted: false, dimmed: false, playable: false,
+          selected: false, targeted: false, dimmed: false, playable: false, voidOnly: false,
           horizonIndex: null, horizonIsTop: false, w: CW, h: CH,
         },
       })
@@ -398,7 +403,7 @@ export class BoardManager {
         spawn: this._anchor('horizon'),
         props: {
           cardId: code, faceUp: true, zone: z.zoneType, owner: null,
-          selected: false, targeted: false, dimmed: false, playable: false,
+          selected: false, targeted: false, dimmed: false, playable: false, voidOnly: false,
           // Only the top card shows the tally, or the ones underneath would
           // print it again a few pixels away.
           pileCount: i === show.length - 1 ? codes.length : null,

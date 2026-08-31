@@ -2,7 +2,7 @@ import { getCard } from '../data/cardDb.js';
 import {
   createHorizonEntry, createTurnFlags,
   drawCards, sendToDusk, sendToZenith, opponent, controllerOf, computeActualCost, revealablePoints,
-  isDeckSpent, pointsOf, removeFromHorizon, removeHorizonEntry,
+  isDeckSpent, pointsOf, removeFromHorizon, removeHorizonEntry, pendingEnergyPayment,
 } from './state.js';
 import { validatePlay } from './validation.js';
 import { executeEffects, executeOnPlayEffects, executeEffectList, flushHorizonTriggers } from '../effects/executor.js';
@@ -341,7 +341,13 @@ export function endTurn(state) {
 
 export function voidCard(state, playerId, cardId) {
   if (state.phase !== 'active') return [{ type: 'ERROR', code: 'GAME_NOT_ACTIVE' }];
-  if (state.activePlayer !== playerId) return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
+  // Voiding normally needs priority. The exception is a player who owes energy
+  // on the open prompt (a ransom, or Auction/Bid's "pay any amount"): they are
+  // being asked for energy at a moment that was never their priority, so they
+  // may void to fund it mid-payment. See pendingEnergyPayment.
+  if (state.activePlayer !== playerId && !pendingEnergyPayment(state, playerId)) {
+    return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
+  }
 
   const hand = state.players[playerId].hand;
   const idx = hand.indexOf(cardId);

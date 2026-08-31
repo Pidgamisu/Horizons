@@ -381,7 +381,8 @@ export default function App() {
         if (canAct) handlePlay()
       } else if (e.code === 'KeyV') {
         e.preventDefault()
-        if (canAct) handleVoid()
+        // Voiding is also legal mid-prompt when it is funding an owed payment.
+        if (canAct || client.owesEnergyPayment) handleVoid()
       }
     }
     window.addEventListener('keydown', onKey)

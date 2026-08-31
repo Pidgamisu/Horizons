@@ -23,6 +23,27 @@ export function isChoiceTrigger(trigger) {
   return CHOICE_TRIGGER_TYPES.has(trigger.type);
 }
 
+/**
+ * Does this player owe an energy payment on the choice that is currently open?
+ *
+ * Voiding is otherwise a priority action, and that is a problem for exactly two
+ * prompts. A ransom (Poke 097, Chains 084, Drown in Fog 069) is paid by the
+ * *targeted card's controller* — normally the player who did not just act, and
+ * whose energy was wiped at the last end of turn, so the ransom reads as a
+ * choice but resolves as unconditional removal. Auction (045) / Bid (058) ask
+ * for "any amount" and get whatever happened to be banked.
+ *
+ * While such a payment is outstanding its debtor may void to fund it, the way a
+ * mana ability can be activated in the middle of paying a cost.
+ */
+export function pendingEnergyPayment(state, playerId) {
+  const choice = state.pendingChoice;
+  if (!choice || choice.player !== playerId) return false;
+  if (choice.type === 'duskUnlessControllerPays') return choice.ransom?.type === 'payEnergy';
+  if (choice.type === 'additionalCost') return choice.cost?.type === 'payAnyAmount';
+  return false;
+}
+
 // ─── State Factory ───────────────────────────────────────────────────────────
 
 export function createGameState() {
