@@ -14,7 +14,9 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
   const isDraw = winner === 'draw'
   const iWon = !isDraw && winner === myPlayerId
   const backdrop = iWon || isDraw ? '/end-bg-rose.png' : '/end-bg-fell.png'
-  const lead = isDraw ? null : iWon ? 'YOU ROSE' : 'YOU FELL'
+  const lead = isDraw ? 'YOU MET' : iWon ? 'YOU ROSE' : 'YOU FELL'
+  // A draw meets the zenith rather than moving to it.
+  const link = isDraw ? 'AT THE' : 'TO THE'
 
   return (
     <div style={{
@@ -26,8 +28,7 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
       alignItems: 'center', justifyContent: 'center',
       padding: '24px 16px',
     }}>
-      {lead && (
-        <div style={{
+      <div style={{
           fontFamily: CODE_STACK, fontWeight: 300,
           fontSize: 'clamp(24px, 6.5vw, 58px)',
           letterSpacing: '0.16em', lineHeight: 1.22,
@@ -35,21 +36,20 @@ export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain 
           textShadow: '0 0 18px rgba(255,176,90,0.55)',
           textAlign: 'center',
         }}>
-          <div>{lead}</div>
-          <div>TO THE</div>
-        </div>
-      )}
+        <div>{lead}</div>
+        <div>{link}</div>
+      </div>
 
       <div style={{
         fontFamily: DISTRESSED_STACK, fontWeight: 400,
-        fontSize: isDraw ? 'clamp(48px, 14vw, 110px)' : 'clamp(56px, 17vw, 140px)',
+        fontSize: 'clamp(56px, 17vw, 140px)',
         letterSpacing: '0.02em', lineHeight: 1.05,
         color: '#d2f56d',
         textShadow: '0 0 28px rgba(190,255,90,0.75), 0 0 70px rgba(150,255,60,0.35)',
-        marginTop: lead ? 6 : 0,
+        marginTop: 6,
         textAlign: 'center',
       }}>
-        {isDraw ? 'DRAW' : 'ZENITH'}
+        ZENITH
       </div>
 
       <div style={{
