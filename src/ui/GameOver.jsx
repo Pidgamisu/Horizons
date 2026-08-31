@@ -2,41 +2,74 @@ import { useState, useEffect } from 'react'
 
 // ── GameOver ──────────────────────────────────────────────────────────────────
 
+// The headline is set live rather than baked into the art, so it reflows on a
+// phone instead of being cropped or letterboxed. ZENITH is Rubik Distressed,
+// which matches the printed cards. The thin line above it should be CODE, which
+// is not on Google Fonts and has no file in the repo — Jura Light stands in for
+// it until one is supplied, and swapping it is a one-line change here.
+const CODE_STACK = "'Jura', 'Rubik', system-ui, sans-serif"
+const DISTRESSED_STACK = "'Rubik Distressed', 'Rubik', system-ui, sans-serif"
+
 export function GameOver({ winner, myPlayerId, myPoints, oppPoints, onPlayAgain }) {
   const isDraw = winner === 'draw'
   const iWon = !isDraw && winner === myPlayerId
+  const backdrop = iWon || isDraw ? '/end-bg-rose.png' : '/end-bg-fell.png'
+  const lead = isDraw ? null : iWon ? 'YOU ROSE' : 'YOU FELL'
+
   return (
     <div style={{
-      position: 'absolute', inset: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 300,
+      position: 'absolute', inset: 0, zIndex: 300,
+      backgroundImage: `url(${backdrop})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '24px 16px',
     }}>
+      {lead && (
+        <div style={{
+          fontFamily: CODE_STACK, fontWeight: 300,
+          fontSize: 'clamp(24px, 6.5vw, 58px)',
+          letterSpacing: '0.16em', lineHeight: 1.22,
+          color: '#ffcf8a',
+          textShadow: '0 0 18px rgba(255,176,90,0.55)',
+          textAlign: 'center',
+        }}>
+          <div>{lead}</div>
+          <div>TO THE</div>
+        </div>
+      )}
+
       <div style={{
+        fontFamily: DISTRESSED_STACK, fontWeight: 400,
+        fontSize: isDraw ? 'clamp(48px, 14vw, 110px)' : 'clamp(56px, 17vw, 140px)',
+        letterSpacing: '0.02em', lineHeight: 1.05,
+        color: '#d2f56d',
+        textShadow: '0 0 28px rgba(190,255,90,0.75), 0 0 70px rgba(150,255,60,0.35)',
+        marginTop: lead ? 6 : 0,
         textAlign: 'center',
-        color: '#fff',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
       }}>
-        <div style={{ fontSize: 64 }}>{isDraw ? '🌅' : iWon ? '🎉' : '💀'}</div>
-        <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
-                      color: isDraw ? '#9aff4d' : iWon ? '#ff0099' : 'rgba(255,255,255,0.6)' }}>
-          {isDraw ? 'Draw' : iWon ? 'You Win' : 'You Lose'}
-        </div>
-        <div style={{ fontSize: 13, letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)' }}>
-          SUNSET — THE DECK RAN OUT
-        </div>
-        <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)' }}>
+        {isDraw ? 'DRAW' : 'ZENITH'}
+      </div>
+
+      <div style={{
+        marginTop: 26, textAlign: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+      }}>
+        <div style={{
+          fontSize: 16, color: 'rgba(255,255,255,0.75)',
+          textShadow: '0 1px 10px rgba(0,0,0,0.6)',
+        }}>
           {myPoints} – {oppPoints} in the zenith
         </div>
         <button
           onClick={onPlayAgain}
           style={{
-            marginTop: 8,
             background: '#ff0099', color: '#fff',
             border: 'none', borderRadius: 10,
             padding: '12px 32px', fontSize: 15, fontWeight: 700,
             cursor: 'pointer', letterSpacing: '0.03em',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
           }}
         >
           Back to Lobby
