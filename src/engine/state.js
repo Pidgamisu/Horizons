@@ -34,6 +34,7 @@ export function createGameState() {
     turnNumber: 0,
     cardsPlayedThisTurn: [],   // [{ cardId, playedBy }] in order
     cardsDrawnThisTurn: { p1: 0, p2: 0 },
+    voidedThisTurn:    { p1: [], p2: [] },
     cardsToDuskThisTurn: [],   // CardId[] — everything that entered the dusk this turn (Delve 003, Angst 020)
 
     // Trigger bookkeeping, drained by flushHorizonTriggers once the current
@@ -205,9 +206,20 @@ export function sendToDusk(state, cardId, fromHorizon = false) {
   state.pendingDuskEntries?.push({ cardId, fromHorizon });
 }
 
-/** Did both a point and an action reach the dusk this turn? (Delve 003, Angst 020) */
+/** Did both a point and an action reach the dusk this turn? */
 export function bothTypesToDuskThisTurn(state) {
   const types = new Set(state.cardsToDuskThisTurn.map(id => getCard(id).type));
+  return types.has("point") && types.has("action");
+}
+
+/**
+ * Did this player void both a point and an action this turn? (Delve 003,
+ * Angst 020.) Deliberately not the same question as bothTypesToDuskThisTurn:
+ * that one counts anything reaching the dusk from any source and either player,
+ * while these cards reward the act of voiding, which only their controller does.
+ */
+export function voidedBothTypesThisTurn(state, playerId) {
+  const types = new Set((state.voidedThisTurn?.[playerId] ?? []).map(id => getCard(id).type));
   return types.has("point") && types.has("action");
 }
 
@@ -323,6 +335,7 @@ export function horizonEntryMatchesFilter(entry, filter) {
   const card = getCard(entry.cardId);
   // Enlightenment (075) targets by matching energy cost rather than by type.
   if (typeof filter === 'object') {
+    if (filter.costLessThan != null) return card.energyCost < filter.costLessThan;
     return filter.costEquals == null || card.energyCost === filter.costEquals;
   }
   if (filter === 'actionPlayedInResponseToPoint') {
@@ -399,8 +412,10 @@ function evaluateCondition(state, condition, playerId, context) {
       return pointsOf(state, opponent(playerId)) >= 4;
     case 'selfAtFourPoints':          // Beget Advantage (034)
       return pointsOf(state, playerId) >= 4;
-    case 'bothTypesToDuskThisTurn':   // Delve (003)
+    case 'bothTypesToDuskThisTurn':
       return bothTypesToDuskThisTurn(state);
+    case 'voidedBothTypesThisTurn':   // Delve (003)
+      return voidedBothTypesThisTurn(state, playerId);
     case 'revealThreePointsFromHand': // Dawn (049)
       return state.players[playerId].hand.filter(id => getCard(id).type === 'point').length >= 3;
     case 'playedBothTypesThisTurn': {

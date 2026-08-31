@@ -157,7 +157,9 @@ export function ChoicePrompt({ choice, myHand, horizonCards, duskCards, myEnergy
 
   const { type, count, filter } = choice
   const filterLabel = typeof filter === 'object' && filter !== null
-    ? (filter.costEquals != null ? `card costing ${filter.costEquals}` : 'card')
+    ? (filter.costEquals != null ? `card costing ${filter.costEquals}`
+      : filter.costLessThan != null ? `card costing less than ${filter.costLessThan}`
+      : 'card')
     : filter === 'any' || !filter ? 'card' : `${filter} card`
 
   // "a action card" — the filter is dropped in verbatim, and one of the two

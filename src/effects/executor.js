@@ -3,6 +3,7 @@ import {
   drawCards, duskHand,
   sendToDusk, shuffle, opponent, controllerOf, removeFromHorizon, removeHorizonEntry,
   horizonHasTarget, reshuffleDuskIntoDeck, pointsOf, bothTypesToDuskThisTurn,
+  voidedBothTypesThisTurn,
 } from '../engine/state.js';
 
 /**
@@ -146,16 +147,17 @@ function executeEffect(state, effect, controller, entry, ctx) {
     }
 
     case 'duskFromHorizon': {
+      const filter = resolveHorizonFilter(state, effect.filter);
       // No legal target on the (remaining) horizon → skip instead of prompting an
       // impossible choice that would hardlock the game.
-      if (!horizonHasTarget(state, effect.filter)) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHorizon', filter: effect.filter });
+      if (!horizonHasTarget(state, filter)) {
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHorizon', filter });
         break;
       }
       state.pendingTriggers.push({
         type: 'duskFromHorizonChoice',
         player: controller,
-        filter: effect.filter,
+        filter,
         thenGrant: effect.thenGrant ?? null,
       });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskFromHorizon', filter: effect.filter });
@@ -755,10 +757,23 @@ function resolveAmount(state, amount, ctx) {
   return 0;
 }
 
+/**
+ * Turn a filter that depends on the board into one that doesn't. Only
+ * costLessThanDuskSize needs it today (Agonizing Memory, 098): the matcher is
+ * given an entry and a filter and never sees the state.
+ */
+function resolveHorizonFilter(state, filter) {
+  if (filter && typeof filter === 'object' && filter.costLessThanDuskSize) {
+    return { costLessThan: state.zones.dusk.length };
+  }
+  return filter;
+}
+
 /** Conditions a card checks as it rises (as opposed to when it is played). */
 function evaluateCardCondition(state, condition, playerId) {
   switch (condition) {
     case 'bothTypesToDuskThisTurn': return bothTypesToDuskThisTurn(state);
+    case 'voidedBothTypesThisTurn': return voidedBothTypesThisTurn(state, playerId);
     case 'selfAtFourPoints':        return pointsOf(state, playerId) >= 4;
     case 'opponentAtFourPoints':    return pointsOf(state, opponent(playerId)) >= 4;
     default: return false;

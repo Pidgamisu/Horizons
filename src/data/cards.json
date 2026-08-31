@@ -53,13 +53,13 @@
     "name": "Delve",
     "type": "point",
     "energyCost": 6,
-    "effectText": "This costs 2 energy less if an action and a point went into the dusk this turn.",
+    "effectText": "This costs 2 energy less if you voided an action and point this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
     "costModifiers": [
       {
         "type": "discountIfCondition",
-        "condition": "bothTypesToDuskThisTurn",
+        "condition": "voidedBothTypesThisTurn",
         "amount": 2
       }
     ],
@@ -88,7 +88,7 @@
     "name": "Entwine",
     "type": "point",
     "energyCost": 6,
-    "effectText": "If you played an action and a point this turn, this costs 4 energy less.",
+    "effectText": "If you played an action and point this turn, this costs 4 energy less.",
     "playRestrictions": [],
     "additionalCosts": [],
     "costModifiers": [
@@ -165,24 +165,19 @@
   },
   {
     "id": "009",
-    "name": "Wasted Ambition",
+    "name": "Unused Ambition",
     "type": "point",
-    "energyCost": 5,
-    "effectText": "When this is put into the dusk from anywhere other than the horizon, each player draws a card.",
+    "energyCost": 4,
+    "effectText": "When this rises, put your hand into the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [],
-    "staticEffects": [
+    "effects": [
       {
-        "type": "trigger",
-        "on": "putIntoDuskFromNonHorizon",
-        "effect": {
-          "type": "draw",
-          "count": 1,
-          "player": "both"
-        }
+        "type": "duskHand",
+        "player": "self"
       }
-    ]
+    ],
+    "staticEffects": []
   },
   {
     "id": "010",
@@ -210,7 +205,7 @@
     "name": "Erase Reason",
     "type": "point",
     "energyCost": 0,
-    "effectText": "You can only play this if it's the first card of the turn. When you play this, you can't play any more cards this turn.",
+    "effectText": "You can only play this if it's the first card of the turn. When this is put on the horizon, you can't play any more cards this turn.",
     "playRestrictions": [
       {
         "type": "mustBeFirstCardThisTurn"
@@ -378,13 +373,13 @@
     "name": "Angst",
     "type": "point",
     "energyCost": 6,
-    "effectText": "When this rises, draw two cards if an action and a point went into the dusk this turn.",
+    "effectText": "When this rises, draw two cards if you voided an action and point this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       {
         "type": "conditionalDraw",
-        "condition": "bothTypesToDuskThisTurn",
+        "condition": "voidedBothTypesThisTurn",
         "count": 2,
         "player": "self"
       }
@@ -1351,7 +1346,10 @@
       {
         "type": "duskFromHorizon",
         "filter": "any",
-        "thenGrant": { "type": "nextCardFree", "player": "trashedCardController" }
+        "thenGrant": {
+          "type": "nextCardFree",
+          "player": "trashedCardController"
+        }
       }
     ],
     "staticEffects": []
@@ -1700,7 +1698,11 @@
       {
         "type": "duskFromHorizon",
         "filter": "action",
-        "thenGrant": { "type": "gainEnergy", "amount": 3, "player": "trashedCardController" }
+        "thenGrant": {
+          "type": "gainEnergy",
+          "amount": 3,
+          "player": "trashedCardController"
+        }
       }
     ],
     "staticEffects": []
@@ -1742,14 +1744,17 @@
     "name": "Drain Motive",
     "type": "action",
     "energyCost": 3,
-    "effectText": "Put a point on the horizon into dusk. Its controller can't play any more cards this turn.",
+    "effectText": "Put a point on the horizon into the dusk. Its controller can't play any more cards this turn.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       {
         "type": "duskFromHorizon",
         "filter": "point",
-        "thenGrant": { "type": "lockPlayer", "player": "trashedCardController" }
+        "thenGrant": {
+          "type": "lockPlayer",
+          "player": "trashedCardController"
+        }
       }
     ],
     "staticEffects": []
@@ -1799,7 +1804,11 @@
       {
         "type": "duskFromHorizon",
         "filter": "any",
-        "thenGrant": { "type": "draw", "count": 2, "player": "trashedCardController" }
+        "thenGrant": {
+          "type": "draw",
+          "count": 2,
+          "player": "trashedCardController"
+        }
       }
     ],
     "staticEffects": []
@@ -1847,16 +1856,18 @@
   },
   {
     "id": "098",
-    "name": "Reset Memory",
+    "name": "Agonizing Memory",
     "type": "action",
-    "energyCost": 3,
-    "effectText": "Shuffle each player's hand into the deck, then each player draws 5 cards.",
+    "energyCost": 2,
+    "effectText": "Put a card on the horizon into the dusk if its cost is less than the number of cards in the dusk.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       {
-        "type": "shuffleHandsIntoDeckAndDraw",
-        "count": 5
+        "type": "duskFromHorizon",
+        "filter": {
+          "costLessThanDuskSize": true
+        }
       }
     ],
     "staticEffects": []

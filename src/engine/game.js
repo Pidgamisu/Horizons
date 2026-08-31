@@ -297,6 +297,7 @@ export function endTurn(state) {
   state.cardsPlayedThisTurn = [];
   state.cardsDrawnThisTurn = { p1: 0, p2: 0 };
   state.cardsToDuskThisTurn = [];
+  state.voidedThisTurn = { p1: [], p2: [] };
   state.turnFlags = createTurnFlags();
   state.players.p1.lockedFromPlaying = false;
   state.players.p2.lockedFromPlaying = false;
@@ -340,6 +341,7 @@ export function voidCard(state, playerId, cardId) {
   // commonest way anything reaches the dusk — and the main way a POINT gets
   // there at all, since points otherwise rise into a zenith.
   sendToDusk(state, cardId);
+  state.voidedThisTurn[playerId].push(cardId);
   state.players[playerId].energy += 3;
 
   return [{ type: 'CARD_VOIDED', player: playerId, cardId, energyNow: state.players[playerId].energy }];

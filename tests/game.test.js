@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test, expect } from './helpers.js';
 import {
   createGameState, createHorizonEntry, initDeck, drawCards, pointsOf,
-  computeActualCost, sendToDusk, duskFromHorizon,
+  computeActualCost, duskFromHorizon,
 } from '../src/engine/state.js';
 import {
   startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
@@ -677,13 +677,15 @@ describe('Card effects', () => {
     expect(state.zones.dusk).toContain('091');
   });
 
-  test('Delve (003) costs 2 less once both a point and an action reached the dusk', () => {
+  test('Delve (003) costs 2 less once you have voided a point and an action', () => {
     const { state } = freshGame();
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
-    sendToDusk(state, '002');
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
-    sendToDusk(state, '050');
-    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+    const me = state.activePlayer;
+    state.players[me].hand = ['002', '050'];
+    expect(computeActualCost(state, '003', me)).toBe(6);
+    voidCard(state, me, '002');
+    expect(computeActualCost(state, '003', me)).toBe(6);
+    voidCard(state, me, '050');
+    expect(computeActualCost(state, '003', me)).toBe(4);
   });
 
   test('Light Guidance (065) costs 1 less per point in either zenith', () => {
@@ -1016,13 +1018,15 @@ describe('Cards that watch the dusk', () => {
     expect(computeActualCost(state, '003', 'p1')).toBe(6);
   });
 
-  test('a risen action counts toward it too, not just voids', () => {
+  test('a risen action does NOT count — only what you voided does', () => {
     const { state } = freshGame();
     state.players.p1.hand = ['002'];
     voidCard(state, 'p1', '002');
     state.zones.horizon.unshift(createHorizonEntry('050', 'p1'));
     riseTopOfHorizon(state);
-    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+    // The action reached the dusk by rising, not by being voided.
+    expect(state.zones.dusk).toContain('050');
+    expect(computeActualCost(state, '003', 'p1')).toBe(6);
   });
 
   test('the record resets at end of turn', () => {
@@ -1127,19 +1131,6 @@ describe('Cards that watch a departure', () => {
     expect(removed.pendingTriggers.some(t => t.type === 'duskFromHandChoice')).toBe(true);
   });
 
-  test('Wasted Ambition (009) fires when dusked from hand, not from the horizon', () => {
-    const { state } = freshGame();
-    state.players.p1.hand.push('009');
-    const p2 = state.players.p2.hand.length;
-    voidCard(state, 'p1', '009');
-    flush(state);
-    expect(state.players.p2.hand.length).toBe(p2 + 1);
-
-    const risen = armed('009');
-    const p2b = risen.players.p2.hand.length;
-    riseTopOfHorizon(risen);
-    expect(risen.players.p2.hand.length).toBe(p2b);   // it came FROM the horizon
-  });
 
   test('Purity (044) goes to the dusk when an OPPONENT responds to it', () => {
     const state = armed('044', 'p1');
@@ -1228,5 +1219,90 @@ describe('thenGrant riders fire', () => {
     expect(state.turnFlags.nextCardFreeFor).toBe(null);
     // Full price once the grant is gone.
     expect(computeActualCost(state, '012', me)).toBe(getCard('012').energyCost);
+  });
+});
+
+// ─── Reworked cards ───────────────────────────────────────────────────────────
+describe('the reworked cards do what their new text says', () => {
+  test('Unused Ambition (009) dumps only its own controller hand, on rise', () => {
+    const state = createGameState();
+    initDeck(state);
+    startGame(state);
+    state.players.p1.hand = ['004', '012', '050'];
+    state.players.p2.hand = ['002', '051'];
+    state.zones.horizon = [createHorizonEntry('009', 'p1')];
+
+    riseTopOfHorizon(state);
+    flushHorizonTriggers(state);
+
+    expect(state.players.p1.hand).toHaveLength(0);
+    expect(state.players.p2.hand).toHaveLength(2);
+    expect(state.players.p1.zenith.includes('009')).toBe(true);
+  });
+
+  test('Delve (003) discounts only once YOU have voided both types', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    state.players[me].hand = ['003', '004', '050'];
+
+    expect(computeActualCost(state, '003', me)).toBe(6);
+    voidCard(state, me, '004');                 // a point
+    expect(computeActualCost(state, '003', me)).toBe(6);
+    voidCard(state, me, '050');                 // an action
+    expect(computeActualCost(state, '003', me)).toBe(4);
+  });
+
+  test('Delve ignores cards that reach the dusk without being voided', () => {
+    // The old wording counted anything arriving in the dusk from any source.
+    // Insanity dumps a hand there, which used to be enough.
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    // Unused Ambition dumps the hand as it rises — both types reach the dusk
+    // without either being voided.
+    state.zones.horizon = [createHorizonEntry('009', me)];
+    state.players[me].hand = ['004', '050'];
+
+    riseTopOfHorizon(state);
+    flushHorizonTriggers(state);
+
+    expect(state.zones.dusk.includes('004')).toBe(true);
+    expect(state.zones.dusk.includes('050')).toBe(true);
+    expect(computeActualCost(state, '003', me)).toBe(6);
+  });
+
+  test('Angst (020) draws two after you void both types', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    state.players[me].hand = ['004', '050'];
+    voidCard(state, me, '004');
+    voidCard(state, me, '050');
+    const before = state.players[me].hand.length;
+
+    state.zones.horizon = [createHorizonEntry('020', me)];
+    riseTopOfHorizon(state);
+    flushHorizonTriggers(state);
+
+    expect(state.players[me].hand.length - before).toBe(2);
+  });
+
+  test('Agonizing Memory (098) only offers cards cheaper than the dusk is deep', () => {
+    const state = createGameState();
+    initDeck(state);
+    startGame(state);
+    state.zones.dusk = ['050', '051', '052'];
+    state.zones.horizon = [
+      createHorizonEntry('098', 'p1'),
+      createHorizonEntry('053', 'p2'),   // cost 2
+      createHorizonEntry('068', 'p2'),   // cost 7
+    ];
+
+    riseTopOfHorizon(state);
+    flushHorizonTriggers(state);
+    expect(advancePendingChoices(state)).toBe(true);
+
+    const prompt = buildChoicePrompt(state, state.pendingChoice, state.pendingChoice.player);
+    // 098 is itself in the dusk by the time its text runs, so the threshold is 4.
+    expect(prompt.filter.costLessThan).toBe(4);
+    expect(prompt.legalHorizonIndexes.map(i => state.zones.horizon[i].cardId)).toEqual(['053']);
   });
 });
