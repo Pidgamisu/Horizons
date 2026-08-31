@@ -71,7 +71,7 @@ npm run build
 # Game server (WebSocket) → ws://localhost:8080
 node src/index.js          # override port with: PORT=9000 node src/index.js
 
-# Tests (Node's built-in runner) — 78 tests, all passing
+# Tests (Node's built-in runner) — 125 tests, all passing
 npm test
 
 # Every card executes through the engine — expect 105/105, 0 issues
@@ -118,9 +118,11 @@ game in one and join via the shared room URL in the other.
 
 - Card ids are zero-padded strings `"000"`–`"104"` matching `public/cards/NNN.png`.
   `000`–`049` are points, `050`–`104` are actions.
-- **Card text beats the rules.** Where a card contradicts the rulebook it wins — Answer Fate
-  (047) grants a reshuffle a 2-player game normally never gets, and Strafe (006) / Forever
-  Borrow (036) are points playable in response. Encode the card, not the general rule.
+- **Card text beats the rules.** Where a card contradicts the rulebook it wins — Strafe (006)
+  and Forever Borrow (036) are points playable in response, and Pay No Mind (047) leaves the
+  horizon without ever rising. Encode the card, not the general rule. (Answer Fate, the old
+  047, was the one card that granted a 2-player reshuffle; it was replaced on 2026-08-31, so
+  no card grants one any more.)
 - Engine functions take `state` first and **return event arrays** describing what happened;
   the server broadcasts derived per-player projections. Don't mutate state outside the engine.
 - When adding a card mechanic, prefer extending the structured effect schema in `cards.json`

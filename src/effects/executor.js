@@ -601,6 +601,16 @@ function executeEffect(state, effect, controller, entry, ctx) {
 
     // ── Energy and hands ──────────────────────────────────────────────────────
 
+    case 'loseAllEnergy': {
+      // Beseech For Gains (085) — the cost of the card is paid before it rises,
+      // so this empties whatever is left over, not the price of the card itself.
+      const who = effect.player === 'opponent' ? opp : controller;
+      const lost = state.players[who].energy;
+      state.players[who].energy = 0;
+      events.push({ type: 'ENERGY_LOST', player: who, amount: lost });
+      break;
+    }
+
     case 'drainOpponentEnergy': {
       // Trickle Down Economics (027) — take whatever the opponent is holding.
       const drained = state.players[opp].energy;
@@ -747,9 +757,6 @@ function resolveAmount(state, amount, ctx) {
   }
   if (amount === 'distinctEnergyCostsOnHorizon') {   // Dividends (083)
     return new Set(state.zones.horizon.map(e => getCard(e.cardId).energyCost)).size;
-  }
-  if (amount === 'threePerCardOnHorizon') {           // Share the Loot (085)
-    return state.zones.horizon.length * 3;
   }
   if (amount === 'trackedCost') {                     // Burn Out (088), Strobe Brightness (102)
     return ctx.trackedCost ?? 0;

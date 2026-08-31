@@ -114,7 +114,10 @@ export function playCard(state, playerId, cardId, context = {}) {
   if (respondedTo && controllerOf(respondedTo) !== playerId) {
     for (const se of getCard(respondedTo.cardId).staticEffects ?? []) {
       if (se.type === 'trigger' && se.on === 'opponentRespondsToThis') {
-        events.push(...executeEffectList(state, [se.effect], controllerOf(respondedTo), respondedTo));
+        // Purity (044) fires a single effect; Pay No Mind (047) dusks itself AND
+        // draws, so the trigger takes either one `effect` or an `effects` list.
+        const list = se.effects ?? [se.effect];
+        events.push(...executeEffectList(state, list, controllerOf(respondedTo), respondedTo));
       }
     }
   }

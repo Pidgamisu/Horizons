@@ -771,16 +771,58 @@ describe('Card effects', () => {
     expect(state.zones.deck).toHaveLength(deckBefore + 2);
   });
 
-  test('Answer Fate (047) reshuffles the dusk even though 2p normally gets none', () => {
+  test('Unrecognized Influence (070) dusks one horizon card, then bounces another', () => {
     const { state } = freshGame();
-    state.zones.deck = [];
-    state.zones.dusk = ['002', '004', '050'];
-    state.reshufflesRemaining = 0;
-    rise(state, '047');
-    expect(state.pendingChoice.type).toBe('optional');
-    resolveChoice(state, 'p1', { accept: true });
-    expect(state.zones.dusk).toHaveLength(0);
-    expect(state.zones.deck).toHaveLength(3);
+    state.zones.horizon.unshift(createHorizonEntry(POINT, 'p2'));   // to be dusked
+    state.zones.horizon.unshift(createHorizonEntry(ACTION_B, 'p2')); // to be bounced
+    rise(state, '070');
+
+    expect(state.pendingChoice.type).toBe('duskFromHorizon');
+    let idx = state.zones.horizon.findIndex(e => e.cardId === POINT);
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+    expect(state.zones.dusk).toContain(POINT);
+
+    // Step two targets the horizon as it stands, so the dusked card is gone and
+    // "another card" needs no extra guard.
+    advancePendingChoices(state);
+    expect(state.pendingChoice.type).toBe('returnToControllerHand');
+    idx = state.zones.horizon.findIndex(e => e.cardId === ACTION_B);
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+    expect(state.players.p2.hand).toContain(ACTION_B);
+    expect(state.zones.horizon.some(e => e.cardId === ACTION_B)).toBe(false);
+  });
+
+  test('Beseech For Gains (085) empties you out, then the opponent refills you', () => {
+    const { state } = freshGame();
+    state.players.p1.energy = 7;
+    state.players.p1.hand = ['002', '004', '050'];
+    state.zones.dusk = ['051', '052'];   // so the dusk can actually cover five
+    rise(state, '085');
+
+    expect(state.players.p1.energy).toBe(0);
+    expect(state.players.p1.hand).toHaveLength(0);
+    for (const id of ['002', '004', '050']) expect(state.zones.dusk).toContain(id);
+
+    // The opponent picks, the caster receives. Dusking your own hand is what
+    // makes five cards available in the first place.
+    expect(state.pendingChoice.type).toBe('opponentChoosesFromDusk');
+    expect(state.pendingChoice.player).toBe('p2');
+    expect(state.pendingChoice.count).toBe(5);
+    const picks = state.zones.dusk.slice(0, 5);
+    resolveChoice(state, 'p2', { cardIds: picks });
+    expect(state.players.p1.hand).toHaveLength(5);
+    for (const id of picks) expect(state.players.p1.hand).toContain(id);
+  });
+
+  test('Beseech For Gains (085) settles for a short dusk rather than stalling', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['002'];
+    state.zones.dusk = [];
+    rise(state, '085');
+    // 085 itself plus the one dusked hand card is all there is to give back.
+    expect(state.pendingChoice.count).toBe(2);
+    resolveChoice(state, 'p2', { cardIds: [...state.zones.dusk].slice(0, 2) });
+    expect(state.players.p1.hand).toHaveLength(2);
   });
 
   test('Cerebral Snuff (091) dusks a random card from the opponent hand', () => {
@@ -1263,6 +1305,36 @@ describe('Cards that watch a departure', () => {
     state.activePlayer = 'p1';
     playCard(state, 'p1', ACTION);
     expect(state.zones.horizon.some(e => e.cardId === '044')).toBe(true);
+  });
+
+  test('Pay No Mind (047) dusks itself AND draws three when answered', () => {
+    const state = armed('047', 'p1');
+    state.players.p2.hand.push(ACTION);
+    state.activePlayer = 'p2';
+    const before = state.players.p1.hand.length;
+
+    playCard(state, 'p2', ACTION);
+
+    expect(state.zones.horizon.some(e => e.cardId === '047')).toBe(false);
+    expect(state.zones.dusk).toContain('047');
+    // The draw is the half Purity (044) does not have: it needs the trigger to
+    // run a list of effects rather than a single one.
+    expect(state.players.p1.hand.length).toBe(before + 3);
+  });
+
+  test('Pay No Mind (047) only fires when it is the card being answered', () => {
+    // "Responds to this" means the card directly beneath the one just played.
+    // Buried a layer down, 047 is not what the opponent answered, so it sits.
+    const state = armed('047', 'p1');
+    state.zones.horizon.unshift(createHorizonEntry(ACTION_B, 'p1'));
+    state.players.p2.hand.push(ACTION);
+    state.activePlayer = 'p2';
+    const before = state.players.p1.hand.length;
+
+    playCard(state, 'p2', ACTION);
+
+    expect(state.zones.horizon.some(e => e.cardId === '047')).toBe(true);
+    expect(state.players.p1.hand.length).toBe(before);
   });
 
   test('Understand Despair (064) draws two whenever your card leaves without rising', () => {

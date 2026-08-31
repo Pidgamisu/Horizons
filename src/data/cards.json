@@ -877,23 +877,29 @@
   },
   {
     "id": "047",
-    "name": "Answer Fate",
+    "name": "Pay No Mind",
     "type": "point",
-    "energyCost": 6,
-    "effectText": "When this rises, you may shuffle the dusk into the deck.",
+    "energyCost": 5,
+    "effectText": "If an opponent responds to this, put this in the dusk and you draw three cards.",
     "playRestrictions": [],
     "additionalCosts": [],
-    "effects": [
+    "effects": [],
+    "staticEffects": [
       {
-        "type": "optional",
+        "type": "trigger",
+        "on": "opponentRespondsToThis",
         "effects": [
           {
-            "type": "shuffleDuskIntoDeck"
+            "type": "duskSelf"
+          },
+          {
+            "type": "draw",
+            "count": 3,
+            "player": "self"
           }
         ]
       }
-    ],
-    "staticEffects": []
+    ]
   },
   {
     "id": "048",
@@ -1315,21 +1321,20 @@
   },
   {
     "id": "070",
-    "name": "Apprehend",
+    "name": "Unrecognized Influence",
     "type": "action",
-    "energyCost": 4,
-    "effectText": "Put a point on the horizon into the dusk. Draw a card.",
+    "energyCost": 3,
+    "effectText": "Put a card on the horizon into the dusk, then return another card on the horizon to its controller's hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       {
         "type": "duskFromHorizon",
-        "filter": "point"
+        "filter": "any"
       },
       {
-        "type": "draw",
-        "count": 1,
-        "player": "self"
+        "type": "returnToControllerHand",
+        "filter": "any"
       }
     ],
     "staticEffects": []
@@ -1605,17 +1610,25 @@
   },
   {
     "id": "085",
-    "name": "Share the Loot",
+    "name": "Beseech For Gains",
     "type": "action",
-    "energyCost": 1,
-    "effectText": "You gain 3 energy for each card on the horizon.",
+    "energyCost": 4,
+    "effectText": "You lose all your energy and put your hand into the dusk. An opponent puts five cards of their choice from the dusk into your hand.",
     "playRestrictions": [],
     "additionalCosts": [],
     "effects": [
       {
-        "type": "gainEnergy",
-        "amount": "threePerCardOnHorizon",
+        "type": "loseAllEnergy",
         "player": "self"
+      },
+      {
+        "type": "duskHand",
+        "player": "self"
+      },
+      {
+        "type": "opponentChoosesFromDusk",
+        "count": 5,
+        "putTo": "casterHand"
       }
     ],
     "staticEffects": []
