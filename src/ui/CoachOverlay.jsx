@@ -59,7 +59,6 @@ export function CoachOverlay({ client, onExit }) {
 
   const isDone = beat.mode === 'done'
   const showButton = beat.mode === 'continue' || isDone
-  const waiting = beat.mode === 'action'
 
   return (
     <div style={{
@@ -119,6 +118,7 @@ export function CoachOverlay({ client, onExit }) {
         </div>
       )}
 
+      {(showButton || beat.mode === 'auto') && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
         {showButton && (
           <button
@@ -132,15 +132,11 @@ export function CoachOverlay({ client, onExit }) {
             {isDone ? 'Finish' : 'Continue'}
           </button>
         )}
-        {waiting && (
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' }}>
-            Your move — follow the instructions above.
-          </span>
-        )}
         {beat.mode === 'auto' && (
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>…</span>
         )}
       </div>
+      )}
     </div>
   )
 }
