@@ -23,7 +23,7 @@ src/
   engine/               ← Pure game logic, no I/O — the authoritative rules engine
     state.js            ← GameState model, zones, deck/draw/dusk helpers, static-effect queries
     game.js             ← Turn flow, priority passing, horizon resolution (startGame, playCard,
-                          passPriority, riseTopOfHorizon, checkSunset, endTurn, voidCard)
+                          passPriority, riseTopOfHorizon, checkSunset, endTurn, energizeCard)
     validation.js       ← Play-legality checks (validatePlay)
     choices.js          ← Resolving player choices (dusk N, pick target, etc.) (resolveChoice)
   effects/
@@ -78,6 +78,10 @@ npm test
 # Every card executes through the engine — expect 90/90, 0 issues
 node cards-sweep.mjs
 
+# Regenerate src/data/cards.json from docs/cards-v4.md (the printed card list).
+# Edit the table or the spec in the script, never cards.json by hand.
+node scripts/build-cards.mjs
+
 # Random full games to Sunset — expect 0 hardlocked, 0 crashed
 node fuzz-games.mjs 100
 # equivalently:
@@ -96,9 +100,9 @@ game in one and join via the shared room URL in the other.
 ## Core model (how a turn works)
 
 - **Zones:** deck, hand (per player), horizon (shared, LIFO), **dusk** (one shared face-up
-  pile holding risen actions *and* voided cards), **zenith** (per player, face-up, risen points).
-- **Energy:** gained by *voiding* a card from hand into the dusk (+3 each). Wiped at end of
-  turn for **both** players.
+  pile holding risen actions *and* energized cards), **zenith** (per player, face-up, risen points).
+- **Energy:** gained by *energizing* a card from hand into the dusk (+3 each) — the action
+  the code used to call *voiding*. Wiped at end of turn for **both** players.
 - **Horizon:** last-in-first-out. Playing a card pushes it; the **opponent of the top card's
   controller** is the only player who may respond to it, so **their single pass makes it
   rise** — the controller never passes their own card. After a rise, priority goes to the
@@ -124,6 +128,10 @@ game in one and join via the shared room URL in the other.
 - Card ids are zero-padded strings `"00"`–`"89"` matching `public/cards/NN.png`.
   `00`–`44` are the 45 points, `45`–`89` are the 45 actions. The v4 set renumbered
   everything; `docs/cards-v4.md` is the printed card list and carries the old-id mapping.
+- **`cards.json` is generated, not hand-edited.** `scripts/build-cards.mjs` takes each
+  card's name, cost and text from `docs/cards-v4.md` and merges them with the effect
+  structure held in the script, so the data can't drift from what is printed on the art.
+  Change a card by editing the table or the script's spec, then re-run it.
 - **Card text beats the rules.** Where a card contradicts the rulebook it wins — Pay No Mind
   (42) and Purity (39) leave the horizon without ever rising, and Agoraphobia (35) overrides
   where a removed card goes. Encode the card, not the general rule. No card grants a

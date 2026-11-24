@@ -1,7 +1,7 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createGameState, initDeck, opponent, canPlayFromDusk, CHOICE_TRIGGER_TYPES, horizonEntryMatchesFilter, pendingEnergyPayment } from './engine/state.js';
-import { startGame, playCard, passPriority, voidCard, isLivePriorityWindow } from './engine/game.js';
+import { startGame, playCard, passPriority, energizeCard, isLivePriorityWindow } from './engine/game.js';
 import { resolveChoice } from './engine/choices.js';
 
 // ─── Room Management ──────────────────────────────────────────────────────────
@@ -212,15 +212,15 @@ function handleMessage(ws, room, playerId, msg) {
       break;
     }
 
-    case 'VOID_CARD': {
+    case 'ENERGIZE_CARD': {
       // A pending choice freezes everything else, but a player who owes energy
-      // on that very choice has to be able to void to pay it — otherwise a
+      // on that very choice has to be able to energize to pay it — otherwise a
       // ransom is only ever payable out of energy they happened to already have.
       if (state.pendingChoice && !pendingEnergyPayment(state, playerId)) {
         sendError(ws, 'CHOICE_PENDING', 'You must respond to the pending choice first.');
         return;
       }
-      events = voidCard(state, playerId, msg.cardId);
+      events = energizeCard(state, playerId, msg.cardId);
       break;
     }
 

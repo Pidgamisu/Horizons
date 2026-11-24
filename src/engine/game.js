@@ -318,7 +318,7 @@ export function endTurn(state) {
   state.cardsPlayedThisTurn = [];
   state.cardsDrawnThisTurn = { p1: 0, p2: 0 };
   state.cardsToDuskThisTurn = [];
-  state.voidedThisTurn = { p1: [], p2: [] };
+  state.energizedThisTurn = { p1: [], p2: [] };
   state.turnFlags = createTurnFlags();
   state.players.p1.lockedFromPlaying = false;
   state.players.p2.lockedFromPlaying = false;
@@ -345,14 +345,14 @@ export function endTurn(state) {
   return events;
 }
 
-// ─── Voiding ──────────────────────────────────────────────────────────────────
+// ─── Energizing ──────────────────────────────────────────────────────────────────
 
-export function voidCard(state, playerId, cardId) {
+export function energizeCard(state, playerId, cardId) {
   if (state.phase !== 'active') return [{ type: 'ERROR', code: 'GAME_NOT_ACTIVE' }];
-  // Voiding normally needs priority. The exception is a player who owes energy
+  // Energizing normally needs priority. The exception is a player who owes energy
   // on the open prompt (a ransom, or Auction/Bid's "pay any amount"): they are
   // being asked for energy at a moment that was never their priority, so they
-  // may void to fund it mid-payment. See pendingEnergyPayment.
+  // may energize to fund it mid-payment. See pendingEnergyPayment.
   if (state.activePlayer !== playerId && !pendingEnergyPayment(state, playerId)) {
     return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
   }
@@ -363,14 +363,14 @@ export function voidCard(state, playerId, cardId) {
 
   hand.splice(idx, 1);
   // Must go through sendToDusk: that is what records the card as having entered
-  // the dusk this turn, which Delve (003) and Angst (020) read. Voiding is the
+  // the dusk this turn, which Delve (003) and Angst (020) read. Energizing is the
   // commonest way anything reaches the dusk — and the main way a POINT gets
   // there at all, since points otherwise rise into a zenith.
   sendToDusk(state, cardId);
-  state.voidedThisTurn[playerId].push(cardId);
+  state.energizedThisTurn[playerId].push(cardId);
   state.players[playerId].energy += 3;
 
-  return [{ type: 'CARD_VOIDED', player: playerId, cardId, energyNow: state.players[playerId].energy }];
+  return [{ type: 'CARD_ENERGIZED', player: playerId, cardId, energyNow: state.players[playerId].energy }];
 }
 
 // ─── Trigger Helpers ──────────────────────────────────────────────────────────

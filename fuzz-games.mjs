@@ -11,7 +11,7 @@
  * option on purpose; an "Unhandled ... type" line there is a real gap.
  */
 import { createGameState, initDeck } from './src/engine/state.js';
-import { startGame, playCard, passPriority, voidCard } from './src/engine/game.js';
+import { startGame, playCard, passPriority, energizeCard } from './src/engine/game.js';
 import { resolveChoice } from './src/engine/choices.js';
 import { advancePendingChoices } from './src/server.js';
 import { getCard } from './src/data/cardDb.js';
@@ -96,7 +96,7 @@ for (let g = 0; g < GAMES; g++) {
       const hand = state.players[me].hand;
       const roll = Math.random();
       if (roll < 0.35 && hand.length) {
-        voidCard(state, me, pick(hand));
+        energizeCard(state, me, pick(hand));
       } else if (roll < 0.75 && hand.length) {
         playCard(state, me, pick(hand));   // illegal plays return an ERROR event, harmless
       } else {

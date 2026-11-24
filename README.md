@@ -36,7 +36,7 @@ Then open `http://localhost:5173` in two browser tabs (or two browsers).
 |--------|-----|
 | Select a card | Click it in your hand |
 | Play a card | Select it, then click **Play** |
-| Void a card (+3 energy) | Select it, then click **Void** |
+| Energize a card (+3 energy) | Select it, then click **Energize** |
 | Pass priority | **Spacebar** or click **Pass** |
 | Respond to opponent | Click **Play** while opponent has something on the horizon |
 | Concede | Click **Concede** |
@@ -82,7 +82,7 @@ horizons-client/
       ZoneShapeUtil.jsx   ← Custom tldraw zone shape
     ui/
       HUD.jsx             ← Points, energy, timer display
-      ActionBar.jsx       ← Play/Void/Pass/Concede buttons
+      ActionBar.jsx       ← Play/Energize/Pass/Concede buttons
       ChoicePrompt.jsx    ← Interactive choice modal
       CardTooltip.jsx     ← Hover zoom preview
       GameOver.jsx        ← Win/lose screen, Lobby, Toast
@@ -97,10 +97,10 @@ planning/
 ## Game Rules Summary
 
 - **Goal:** 5 points to win
-- **Energy:** Void cards from your hand to gain 3 energy each
+- **Energy:** Energize cards from your hand to gain 3 energy each
 - **Playing cards:** Pay energy cost; card goes on the horizon
 - **Horizon:** Last In, First Out (like MTG). Both players pass priority to resolve
 - **Point cards:** Can only be played when the horizon is empty (on your turn)
 - **Action cards:** Can be played on your turn OR in response to opponent's cards
-- **End of turn:** Energy wiped, trash moves to void, draw back up to 5
+- **End of turn:** Energy wiped, trash moves to energize, draw back up to 5
 - **Priority clock:** 25 minutes each — clock runs while you hold priority

@@ -46,7 +46,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     // and the cards' content is pointer-events:none so dbl-clicks land on the
     // canvas behind them and would otherwise spawn an editable text box.
     const idle = editor.getStateDescendant('select.idle')
-    if (idle) idle.onDoubleClick = () => void 0
+    if (idle) idle.onDoubleClick = () => undefined
     boardRef.current = new BoardManager(editor)
     hasFitRef.current = false
     // Re-sync game state now that editor is ready
@@ -169,7 +169,7 @@ function GameCanvas({ gameState, myPlayerId, selectedCard, onCardClick, onHorizo
     }
 
     const onPointerDown = (e) => {
-      // The on-card Play/Void buttons are theirs to handle.
+      // The on-card Play/Energize buttons are theirs to handle.
       if (e.target?.closest?.('button')) { down = null; return }
       down = { x: e.clientX, y: e.clientY, at: Date.now(), id: e.pointerId }
     }
@@ -231,7 +231,7 @@ export default function App() {
 
   const startTutorial = useCallback(() => {
     const tut = new TutorialClient()
-    setClient(tut)        // module indirection (for the on-card Play/Void buttons)
+    setClient(tut)        // module indirection (for the on-card Play/Energize buttons)
     setActiveClient(tut)  // triggers re-subscribe + the start effect below
     setRoomId('TUTORIAL')
     setScreen('game')
@@ -361,13 +361,13 @@ export default function App() {
     setSelectedCard(null)
   }, [client, selectedCard])
 
-  const handleVoid = useCallback(() => {
+  const handleEnergize = useCallback(() => {
     if (!selectedCard) return
-    client.voidCard(selectedCard)
+    client.energizeCard(selectedCard)
     setSelectedCard(null)
   }, [client, selectedCard])
 
-  // Keyboard shortcuts (mirror the ActionBar): Space = pass, P = play, V = void.
+  // Keyboard shortcuts (mirror the ActionBar): Space = pass, P = play, V = energize.
   useEffect(() => {
     const onKey = (e) => {
       if (screen !== 'game') return
@@ -381,13 +381,13 @@ export default function App() {
         if (canAct) handlePlay()
       } else if (e.code === 'KeyV') {
         e.preventDefault()
-        // Voiding is also legal mid-prompt when it is funding an owed payment.
-        if (canAct || client.owesEnergyPayment) handleVoid()
+        // Energizing is also legal mid-prompt when it is funding an owed payment.
+        if (canAct || client.owesEnergyPayment) handleEnergize()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [screen, client, handlePlay, handleVoid])
+  }, [screen, client, handlePlay, handleEnergize])
 
   // Block zoom gestures (ctrl+wheel / trackpad pinch) over the UI overlays.
   // tldraw handles zoom inside its own container, but the HUD/dialogs are
@@ -408,7 +408,7 @@ export default function App() {
   }, [screen])
 
   // Clear the selection once the selected card leaves the hand — covers the
-  // on-card Play/Void buttons, which act via gameClient directly.
+  // on-card Play/Energize buttons, which act via gameClient directly.
   useEffect(() => {
     const hand = gameState?.players?.[myPlayerId]?.hand
     if (selectedCard && hand && !hand.includes(selectedCard)) setSelectedCard(null)

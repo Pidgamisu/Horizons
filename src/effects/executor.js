@@ -3,7 +3,7 @@ import {
   drawCards, duskHand,
   sendToDusk, shuffle, opponent, controllerOf, removeFromHorizon, removeHorizonEntry,
   horizonHasTarget, reshuffleDuskIntoDeck, pointsOf, bothTypesToDuskThisTurn,
-  voidedBothTypesThisTurn,
+  energizedBothTypesThisTurn,
 } from '../engine/state.js';
 
 /**
@@ -787,7 +787,7 @@ function resolveHorizonFilter(state, filter) {
 function evaluateCardCondition(state, condition, playerId) {
   switch (condition) {
     case 'bothTypesToDuskThisTurn': return bothTypesToDuskThisTurn(state);
-    case 'voidedBothTypesThisTurn': return voidedBothTypesThisTurn(state, playerId);
+    case 'energizedBothTypesThisTurn': return energizedBothTypesThisTurn(state, playerId);
     case 'selfAtFourPoints':        return pointsOf(state, playerId) >= 4;
     case 'opponentAtFourPoints':    return pointsOf(state, opponent(playerId)) >= 4;
     default: return false;

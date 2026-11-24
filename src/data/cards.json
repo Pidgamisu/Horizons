@@ -60,7 +60,7 @@
     "costModifiers": [
       {
         "type": "discountIfCondition",
-        "condition": "voidedBothTypesThisTurn",
+        "condition": "energizedBothTypesThisTurn",
         "amount": 2
       }
     ],
@@ -341,7 +341,7 @@
     "effects": [
       {
         "type": "conditionalDraw",
-        "condition": "voidedBothTypesThisTurn",
+        "condition": "energizedBothTypesThisTurn",
         "count": 2,
         "player": "self"
       }

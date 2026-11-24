@@ -69,7 +69,7 @@ export class ZoneShapeUtil extends BaseBoxShapeUtil {
 }
 
 // A card-sized slot, centered in the zone box. For the deck it shows a stack of
-// card backs (offset layers behind the top card); for trash/void it's an empty
+// card backs (offset layers behind the top card); for trash/energize it's an empty
 // card outline with the zone label. A count badge overlays the bottom.
 function PileSlot({ kind, label, count, w, h }) {
   const isDeck = kind === 'deck'

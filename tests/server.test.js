@@ -114,13 +114,13 @@ describe('Connection and room management', () => {
 // ─── Game Action Tests ────────────────────────────────────────────────────────
 
 describe('Game actions over WebSocket', () => {
-  test('voiding a card gives 3 energy', async () => {
+  test('energizing a card gives 3 energy', async () => {
     const { p1, p1State } = await startTestGame();
-    const cardToVoid = p1State.state.players.p1.hand[0];
-    p1.send({ type: 'VOID_CARD', cardId: cardToVoid });
+    const cardToEnergize = p1State.state.players.p1.hand[0];
+    p1.send({ type: 'ENERGIZE_CARD', cardId: cardToEnergize });
     const state = await p1.nextState();
     expect(state.state.players.p1.energy).toBe(3);
-    expect(state.state.players.p1.hand).not.toContain(cardToVoid);
+    expect(state.state.players.p1.hand).not.toContain(cardToEnergize);
   });
 
   test('p2 cannot pass priority when p1 holds it', async () => {
@@ -167,20 +167,20 @@ describe('Game actions over WebSocket', () => {
     expect(s2.state.winner).toBe('p2');
   });
 
-  test('full turn: p1 voids cards, ends turn, draws back to 5', async () => {
+  test('full turn: p1 energizes cards, ends turn, draws back to 5', async () => {
     const { p1, p1State } = await startTestGame();
 
-    // Void 3 cards sequentially, awaiting state after each
+    // Energize 3 cards sequentially, awaiting state after each
     const hand = [...p1State.state.players.p1.hand];
-    p1.send({ type: 'VOID_CARD', cardId: hand[0] });
+    p1.send({ type: 'ENERGIZE_CARD', cardId: hand[0] });
     const s1 = await p1.nextState();
     expect(s1.state.players.p1.energy).toBe(3);
 
-    p1.send({ type: 'VOID_CARD', cardId: hand[1] });
+    p1.send({ type: 'ENERGIZE_CARD', cardId: hand[1] });
     const s2 = await p1.nextState();
     expect(s2.state.players.p1.energy).toBe(6);
 
-    p1.send({ type: 'VOID_CARD', cardId: hand[2] });
+    p1.send({ type: 'ENERGIZE_CARD', cardId: hand[2] });
     const s3 = await p1.nextState();
     expect(s3.state.players.p1.energy).toBe(9);
     expect(s3.state.players.p1.handSize).toBe(2);

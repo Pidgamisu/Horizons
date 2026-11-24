@@ -27,7 +27,7 @@ export function ActionBar({
       pointerEvents: 'all',
     }}>
 
-      {/* Pass priority — Play/Void now live on the cards, Concede on the panel */}
+      {/* Pass priority — Play/Energize now live on the cards, Concede on the panel */}
       <ActionButton
         label="Pass"
         shortcut="Space"

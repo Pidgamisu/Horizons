@@ -5,7 +5,7 @@ import {
   computeActualCost, duskFromHorizon, pendingEnergyPayment,
 } from '../src/engine/state.js';
 import {
-  startGame, playCard, passPriority, voidCard, endTurn, riseTopOfHorizon,
+  startGame, playCard, passPriority, energizeCard, endTurn, riseTopOfHorizon,
   checkSunset, isLivePriorityWindow,
 } from '../src/engine/game.js';
 import { validatePlay } from '../src/engine/validation.js';
@@ -140,42 +140,42 @@ describe('Game initialisation', () => {
     expect(state.reshufflesRemaining).toBe(0);
   });
 
-  test('the old trash and void zones are gone — the dusk replaces both', () => {
+  test('the old trash and energize zones are gone — the dusk replaces both', () => {
     const { state } = freshGame();
     expect(Object.keys(state.zones).sort()).toEqual(['deck', 'dusk', 'horizon']);
   });
 });
 
-// ─── Voiding ──────────────────────────────────────────────────────────────────
+// ─── Energizing ──────────────────────────────────────────────────────────────────
 
-describe('Voiding', () => {
+describe('Energizing', () => {
   test('puts the card in the dusk and gives 3 energy', () => {
     const { state } = freshGame();
     const card = state.players.p1.hand[0];
-    const events = voidCard(state, 'p1', card);
+    const events = energizeCard(state, 'p1', card);
 
-    expect(eventTypes(events)).toContain('CARD_VOIDED');
+    expect(eventTypes(events)).toContain('CARD_ENERGIZED');
     expect(state.players.p1.energy).toBe(3);
     expect(state.zones.dusk).toContain(card);
     expect(state.players.p1.hand).not.toContain(card);
   });
 
-  test('stacks: voiding three cards gives 9 energy', () => {
+  test('stacks: energizing three cards gives 9 energy', () => {
     const { state } = freshGame();
-    for (const card of [...state.players.p1.hand].slice(0, 3)) voidCard(state, 'p1', card);
+    for (const card of [...state.players.p1.hand].slice(0, 3)) energizeCard(state, 'p1', card);
     expect(state.players.p1.energy).toBe(9);
     expect(state.zones.dusk).toHaveLength(3);
   });
 });
 
-// ─── Voiding to fund an owed payment ──────────────────────────────────────────
+// ─── Energizing to fund an owed payment ──────────────────────────────────────────
 //
 // A ransom is paid by the targeted card's CONTROLLER, who is usually not the
 // player holding priority and whose energy was wiped at the last end of turn.
 // Without this, "unless its controller pays 1 energy" resolves as unconditional
 // removal rather than as the choice the card describes.
 
-describe('Voiding to fund an owed payment', () => {
+describe('Energizing to fund an owed payment', () => {
   /** Drive Poke (097) to the point where `debtor` is being asked for a ransom. */
   function ransomPending({ pokeCaster }) {
     const { state } = freshGame();
@@ -207,7 +207,7 @@ describe('Voiding to fund an owed payment', () => {
 
   const opponentOf = p => (p === 'p1' ? 'p2' : 'p1');
 
-  test('a broke debtor voids to pay the ransom and keeps the card', () => {
+  test('a broke debtor energizes to pay the ransom and keeps the card', () => {
     const { state, target } = ransomPending({ pokeCaster: 'p2' });
     expect(state.pendingChoice.type).toBe('duskUnlessControllerPays');
     expect(state.pendingChoice.player).toBe('p1');
@@ -215,8 +215,8 @@ describe('Voiding to fund an owed payment', () => {
     setEnergy(state, 'p1', 0);
     expect(pendingEnergyPayment(state, 'p1')).toBe(true);
 
-    const events = voidCard(state, 'p1', state.players.p1.hand[0]);
-    expect(eventTypes(events)).toContain('CARD_VOIDED');
+    const events = energizeCard(state, 'p1', state.players.p1.hand[0]);
+    expect(eventTypes(events)).toContain('CARD_ENERGIZED');
     expect(state.players.p1.energy).toBe(3);
 
     const { error } = resolveChoice(state, 'p1', { pay: true });
@@ -225,14 +225,14 @@ describe('Voiding to fund an owed payment', () => {
     expect(state.zones.horizon.some(e => e.cardId === target)).toBe(true);
   });
 
-  test('the debtor may void even while the opponent holds priority', () => {
+  test('the debtor may energize even while the opponent holds priority', () => {
     const { state, target } = ransomPending({ pokeCaster: 'p1' });
     expect(state.pendingChoice.player).toBe('p2');
     // The whole point: p2 owes the ransom at a moment that is not their priority.
     expect(state.activePlayer).not.toBe('p2');
 
     setEnergy(state, 'p2', 0);
-    expect(eventTypes(voidCard(state, 'p2', state.players.p2.hand[0]))).toContain('CARD_VOIDED');
+    expect(eventTypes(energizeCard(state, 'p2', state.players.p2.hand[0]))).toContain('CARD_ENERGIZED');
 
     const { error } = resolveChoice(state, 'p2', { pay: true });
     expect(error).toBe(null);
@@ -247,7 +247,7 @@ describe('Voiding to fund an owed payment', () => {
     expect(state.zones.dusk).toContain(target);
   });
 
-  test('voiding without priority is still refused when nothing is owed', () => {
+  test('energizing without priority is still refused when nothing is owed', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', ACTION);
     setEnergy(state, 'p1', 9);
@@ -255,7 +255,7 @@ describe('Voiding to fund an owed payment', () => {
     expect(state.activePlayer).toBe('p2');
     expect(pendingEnergyPayment(state, 'p1')).toBe(false);
 
-    const events = voidCard(state, 'p1', state.players.p1.hand[0]);
+    const events = energizeCard(state, 'p1', state.players.p1.hand[0]);
     expect(events[0].type).toBe('ERROR');
     expect(events[0].code).toBe('NOT_YOUR_PRIORITY');
   });
@@ -543,7 +543,7 @@ describe('End of turn', () => {
   test('the dusk persists across turns — it is one pile all game', () => {
     const { state } = freshGame();
     const card = state.players.p1.hand[0];
-    voidCard(state, 'p1', card);
+    energizeCard(state, 'p1', card);
     endTurn(state);
     expect(state.zones.dusk).toContain(card);
   });
@@ -694,8 +694,8 @@ describe('Whole-game integrity', () => {
       const me = state.turn;
       if (state.activePlayer !== me) { passPriority(state, state.activePlayer); continue; }
 
-      // Void two cards for energy, then play the cheapest affordable point.
-      for (const id of [...state.players[me].hand].slice(0, 2)) voidCard(state, me, id);
+      // Energize two cards for energy, then play the cheapest affordable point.
+      for (const id of [...state.players[me].hand].slice(0, 2)) energizeCard(state, me, id);
       const affordable = state.players[me].hand
         .map(id => getCard(id))
         .filter(c => c.type === 'point' && c.energyCost <= state.players[me].energy)
@@ -724,7 +724,7 @@ describe('Whole-game integrity', () => {
     while (state.phase === 'active' && guard++ < 3000) {
       const me = state.turn;
       if (state.activePlayer !== me) { passPriority(state, state.activePlayer); continue; }
-      for (const id of [...state.players[me].hand].slice(0, 2)) voidCard(state, me, id);
+      for (const id of [...state.players[me].hand].slice(0, 2)) energizeCard(state, me, id);
       const pt = state.players[me].hand
         .map(id => getCard(id))
         .filter(c => c.type === 'point' && c.energyCost <= state.players[me].energy)[0];
@@ -852,14 +852,14 @@ describe('Card effects', () => {
     expect(state.zones.dusk).toContain(taken);
   });
 
-  test('Delve (003) costs 2 less once you have voided a point and an action', () => {
+  test('Delve (003) costs 2 less once you have energized a point and an action', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
     state.players[me].hand = ['02', '45'];
     expect(computeActualCost(state, '03', me)).toBe(6);
-    voidCard(state, me, '02');
+    energizeCard(state, me, '02');
     expect(computeActualCost(state, '03', me)).toBe(6);
-    voidCard(state, me, '45');
+    energizeCard(state, me, '45');
     expect(computeActualCost(state, '03', me)).toBe(4);
   });
 
@@ -1089,41 +1089,41 @@ describe('Prompt wording', () => {
 // ─── Cards that watch the dusk ────────────────────────────────────────────────
 
 describe('Cards that watch the dusk', () => {
-  test('voiding records the card as having entered the dusk', () => {
-    // Voiding is the commonest way anything reaches the dusk, and the main way a
+  test('energizing records the card as having entered the dusk', () => {
+    // Energizing is the commonest way anything reaches the dusk, and the main way a
     // POINT gets there at all. It bypassed sendToDusk, so nothing was recorded.
     const { state } = freshGame();
     state.players.p1.hand = ['02', '45'];   // a point and an action
-    voidCard(state, 'p1', '02');
-    voidCard(state, 'p1', '45');
+    energizeCard(state, 'p1', '02');
+    energizeCard(state, 'p1', '45');
     expect(state.cardsToDuskThisTurn).toEqual(['02', '45']);
   });
 
-  test('Delve (003) costs 2 less once a point and an action have been voided', () => {
+  test('Delve (003) costs 2 less once a point and an action have been energized', () => {
     const { state } = freshGame();
     state.players.p1.hand = ['02', '45'];
     expect(computeActualCost(state, '03', 'p1')).toBe(6);
-    voidCard(state, 'p1', '02');
+    energizeCard(state, 'p1', '02');
     expect(computeActualCost(state, '03', 'p1')).toBe(6);   // one type only
-    voidCard(state, 'p1', '45');
+    energizeCard(state, 'p1', '45');
     expect(computeActualCost(state, '03', 'p1')).toBe(4);
   });
 
   test('Delve (003) is not discounted by two cards of the same type', () => {
     const { state } = freshGame();
     state.players.p1.hand = ['02', '04'];   // two points
-    voidCard(state, 'p1', '02');
-    voidCard(state, 'p1', '04');
+    energizeCard(state, 'p1', '02');
+    energizeCard(state, 'p1', '04');
     expect(computeActualCost(state, '03', 'p1')).toBe(6);
   });
 
-  test('a risen action does NOT count — only what you voided does', () => {
+  test('a risen action does NOT count — only what you energized does', () => {
     const { state } = freshGame();
     state.players.p1.hand = ['02'];
-    voidCard(state, 'p1', '02');
+    energizeCard(state, 'p1', '02');
     state.zones.horizon.unshift(createHorizonEntry('45', 'p1'));
     riseTopOfHorizon(state);
-    // The action reached the dusk by rising, not by being voided.
+    // The action reached the dusk by rising, not by being energized.
     expect(state.zones.dusk).toContain('45');
     expect(computeActualCost(state, '03', 'p1')).toBe(6);
   });
@@ -1131,8 +1131,8 @@ describe('Cards that watch the dusk', () => {
   test('the record resets at end of turn', () => {
     const { state } = freshGame();
     state.players.p1.hand = ['02', '45'];
-    voidCard(state, 'p1', '02');
-    voidCard(state, 'p1', '45');
+    energizeCard(state, 'p1', '02');
+    energizeCard(state, 'p1', '45');
     endTurn(state);
     expect(state.cardsToDuskThisTurn).toHaveLength(0);
     expect(computeActualCost(state, '03', 'p1')).toBe(6);
@@ -1363,25 +1363,25 @@ describe('the reworked cards do what their new text says', () => {
     expect(state.players.p1.zenith.includes('07')).toBe(true);
   });
 
-  test('Delve (003) discounts only once YOU have voided both types', () => {
+  test('Delve (003) discounts only once YOU have energized both types', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
     state.players[me].hand = ['03', '04', '45'];
 
     expect(computeActualCost(state, '03', me)).toBe(6);
-    voidCard(state, me, '04');                 // a point
+    energizeCard(state, me, '04');                 // a point
     expect(computeActualCost(state, '03', me)).toBe(6);
-    voidCard(state, me, '45');                 // an action
+    energizeCard(state, me, '45');                 // an action
     expect(computeActualCost(state, '03', me)).toBe(4);
   });
 
-  test('Delve ignores cards that reach the dusk without being voided', () => {
+  test('Delve ignores cards that reach the dusk without being energized', () => {
     // The old wording counted anything arriving in the dusk from any source.
     // Insanity dumps a hand there, which used to be enough.
     const { state } = freshGame();
     const me = state.activePlayer;
     // Unused Ambition dumps the hand as it rises — both types reach the dusk
-    // without either being voided.
+    // without either being energized.
     state.zones.horizon = [createHorizonEntry('07', me)];
     state.players[me].hand = ['04', '45'];
 
@@ -1393,12 +1393,12 @@ describe('the reworked cards do what their new text says', () => {
     expect(computeActualCost(state, '03', me)).toBe(6);
   });
 
-  test('Angst (020) draws two after you void both types', () => {
+  test('Angst (020) draws two after you energize both types', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
     state.players[me].hand = ['04', '45'];
-    voidCard(state, me, '04');
-    voidCard(state, me, '45');
+    energizeCard(state, me, '04');
+    energizeCard(state, me, '45');
     const before = state.players[me].hand.length;
 
     state.zones.horizon = [createHorizonEntry('18', me)];

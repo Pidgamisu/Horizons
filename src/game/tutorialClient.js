@@ -15,8 +15,8 @@
 const POINT = '37' // Splendor      , point, cost 5: each player gains 4 energy
 const STOP  = '48' // Delusion      , action, cost 2: put a point on the horizon into the dusk
 const DENY  = '70' // Deny Hostility, action, cost 1: dusk an action played in response to a point
-const FILL1 = '65' // Inspect       , voided for energy
-const FILL2 = '55' // Sort          , voided for energy
+const FILL1 = '65' // Inspect       , energized for the energy
+const FILL2 = '55' // Sort          , energized for the energy
 // A fresh draw shown when the hand refills at end of turn (any real card ids).
 const REFILL = ['04', '18', '52', '73', '84']
 
@@ -76,17 +76,17 @@ const BEATS = [
   {
     mode: 'continue',
     state: proj({ p1hand: [POINT, DENY, FILL1, FILL2], p2handSize: 1, p1energy: 0 }),
-    narration: 'There are two kinds of card. A **point** is what you’re trying to score. An **action** does something and then leaves. Cards cost **energy**, and you make energy by **voiding** cards you don’t need.',
+    narration: 'There are two kinds of card. A **point** is what you’re trying to score. An **action** does something and then leaves. Cards cost **energy**, and you make energy by **energizing** cards you don’t need.',
   },
   {
-    mode: 'action', expect: { action: 'void', cardId: FILL1 }, highlight: FILL1,
+    mode: 'action', expect: { action: 'energize', cardId: FILL1 }, highlight: FILL1,
     state: proj({ p1hand: [POINT, DENY, FILL1, FILL2], p2handSize: 1, p1energy: 0 }),
-    narration: 'Voiding puts a card into the **dusk** and gives you **3 energy**. Let’s pay for **Splendor**, which costs **5**. Click **Dig For Ideas**, then hit **Void (+3)**.',
+    narration: 'Energizing puts a card into the **dusk** and gives you **3 energy**. Let’s pay for **Splendor**, which costs **5**. Click **Inspect**, then hit **Energize (+3)**.',
   },
   {
-    mode: 'action', expect: { action: 'void', cardId: FILL2 }, highlight: FILL2,
+    mode: 'action', expect: { action: 'energize', cardId: FILL2 }, highlight: FILL2,
     state: proj({ p1hand: [POINT, DENY, FILL2], p2handSize: 1, p1energy: 3, dusk: [FILL1] }),
-    narration: 'Three energy, and the card is now in the **dusk**. Void **Sort** as well to reach five. Any energy you don’t spend disappears at the end of the turn, so there’s no reason to hoard it.',
+    narration: 'Three energy, and the card is now in the **dusk**. Energize **Sort** as well to reach five. Any energy you don’t spend disappears at the end of the turn, so there’s no reason to hoard it.',
   },
   {
     mode: 'action', expect: { action: 'play', cardId: POINT }, highlight: POINT,
@@ -142,7 +142,7 @@ const BEATS = [
   {
     mode: 'done',
     state: proj({ horizon: [], p1hand: REFILL, p2handSize: 0, active: 'p1', p1zenith: [POINT], p1energy: 0, p2energy: 0, dusk: DUSK_END }),
-    narration: 'That’s Horizons! Void cards for energy, then interact with your opponent on the **horizon** in order to have the most **points** in your **zenith** before the deck runs out and the **horizon** enters the **dusk**.',
+    narration: 'That’s Horizons! Energize cards for energy, then interact with your opponent on the **horizon** in order to have the most **points** in your **zenith** before the deck runs out and the **horizon** enters the **dusk**.',
   },
 ]
 
@@ -184,23 +184,23 @@ export class TutorialClient extends EventTarget {
       if (expect.cardId === cardId) return this.next()
       return this._nudge('That’s not the card we need right now, follow the highlighted card.')
     }
-    if (expect?.action === 'void') {
-      return this._nudge('Use **Void** here to gain energy, not Play.')
+    if (expect?.action === 'energize') {
+      return this._nudge('Use **Energize** here to gain energy, not Play.')
     }
     this._nudge('Hold on, just follow the current step.')
   }
 
-  voidCard(cardId) {
+  energizeCard(cardId) {
     const beat = this._beat()
     const expect = beat?.mode === 'action' ? beat.expect : null
-    if (expect?.action === 'void') {
+    if (expect?.action === 'energize') {
       if (expect.cardId === cardId) return this.next()
-      return this._nudge('Void the highlighted card to gain energy.')
+      return this._nudge('Energize the highlighted card to gain energy.')
     }
     if (expect?.action === 'play') {
-      return this._nudge('No need to void now, **Play** the highlighted card.')
+      return this._nudge('No need to energize now, **Play** the highlighted card.')
     }
-    this._nudge('No need to void right now, follow the current step.')
+    this._nudge('No need to energize right now, follow the current step.')
   }
 
   passPriority() {
@@ -208,7 +208,7 @@ export class TutorialClient extends EventTarget {
     const expect = beat?.mode === 'action' ? beat.expect : null
     if (expect?.action === 'pass') return this.next()
     if (expect?.action === 'play') return this._nudge('You need to play the highlighted card here, not pass.')
-    if (expect?.action === 'void') return this._nudge('Void the highlighted card here, not pass.')
+    if (expect?.action === 'energize') return this._nudge('Energize the highlighted card here, not pass.')
     this._nudge('Nothing to pass right now, watch what happens, or click Continue.')
   }
   choose() { /* no choice prompts in this scripted scenario */ }

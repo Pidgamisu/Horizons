@@ -26,14 +26,14 @@ export function isChoiceTrigger(trigger) {
 /**
  * Does this player owe an energy payment on the choice that is currently open?
  *
- * Voiding is otherwise a priority action, and that is a problem for exactly two
+ * Energizing is otherwise a priority action, and that is a problem for exactly two
  * prompts. A ransom (Poke 097, Chains 084, Drown in Fog 069) is paid by the
  * *targeted card's controller* — normally the player who did not just act, and
  * whose energy was wiped at the last end of turn, so the ransom reads as a
  * choice but resolves as unconditional removal. Auction (045) / Bid (058) ask
  * for "any amount" and get whatever happened to be banked.
  *
- * While such a payment is outstanding its debtor may void to fund it, the way a
+ * While such a payment is outstanding its debtor may energize to fund it, the way a
  * mana ability can be activated in the middle of paying a cost.
  */
 export function pendingEnergyPayment(state, playerId) {
@@ -54,7 +54,7 @@ export function createGameState() {
     turnNumber: 0,
     cardsPlayedThisTurn: [],   // [{ cardId, playedBy }] in order
     cardsDrawnThisTurn: { p1: 0, p2: 0 },
-    voidedThisTurn:    { p1: [], p2: [] },
+    energizedThisTurn:    { p1: [], p2: [] },
     cardsToDuskThisTurn: [],   // CardId[] — everything that entered the dusk this turn (Delve 003, Angst 020)
 
     // Trigger bookkeeping, drained by flushHorizonTriggers once the current
@@ -72,7 +72,7 @@ export function createGameState() {
     zones: {
       deck:  [],   // CardId[], index 0 = top
       horizon: [],   // HorizonEntry[], index 0 = top (last played)
-      dusk:  [],   // CardId[] — the single shared face-up pile: risen actions AND voided cards
+      dusk:  [],   // CardId[] — the single shared face-up pile: risen actions AND energized cards
     },
 
     // Sunset: the deck is finite. Each reshuffle refills the deck from the dusk;
@@ -236,13 +236,13 @@ export function bothTypesToDuskThisTurn(state) {
 }
 
 /**
- * Did this player void both a point and an action this turn? (Delve 003,
+ * Did this player energize both a point and an action this turn? (Delve 003,
  * Angst 020.) Deliberately not the same question as bothTypesToDuskThisTurn:
  * that one counts anything reaching the dusk from any source and either player,
- * while these cards reward the act of voiding, which only their controller does.
+ * while these cards reward the act of energizing, which only their controller does.
  */
-export function voidedBothTypesThisTurn(state, playerId) {
-  const types = new Set((state.voidedThisTurn?.[playerId] ?? []).map(id => getCard(id).type));
+export function energizedBothTypesThisTurn(state, playerId) {
+  const types = new Set((state.energizedThisTurn?.[playerId] ?? []).map(id => getCard(id).type));
   return types.has("point") && types.has("action");
 }
 
@@ -460,8 +460,8 @@ function evaluateCondition(state, condition, playerId, context) {
       return pointsOf(state, playerId) >= 4;
     case 'bothTypesToDuskThisTurn':
       return bothTypesToDuskThisTurn(state);
-    case 'voidedBothTypesThisTurn':   // Delve (003)
-      return voidedBothTypesThisTurn(state, playerId);
+    case 'energizedBothTypesThisTurn':   // Delve (003)
+      return energizedBothTypesThisTurn(state, playerId);
     case 'revealThreePointsFromHand': // Dawn (049)
       return revealablePoints(state, playerId, context?.cardId).length >= 3;
     case 'playedBothTypesThisTurn': {

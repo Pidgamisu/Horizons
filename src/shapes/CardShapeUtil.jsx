@@ -22,7 +22,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
       horizonIndex: null,
       horizonIsTop: false,
       playable: false,
-      voidOnly: false,
+      energizeOnly: false,
       chunky: false,
       w: CW,
       h: CH,
@@ -30,7 +30,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, voidOnly, chunky, mine, pileCount, w, h } = shape.props
+    const { cardId, faceUp, selected, targeted, dimmed, zone, horizonIndex, horizonIsTop, playable, energizeOnly, chunky, mine, pileCount, w, h } = shape.props
     const onHorizon = zone === 'horizon'
     const showActions = selected && zone === 'hand' && playable && cardId
 
@@ -90,7 +90,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             position: 'absolute', bottom: chunky ? 8 : 5, left: '50%',
             transform: 'translateX(-50%)',
             // Drawn in board units and shrunk by the camera, same as the
-            // Play/Void buttons, so it needs to be oversized on a phone.
+            // Play/Energize buttons, so it needs to be oversized on a phone.
             fontSize: chunky ? 22 : 12,
             fontWeight: 800, color: '#fff',
             background: 'rgba(0,0,0,0.78)',
@@ -129,7 +129,7 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
           </div>
         )}
 
-        {/* Play / Void actions on the selected hand card. Buttons opt back into
+        {/* Play / Energize actions on the selected hand card. Buttons opt back into
             pointer events (the card itself is pointer-events:none) and stop
             propagation so tldraw's canvas input doesn't swallow the click. */}
         {showActions && (
@@ -140,14 +140,14 @@ export class CardShapeUtil extends BaseBoxShapeUtil {
             background: 'linear-gradient(to top, rgba(7,7,15,0.92) 60%, rgba(7,7,15,0))',
             pointerEvents: 'none',
           }}>
-            {/* While voidOnly, the hand is open purely to fund an owed payment —
+            {/* While energizeOnly, the hand is open purely to fund an owed payment —
                 playing is still frozen behind the prompt, so Play is hidden. */}
-            {!voidOnly && (
+            {!energizeOnly && (
               <CardActionButton label="Play" bg="#ff0099" chunky={chunky}
                 onClick={() => getClient().playCard(cardId)} />
             )}
-            <CardActionButton label="Void" sub="+3" bg={voidOnly ? '#ff0099' : 'rgba(255,255,255,0.16)'} chunky={chunky}
-              onClick={() => getClient().voidCard(cardId)} />
+            <CardActionButton label="Energize" sub="+3" bg={energizeOnly ? '#ff0099' : 'rgba(255,255,255,0.16)'} chunky={chunky}
+              onClick={() => getClient().energizeCard(cardId)} />
           </div>
         )}
       </div>
@@ -175,10 +175,14 @@ function CardActionButton({ label, sub, bg, onClick, chunky = false }) {
         border: 'none', borderRadius: 6,
         // These are drawn in board units and shrunk by the camera, so on a
         // phone they have to be oversized here to end up thumb-sized on screen.
+        // The padding is what makes the thumb target, so the text can be sized
+        // purely to fit: "Energize +3" has to sit inside a 120-unit card, and
+        // at the old 22px it ran off the end.
         padding: chunky ? '18px 0' : '6px 0',
-        fontSize: chunky ? 22 : 13,
+        fontSize: chunky ? 17 : 13,
         fontWeight: 700,
-        letterSpacing: '0.04em', cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        letterSpacing: chunky ? '0.01em' : '0.04em', cursor: 'pointer',
       }}
     >
       {label}{sub && <span style={{ opacity: 0.6, fontSize: 10, marginLeft: 5 }}>{sub}</span>}

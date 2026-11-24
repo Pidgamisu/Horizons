@@ -113,8 +113,8 @@ export class GameClient extends EventTarget {
     this.send({ type: 'PLAY_CARD', cardId, context })
   }
 
-  voidCard(cardId) {
-    this.send({ type: 'VOID_CARD', cardId })
+  energizeCard(cardId) {
+    this.send({ type: 'ENERGIZE_CARD', cardId })
   }
 
   passPriority() {
@@ -196,7 +196,7 @@ export class GameClient extends EventTarget {
     return this.pendingChoice?.player === this.playerId
   }
 
-  /** Owe energy on the open prompt? Then voiding is legal without priority. */
+  /** Owe energy on the open prompt? Then energizing is legal without priority. */
   get owesEnergyPayment() {
     return this.gameState ? pendingEnergyPayment(this.gameState, this.playerId) : false
   }
