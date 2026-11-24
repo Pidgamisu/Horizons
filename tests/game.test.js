@@ -194,9 +194,9 @@ describe('Voiding to fund an owed payment', () => {
     }
     playCard(state, pokeCaster, '097');
 
-    // Both pass so Poke rises and its text runs.
+    // The caster's opponent passes, which is all it takes: Poke rises and its
+    // text runs. The caster never passes their own card.
     passPriority(state, opponentOf(pokeCaster));
-    passPriority(state, pokeCaster);
     advancePendingChoices(state);
 
     // Step 1: the caster picks which action on the horizon to ransom.
@@ -431,16 +431,59 @@ describe('Rising', () => {
     expect(state.zones.horizon).toHaveLength(0);
   });
 
-  test('both players passing makes the top card rise', () => {
+  test('the opponent passing alone makes the top card rise', () => {
     const { state } = freshGame();
     giveCard(state, 'p1', POINT);
     setEnergy(state, 'p1', 20);
     playCard(state, 'p1', POINT);
 
-    passPriority(state, 'p2');   // opponent declines to respond
-    passPriority(state, 'p1');
+    // Rulebook p4: "If the opponent passes, that card rises." One pass, not two
+    // — the controller never passes their own card.
+    passPriority(state, 'p2');
 
     expect(state.players.p1.zenith).toContain(POINT);
+    expect(state.zones.horizon).toHaveLength(0);
+  });
+
+  test('the controller never gets priority over their own card', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    setEnergy(state, 'p1', 20);
+    playCard(state, 'p1', POINT);
+
+    expect(state.activePlayer).toBe('p2');
+    const events = passPriority(state, 'p1');
+    expect(eventTypes(events)).toContain('ERROR');
+    expect(state.zones.horizon).toHaveLength(1);
+  });
+
+  test('after a rise, priority goes to the new top card\'s opponent, not the turn player', () => {
+    const { state } = freshGame();
+    giveCard(state, 'p1', POINT);
+    giveCard(state, 'p2', ACTION);
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+
+    playCard(state, 'p1', POINT);     // p1's point, bottom of the horizon
+    playCard(state, 'p2', ACTION);    // p2 responds — now the top
+
+    passPriority(state, 'p1');        // p1 declines to respond; the action rises
+
+    // The point below is p1's, so it is p2 who may respond to it — even though
+    // it is p1's turn.
+    expect(state.zones.horizon).toHaveLength(1);
+    expect(state.turn).toBe('p1');
+    expect(state.activePlayer).toBe('p2');
+  });
+
+  test('passing with an empty horizon ends your turn', () => {
+    const { state } = freshGame();
+    expect(state.turn).toBe('p1');
+
+    const events = passPriority(state, 'p1');
+
+    expect(eventTypes(events)).toContain('TURN_ENDED');
+    expect(state.turn).toBe('p2');
   });
 });
 

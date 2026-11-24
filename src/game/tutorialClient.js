@@ -31,7 +31,7 @@ function proj({
   const entry = (e) => ({ cardId: e.cardId, playedBy: e.playedBy, controlledBy: e.playedBy })
   return {
     phase: 'active', turn: 'p1', activePlayer: active,
-    priorityPassCount: 0, turnNumber, winner: null,
+    turnNumber, winner: null,
     players: {
       p1: {
         hand: p1hand, handSize: p1hand.length,

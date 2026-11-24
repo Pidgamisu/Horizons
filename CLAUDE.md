@@ -98,9 +98,13 @@ game in one and join via the shared room URL in the other.
   pile holding risen actions *and* voided cards), **zenith** (per player, face-up, risen points).
 - **Energy:** gained by *voiding* a card from hand into the dusk (+3 each). Wiped at end of
   turn for **both** players.
-- **Horizon:** last-in-first-out. Playing a card pushes it; when both players pass, the top
-  entry **rises**. Points need an empty horizon on your own turn; actions can also be played in
-  response to a card an *opponent* controls on top. (Zone key: `state.zones.horizon`.)
+- **Horizon:** last-in-first-out. Playing a card pushes it; the **opponent of the top card's
+  controller** is the only player who may respond to it, so **their single pass makes it
+  rise** — the controller never passes their own card. After a rise, priority goes to the
+  opponent of the *new* top card's controller, which is not always the turn player. Passing
+  with an empty horizon ends your turn. Points need an empty horizon on your own turn; actions
+  can also be played in response to a card an *opponent* controls on top.
+  (Zone key: `state.zones.horizon`.)
 - **Rising:** a card **leaves the horizon before its text runs** — into the dusk if it's an
   action, into its controller's zenith if it's a point — then its controller does the card's
   text. A rising card is therefore never a legal target for its own effect.

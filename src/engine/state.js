@@ -51,7 +51,6 @@ export function createGameState() {
     phase: 'waiting',          // 'waiting' | 'active' | 'ended'
     turn: 'p1',                // whose turn it is
     activePlayer: 'p1',        // who currently holds priority
-    priorityPassCount: 0,      // 0/1/2 — when 2, resolve top of horizon
     turnNumber: 0,
     cardsPlayedThisTurn: [],   // [{ cardId, playedBy }] in order
     cardsDrawnThisTurn: { p1: 0, p2: 0 },

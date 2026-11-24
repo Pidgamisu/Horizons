@@ -34,17 +34,28 @@ point/action ranges did hold on every card actually opened.
 
 ## Rules deltas that need engine work
 
-### 1. Rising now takes one pass, not two — `src/engine/game.js`
+### 1. Rising now takes one pass, not two — `src/engine/game.js` — **DONE**
 
-`passPriority` rises the top card only at `priorityPassCount >= 2`. The rulebook is
+> Confirmed by the user 2026-11-24 and implemented the same day.
+
+`passPriority` rose the top card only at `priorityPassCount >= 2`. The rulebook is
 single-pass: *"If your opponent passes, it rises."* The controller never has to pass their
-own card. This is the largest behavioural change in the overhaul and it shifts the tempo of
-every game.
+own card.
 
-The same function also hands priority back to `state.turn` after a rise. The rulebook
+The same function also handed priority back to `state.turn` after a rise. The rulebook
 instead gives it to **the opponent of the new top card's controller** — which is not the
-turn player whenever the stack is interleaved. Both halves of `passPriority` need
-rewriting, and `priorityPassCount` probably stops being a counter at all.
+turn player whenever the stack is interleaved.
+
+Both halves are now rewritten, `priorityPassCount` is deleted from the state model (and
+from the server projection and the tutorial's fake state), and a pass with an empty horizon
+ends the turn directly instead of going through a dead opponent window.
+
+Worth knowing: in *networked play* this was close to a no-op, because
+`server.js:autoSkipDeadPriority` was already auto-passing the controller's dead window and
+collapsing two passes into one. The rule now lives in the engine where it belongs, so the
+tests, `cards-sweep.mjs` and `fuzz-games.mjs` exercise the real thing. `autoSkipDeadPriority`
+stays as a safety net: effects that yank a card off the horizon mid-resolution can still
+leave `activePlayer` pointing at a window with nothing to do.
 
 ### 2. "Void" is now "energize" — engine, server, client, tests
 
@@ -53,7 +64,10 @@ ransoms). Only the name changes: `voidCard`, `voidedThisTurn`, `CARD_VOIDED`, `v
 and the UI labels. Purely a rename, but it touches every layer, so it is worth doing as one
 isolated commit.
 
-### 3. Points in response: the whole subsystem is now dead
+### 3. Points in response: the whole subsystem is now dead — **confirmed, not yet deleted**
+
+> Confirmed by the user 2026-11-24: points in response are cut outright. Birth the Sky's
+> fate no longer matters — nothing grants it.
 
 `validation.js` carries `responseOnly`, `playableOnlyOnOpponentTurn`,
 `checkPointResponsePermission`, `opponentPointResponseAllowed` and
@@ -65,10 +79,14 @@ isolated commit.
 - Blinding Flash (061) — redesigned to "Your opponent can't respond to your cards this
   turn. Draw a card."
 
-Birth the Sky (028) is the one remaining grantor and its art slot is one of the two that
-mismatched, so its fate is unknown until the full transcription is done. If it is gone or
-rewritten, this machinery can be deleted outright — and with it the standing "card text
+Birth the Sky (028) was the one remaining grantor; with the subsystem cut it is gone or
+rewritten too. The machinery can be deleted outright — and with it the standing "card text
 beats rules" exception for points.
+
+Not done yet, deliberately: all four cards are themselves being cut or redesigned, so
+deleting the machinery means editing `cards.json` piecemeal before the full 90-card
+transcription exists. It belongs in step 4/5 of the build order, as one commit with the
+card rewrite.
 
 ### 4. Blinding Flash needs a mechanic that doesn't exist
 

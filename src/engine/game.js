@@ -123,8 +123,7 @@ export function playCard(state, playerId, cardId, context = {}) {
   }
   events.push(...flushHorizonTriggers(state));
 
-  // Priority passes to other player (pass count resets)
-  state.priorityPassCount = 0;
+  // The opponent of the card just played is the only one who may respond to it.
   state.activePlayer = opponent(playerId);
   events.push({ type: 'PRIORITY_PASSED', to: state.activePlayer });
 
@@ -151,30 +150,37 @@ export function passPriority(state, playerId) {
   if (state.phase !== 'active') return [{ type: 'ERROR', code: 'GAME_NOT_ACTIVE' }];
   if (state.activePlayer !== playerId) return [{ type: 'ERROR', code: 'NOT_YOUR_PRIORITY' }];
 
-  const events = [];
-  state.priorityPassCount++;
+  // Empty horizon: the only player who can hold priority here is the turn
+  // player in their main phase, and there is nothing to pass to — an action
+  // needs a card to respond to and a point needs your own turn. So a pass with
+  // an empty horizon is how you end your turn.
+  if (state.zones.horizon.length === 0) return endTurn(state);
 
-  if (state.priorityPassCount >= 2) {
-    // Both passed — resolve top of horizon or end turn
-    if (state.zones.horizon.length > 0) {
-      events.push(...riseTopOfHorizon(state));
-      if (state.winner) return events;
-      // After resolution, active turn player gets priority
-      state.priorityPassCount = 0;
-      state.activePlayer = state.turn;
-      events.push({ type: 'PRIORITY_RETURNED', to: state.turn });
-    } else {
-      // Horizon empty — end turn
-      const endEvents = endTurn(state);
-      events.push(...endEvents);
-    }
-  } else {
-    // One pass — priority moves to other player
-    state.activePlayer = opponent(playerId);
-    events.push({ type: 'PRIORITY_PASSED', to: state.activePlayer });
-  }
+  // Rulebook p4: only the opponent of the top card's controller may respond to
+  // it, so their pass alone makes it rise — the controller never passes their
+  // own card. (validatePlay enforces the other half: you cannot respond to a
+  // card you control.)
+  const events = [...riseTopOfHorizon(state)];
+  if (state.winner) return events;
 
+  events.push(...grantPriorityAfterRise(state));
   return events;
+}
+
+/**
+ * Hand priority to whoever may act now that a card has left the horizon.
+ *
+ * Rulebook p4: "the next card down becomes the new top, and the opponent of the
+ * player who played it may respond to it or pass." That is not always the turn
+ * player — with an interleaved horizon it is whoever did not control the card
+ * now on top. Only once the horizon is empty does the turn player get their
+ * main phase back.
+ */
+function grantPriorityAfterRise(state) {
+  const next = state.zones.horizon[0];
+  const to = next ? opponent(controllerOf(next)) : state.turn;
+  state.activePlayer = to;
+  return [{ type: 'PRIORITY_RETURNED', to }];
 }
 
 // ─── Rising ───────────────────────────────────────────────────────────────────
@@ -329,7 +335,6 @@ export function endTurn(state) {
   // 7. Pass turn
   state.turn = otherPlayer;
   state.activePlayer = otherPlayer;
-  state.priorityPassCount = 0;
   state.turnNumber++;
 
   events.push({ type: 'TURN_ENDED', nextTurn: otherPlayer, turnNumber: state.turnNumber });

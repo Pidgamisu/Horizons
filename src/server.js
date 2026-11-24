@@ -55,7 +55,6 @@ function broadcastState(room) {
         phase: state.phase,
         turn: state.turn,
         activePlayer: state.activePlayer,
-        priorityPassCount: state.priorityPassCount,
         turnNumber: state.turnNumber,
         winner: state.winner,
         players: {
