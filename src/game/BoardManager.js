@@ -24,20 +24,24 @@ const LAYOUTS = {
   wide: {
     opponentHand: { cx:    0, cy: -340, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'opponent-hand' },
     myHand:       { cx:    0, cy:  340, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'hand' },
-    horizon:      { cx:    0, cy:    0, w: CW + 40,  h: 460,      label: 'The Horizon', zoneType: 'horizon' },
+    horizon:      { cx:    0, cy:    0, w: 460,      h: CH + 40,  label: 'The Horizon', zoneType: 'horizon' },
     deck:         { cx: -320, cy:  -95, w: CW + 40,  h: CH + 40,  label: 'Deck',    zoneType: 'deck' },
     dusk:         { cx: -320, cy:   95, w: CW + 40,  h: CH + 40,  label: 'Dusk',    zoneType: 'dusk' },
     oppZenith:    { cx:  320, cy:  -95, w: CW + 40,  h: CH + 40,  label: 'Their Zenith', zoneType: 'zenith-opp' },
     myZenith:     { cx:  320, cy:   95, w: CW + 40,  h: CH + 40,  label: 'Your Zenith',  zoneType: 'zenith' },
   },
+  // Upright, the horizon still has to run left-to-right, which means it needs
+  // the whole width of the board. So the four piles come out of the middle and
+  // sit in a row above it and a row below: shared piles (deck, dusk) stay in
+  // the left column, each player's zenith stays on their own side of the table.
   narrow: {
     opponentHand: { cx:    0, cy: -430, w: 460,      h: CH + 20,  label: 'Hand',    zoneType: 'opponent-hand' },
-    myHand:       { cx:    0, cy:  330, w: 460,      h: CH + 20,  label: 'Hand',    zoneType: 'hand' },
-    horizon:      { cx:    0, cy:  -45, w: CW + 40,  h: 440,      label: 'The Horizon', zoneType: 'horizon' },
-    deck:         { cx: -170, cy: -150, w: CW + 40,  h: CH + 40,  label: 'Deck',    zoneType: 'deck' },
-    dusk:         { cx: -170, cy:   60, w: CW + 40,  h: CH + 40,  label: 'Dusk',    zoneType: 'dusk' },
-    oppZenith:    { cx:  170, cy: -150, w: CW + 40,  h: CH + 40,  label: 'Their Zenith', zoneType: 'zenith-opp' },
-    myZenith:     { cx:  170, cy:   60, w: CW + 40,  h: CH + 40,  label: 'Your Zenith',  zoneType: 'zenith' },
+    myHand:       { cx:    0, cy:  430, w: 460,      h: CH + 20,  label: 'Hand',    zoneType: 'hand' },
+    horizon:      { cx:    0, cy:    0, w: 440,      h: CH + 40,  label: 'The Horizon', zoneType: 'horizon' },
+    deck:         { cx: -115, cy: -220, w: CW + 40,  h: CH + 40,  label: 'Deck',    zoneType: 'deck' },
+    oppZenith:    { cx:  115, cy: -220, w: CW + 40,  h: CH + 40,  label: 'Their Zenith', zoneType: 'zenith-opp' },
+    dusk:         { cx: -115, cy:  220, w: CW + 40,  h: CH + 40,  label: 'Dusk',    zoneType: 'dusk' },
+    myZenith:     { cx:  115, cy:  220, w: CW + 40,  h: CH + 40,  label: 'Your Zenith',  zoneType: 'zenith' },
   },
   // A phone on its side is very wide and very short. The wide layout is nearly
   // square, so it fits by height and shrinks to nothing; this keeps the wide
@@ -45,7 +49,7 @@ const LAYOUTS = {
   short: {
     opponentHand: { cx:    0, cy: -190, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'opponent-hand' },
     myHand:       { cx:    0, cy:  190, w: 900,      h: CH + 20,  label: 'Hand',    zoneType: 'hand' },
-    horizon:      { cx:    0, cy:    0, w: CW + 40,  h: 250,      label: 'The Horizon', zoneType: 'horizon' },
+    horizon:      { cx:    0, cy:    0, w: 400,      h: CH + 20,  label: 'The Horizon', zoneType: 'horizon' },
     // Sideways there is width to spare and no height at all, so the four piles
     // sit in one row either side of the horizon rather than stacked in pairs.
     deck:         { cx: -430, cy:    0, w: CW + 20,  h: CH + 10,  label: 'Deck',    zoneType: 'deck' },
@@ -291,12 +295,16 @@ export class BoardManager {
 
   _collectHorizon(entries, out) {
     const z = this.zones.horizon
-    // Overlap the stacked cards (pitch < card height) and center the pile
-    // vertically so it stays in the band between the two hands and never
-    // collides with them. Top of the horizon (i=0) is the newest entry.
-    const PITCH = 80
-    const totalH = (entries.length - 1) * PITCH + CH
-    const startY = z.cy - totalH / 2
+    // Rulebook p4: "Each card goes face-up onto the horizon, overlapping the
+    // previous card on its right. The rightmost card is the top." The engine
+    // keeps the newest entry at index 0, so index 0 sits at the RIGHT end and
+    // the first card played sits at the left, where it will rise last.
+    // _restackHorizon then puts index 0 in front, so the top card is the one
+    // fully visible and every card beneath shows its left edge.
+    const n = entries.length
+    const pitch = this._horizonPitch(z.w, n)
+    const totalW = (n - 1) * pitch + CW
+    const startX = z.cx - totalW / 2
     const ids = []
     entries.forEach((entry, i) => {
       const id = sid(`card-${entry.cardId}`)
@@ -304,8 +312,8 @@ export class BoardManager {
       ids.push(id)
       out.push({
         id,
-        x: z.cx - CW / 2,
-        y: startY + i * PITCH,
+        x: startX + (n - 1 - i) * pitch,
+        y: z.cy - CH / 2,
         // The opponent's plays were never on screen as a face-up card, so they
         // fly in from their hand.
         spawn: this._anchor(entry.playedBy === this.myPlayerId ? 'myHand' : 'opponentHand'),
@@ -321,6 +329,19 @@ export class BoardManager {
       })
     })
     return ids
+  }
+
+  /**
+   * How far apart to place cards on the horizon. They always overlap — the
+   * rulebook draws them that way and the overlap is what shows the order at a
+   * glance — so the base pitch is a fraction of a card, leaving each covered
+   * card's name and cost showing. A long horizon squeezes tighter rather than
+   * running past the edge of the zone.
+   */
+  _horizonPitch(zoneWidth, n) {
+    const OVERLAP_PITCH = Math.round(CW * 0.62)
+    if (n <= 1) return OVERLAP_PITCH
+    return Math.min(OVERLAP_PITCH, (zoneWidth - 20 - CW) / (n - 1))
   }
 
   /**

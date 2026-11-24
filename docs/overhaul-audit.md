@@ -168,9 +168,15 @@ Code comments already reference a stale, inconsistent numbering ("With the Sky (
 "Blinding Flash (51)", "Prepare 50", "Possess Love (83)"). Renumbering makes those actively
 misleading; they should be fixed in the same pass.
 
-## Client-side
+## Client-side — **DONE**
 
-**The horizon is drawn in the wrong axis.** `BoardManager._collectHorizon` stacks entries
+> Fixed 2026-11-24. The horizon is a rightward fan in all three layouts, with the top card
+> at the right and each card beneath showing its owner badge, name and cost. The narrow
+> (phone-upright) layout was rearranged to make room: the four piles came out of the middle
+> column and now sit in a row above the horizon (deck, their zenith) and a row below it
+> (dusk, your zenith), so the horizon can run the full width of the board.
+
+**The horizon was drawn in the wrong axis.** `BoardManager._collectHorizon` stacks entries
 vertically (`y + i * PITCH`, constant `x`) with index 0 — the newest — at the top of the
 screen. The rulebook shows a horizontal fan overlapping to the right, **rightmost = top**.
 That is a layout change to `_collectHorizon` plus the horizon zone's width and height.
