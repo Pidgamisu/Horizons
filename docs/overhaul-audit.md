@@ -3,7 +3,15 @@
 Audited 2026-11-24 against `Rulebook Horizons v3.zip` and `Horizons_pngs.zip`.
 Rules transcription: [overhaul-rules.md](overhaul-rules.md).
 
-## Blocker: the card art filenames are not trustworthy
+## Blocker: the card art filenames are not trustworthy — **RESOLVED**
+
+> All 90 fronts were transcribed on 2026-11-24. The result, with the full reconciliation
+> against `cards.json`, is in [cards-v4.md](cards-v4.md). Final counts: **4 new cards, 19
+> dropped, 0 cost changes, 16 cards whose text change is mechanical rather than wording.**
+> Six of the 90 filenames name a different card than the art shows. The section below is
+> what the sampling looked like before the full pass; its "15 dropped, no new cards"
+> hypothesis was wrong on both counts.
+
 
 The art zip has 90 fronts named `<nn><Name>.png`. Ten were opened and compared to
 `cards.json`:
