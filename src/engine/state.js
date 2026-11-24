@@ -103,7 +103,6 @@ export function createPlayerState() {
 
     // Per-turn play restriction flags
     lockedFromPlaying:       false,
-    pointResponseToActions:  false,   // Blinding Flash (51)
   };
 }
 
@@ -116,6 +115,10 @@ export function createTurnFlags() {
     protectNextSelfAction: null, // Injustice (67) — playerId whose next action this turn is protected from action responses
     nextCardFreeFor:          null,   // Metamorphosis (071) — playerId whose next card this turn costs 0
     shareTheLootActive:       false,  // Share the Loot (75)
+    // Blinding Flash (53) — nobody may respond to cards this player controls.
+    responsesLockedAgainst:   null,
+    // Past Passion (47) — { player, cardId }: that one card costs 0 this turn.
+    freeCardThisTurn:         null,
   };
 }
 
@@ -278,12 +281,18 @@ export function duskFromHorizon(state, horizonIndex) {
 // ─── Static Effect Queries ────────────────────────────────────────────────────
 // "Can't beats can" — restrictions are checked here before any action proceeds.
 
-/** Is ALL card playing locked? (Unstoppable 00) */
-export function isHorizonLocked(state, forPlayer) {
+/**
+ * Is playing locked by something on the horizon? (Pretty Privilege 00, Paranoia 21)
+ * A lock may name a card type — both of today's locks are action-only — in which
+ * case it only stops that type. cardType is the type of the card being played;
+ * omit it to ask whether the player is locked out of anything at all.
+ */
+export function isHorizonLocked(state, forPlayer, cardType = null) {
   return state.zones.horizon.some(entry => {
     const card = getHorizonEntryCard(entry);
     return card.staticEffects?.some(se =>
-      se.type === 'lockHorizon' && (
+      se.type === 'lockHorizon' &&
+      (!se.filter || !cardType || se.filter === cardType) && (
         se.scope === 'allPlayers' ||
         (se.scope === 'controller' && controllerOf(entry) === forPlayer) ||
         (se.scope === 'opponents' && controllerOf(entry) !== forPlayer)
@@ -301,12 +310,13 @@ export function isDrawLocked(state) {
 }
 
 /** Get the active play cost modifier for a player from horizon static effects. */
-export function getHorizonCostModifier(state, forPlayer) {
+export function getHorizonCostModifier(state, forPlayer, cardType = null) {
   let delta = 0;
   for (const entry of state.zones.horizon) {
     const card = getHorizonEntryCard(entry);
     for (const se of card.staticEffects ?? []) {
       if (se.type === 'modifyPlayCost') {
+        if (se.filter && cardType && se.filter !== cardType) continue;
         const isOpponent = controllerOf(entry) !== forPlayer;
         // Auction (045) charges whatever its controller paid as an extra cost.
         const amount = se.amount === 'paidAmount' ? (entry.paidAmount ?? 0) : se.amount;
@@ -325,14 +335,6 @@ export function canPlayFromDusk(state, playerId) {
     return card.staticEffects?.some(se =>
       se.type === 'allowPlayFromDusk' && controllerOf(entry) === playerId
     );
-  });
-}
-
-/** Does With the Sky (28) allow opponent point response right now? */
-export function opponentPointResponseAllowed(state) {
-  return state.zones.horizon.some(entry => {
-    const card = getHorizonEntryCard(entry);
-    return card.staticEffects?.some(se => se.type === 'allowOpponentPointResponse');
   });
 }
 
@@ -387,6 +389,10 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
   // not here, since this is also called to test affordability.
   if (state.turnFlags.nextCardFreeFor === playerId) return 0;
 
+  // Past Passion (47) — one named card, not the next one played, is free.
+  const free = state.turnFlags.freeCardThisTurn;
+  if (free && free.player === playerId && free.cardId === cardId) return 0;
+
   // Pray To Me (043) — while it is on the horizon its controller's actions are free.
   if (card.type === 'action' && state.zones.horizon.some(entry =>
     getCard(entry.cardId).staticEffects?.some(se => se.type === 'setActionCostZero') &&
@@ -394,8 +400,8 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
     return 0;
   }
 
-  // Horizon-based modifiers (Efficiency 15, Glacial Pace 19)
-  cost += getHorizonCostModifier(state, playerId);
+  // Horizon-based modifiers (Efficiency 13, Death and Taxes 17, Auction 40)
+  cost += getHorizonCostModifier(state, playerId, card.type);
 
   // Turn flag modifier (Possess Love 83)
   cost += state.turnFlags.allCardsCostLess;
@@ -408,6 +414,14 @@ export function computeActualCost(state, cardId, playerId, context = {}) {
       case 'discountPerCard': {
         if (mod.zone === 'zeniths') {
           cost -= (pointsOf(state, 'p1') + pointsOf(state, 'p2')) * mod.amount;
+          break;
+        }
+        if (mod.zone === 'ownZenith') {          // Light's Guidance (57)
+          cost -= pointsOf(state, playerId) * mod.amount;
+          break;
+        }
+        if (mod.zone === 'cardsPlayedThisTurn') { // Overwhelm (15)
+          cost -= state.cardsPlayedThisTurn.length * mod.amount;
           break;
         }
         const zone = mod.zone === 'dusk' ? state.zones.dusk : state.zones.horizon;

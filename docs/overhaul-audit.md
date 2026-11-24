@@ -72,7 +72,7 @@ ransoms). Only the name changes: `voidCard`, `voidedThisTurn`, `CARD_VOIDED`, `v
 and the UI labels. Purely a rename, but it touches every layer, so it is worth doing as one
 isolated commit.
 
-### 3. Points in response: the whole subsystem is now dead — **confirmed, not yet deleted**
+### 3. Points in response: the whole subsystem is now dead — **DONE**
 
 > Confirmed by the user 2026-11-24: points in response are cut outright. Birth the Sky's
 > fate no longer matters — nothing grants it.
@@ -91,17 +91,19 @@ Birth the Sky (028) was the one remaining grantor; with the subsystem cut it is 
 rewritten too. The machinery can be deleted outright — and with it the standing "card text
 beats rules" exception for points.
 
-Not done yet, deliberately: all four cards are themselves being cut or redesigned, so
-deleting the machinery means editing `cards.json` piecemeal before the full 90-card
-transcription exists. It belongs in step 4/5 of the build order, as one commit with the
-card rewrite.
+Deleted with the card rewrite: `responseOnly`, `notOnYourTurn`,
+`checkPointResponsePermission`, `opponentPointResponseAllowed`,
+`players[x].pointResponseToActions` and the `allowSelfPointResponseToActions` /
+`allowOpponentPointResponse` effects are all gone. `validatePlay` now states the point
+rule unconditionally.
 
-### 4. Blinding Flash needs a mechanic that doesn't exist
+### 4. Blinding Flash needs a mechanic that doesn't exist — **DONE**
 
 "Your opponent can't respond to your cards this turn" is a turn-scoped response lock. The
 closest existing thing is `lockHorizon` (a *static* effect read off the horizon), but this
 one persists after the card rises into the dusk, so it belongs in `turnFlags`, not
-`staticEffects`.
+`staticEffects`. Shipped as the `lockResponsesToMyCards` effect writing
+`turnFlags.responsesLockedAgainst`, which `validatePlay` reads.
 
 ### 5. Pretty Privilege — no code change needed
 
@@ -110,12 +112,20 @@ While Pretty Privilege is on the horizon the horizon is non-empty, so the oppone
 never play a point anyway — once the point-in-response cards are gone the two readings are
 identical. The `lockHorizon` static effect stands as-is; only `effectText` updates.
 
-### 6. Dawn — "costs 0" became "you may play this for 0"
+### 6. Dawn — "costs 0" became "you may play this for 0" — **KNOWN GAP**
 
 `cards.json` has "This costs 0 energy if you reveal three points from your hand."; the art
 says "**You may play this** for 0 energy if you reveal three points from your hand." The
 discount becomes an opt-in alternative cost rather than an automatic one. Small, but it is
 a choice the player now has to be offered.
+
+**Not implemented.** `freeIfCondition` still applies the discount automatically whenever
+you hold three other points, so Dawn is never played at full price and the reveal is never
+declined. Making it a real choice means a prompt at play time and a client that can send
+"pay full instead", which is more machinery than the decision is worth today — the only
+thing a player gives up by taking the discount is hiding three points from an opponent who
+could act on that with Pilfer Thoughts (14) or Cerebral Snuff (87). Worth revisiting if
+that information turns out to matter in play.
 
 ## Already correct — no work needed
 
@@ -128,7 +138,17 @@ a choice the player now has to be offered.
 - **Energy wipe for both players at end of turn**, and the draw-to-5.
 - **Energize timing.** `voidCard` already requires priority = "any time you can play a card".
 
-## Collateral: what renumbering breaks
+## Collateral: what renumbering breaks — **DONE**
+
+> Ids moved to 2-digit `00`–`89`, the art was replaced wholesale, the tutorial script
+> was renumbered (Dig For Ideas is gone, so it voids Inspect instead), `cards-sweep.mjs`'s
+> fixture was renumbered and the tests were remapped — with the eight tests for cut cards
+> deleted. The in-app rulebook now shows the six v3 pages instead of seven.
+>
+> One thing the renumber turned up: `tests/server.test.js` already used 2-digit ids that
+> could never match the 3-digit set, so both of its card-driven tests silently skipped on
+> every run. They point at real cards now, and the Sort test deals rooms until it gets the
+> card instead of skipping 95% of the time.
 
 The engine itself is clean — no card ids are hardcoded in `engine/`, `effects/` or
 `server.js`; everything is data-driven off `cards.json`. Three places are not:
@@ -159,6 +179,21 @@ That is a layout change to `_collectHorizon` plus the horizon zone's width and h
 
 The **25-minute priority clock** that CLAUDE.md documents appears nowhere in the rulebook.
 Worth confirming whether it survives as a digital-only rule.
+
+## Two engine bugs found while doing this
+
+Neither is caused by the overhaul; both would have shipped broken into v4.
+
+- **`trackCost` was never implemented.** Burn Out and Strobe Brightness both read
+  `ctx.trackedCost`, which nothing ever set, so both paid out **0 energy**. The cost is
+  only knowable once the player picks a target, so it now rides on the choice as a
+  `thenGrant` with `amount: "thisCardCost"`.
+- **`thenGrant` with `player: "self"` resolved to `undefined`**, because
+  `duskFromHorizonChoice` never carried `originalController`. Any future card paying its
+  caster from a choice would have crashed.
+
+Strobe Brightness also needed deferred energy to exist at all: `timing: "endOfTurn"` was
+only honoured for draws, and energy queued before the end-of-turn wipe now survives it.
 
 ## Suggested build order
 

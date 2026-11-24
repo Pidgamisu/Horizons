@@ -144,7 +144,7 @@ describe('Game actions over WebSocket', () => {
 
   test('played card appears on horizon for both players', async () => {
     const { p1, p2, p1State } = await startTestGame();
-    const zeroCost = ['53', '56', '65', '66'];
+    const zeroCost = ['52', '55', '58', '66', '67'];  // 0-cost actions, no play-time cost
     const card = p1State.state.players.p1.hand.find(id => zeroCost.includes(id));
     if (!card) return;
     // p2's window is live regardless of its hand: p1's card is on the horizon for
@@ -200,14 +200,22 @@ describe('Game actions over WebSocket', () => {
 // ─── Choice Flow Tests ────────────────────────────────────────────────────────
 
 describe('Choice flow', () => {
+  // Sort (55) draws two and then asks which two to dusk, which is the shortest
+  // route to a real pendingChoice over the wire. Whether p1 is dealt it is pure
+  // luck (5 cards out of 90), so deal fresh rooms until one of them holds it
+  // rather than skipping the test on most runs — which is what it used to do.
   async function setupSortChoice() {
-    const game = await startTestGame();
-    const { p1, p2, p1State } = game;
-    if (!p1State.state.players.p1.hand.includes('53')) return null;
+    let game = null;
+    for (let attempt = 0; attempt < 60 && !game; attempt++) {
+      const candidate = await startTestGame();
+      if (candidate.p1State.state.players.p1.hand.includes('55')) game = candidate;
+    }
+    if (!game) return null;
+    const { p1, p2 } = game;
 
-    p1.send({ type: 'PLAY_CARD', cardId: '53' });
+    p1.send({ type: 'PLAY_CARD', cardId: '55' });
     let afterResolve = await p1.nextState();
-    // If p2 has a live response window it must decline; then 53 resolves on its
+    // If p2 has a live response window it must decline; then Sort resolves on its
     // own (p1 can't respond to its own card, so that window is auto-skipped). If
     // p2 had no possible response, the play already cascaded to resolution.
     if (!afterResolve.state.pendingChoice && afterResolve.state.activePlayer === 'p2') {

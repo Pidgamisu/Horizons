@@ -28,9 +28,9 @@ function freshState() {
   state.players.p2.energy = 20;
   // Give the horizon, dusk and both zeniths some content so targeting effects
   // have something legal to find.
-  state.zones.dusk.push('001', '002', '051', '052');
-  state.players.p1.zenith.push('003');
-  state.players.p2.zenith.push('004');
+  state.zones.dusk.push('01', '02', '46', '47');
+  state.players.p1.zenith.push('03');
+  state.players.p2.zenith.push('04');
   return state;
 }
 
@@ -41,8 +41,8 @@ for (const id of ALL_CARD_IDS) {
   const state = freshState();
 
   // A decoy from each side so horizon-targeting effects have a legal choice.
-  state.zones.horizon.push(createHorizonEntry('005', 'p2', { respondedToCardType: 'point' }));
-  state.zones.horizon.push(createHorizonEntry('053', 'p2', { respondedToCardType: 'point' }));
+  state.zones.horizon.push(createHorizonEntry('05', 'p2', { respondedToCardType: 'point' }));
+  state.zones.horizon.push(createHorizonEntry('48', 'p2', { respondedToCardType: 'point' }));
 
   const entry = createHorizonEntry(id, 'p1', { respondedToCardIndex: 0, respondedToCardType: 'point' });
   state.zones.horizon.unshift(entry);

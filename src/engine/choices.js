@@ -81,7 +81,9 @@ export function resolveChoice(state, playerId, payload) {
         // Clear the current (just-resolved) choice first so we can detect a NEW
         // one that thenGrant may set (may-play-for-0) and keep it.
         state.pendingChoice = null;
-        const grantEvents = executeThenGrant(state, choice.thenGrant, controllerOf(trashed), choice.originalController);
+        const grantEvents = executeThenGrant(
+          state, choice.thenGrant, controllerOf(trashed), choice.originalController, trashed.cardId,
+        );
         events.push(...grantEvents);
         if (state.pendingChoice) return { events, error: null };
       }
@@ -112,6 +114,13 @@ export function resolveChoice(state, playerId, payload) {
       const returnTo = controllerOf(removed);
       state.players[returnTo].hand.push(removed.cardId);
       events.push({ type: 'CARD_RETURNED_TO_HAND', cardId: removed.cardId, player: returnTo });
+      if (choice.thenGrant) {
+        state.pendingChoice = null;
+        events.push(...executeThenGrant(
+          state, choice.thenGrant, returnTo, choice.originalController, removed.cardId,
+        ));
+        if (state.pendingChoice) return { events, error: null };
+      }
       break;
     }
 
@@ -157,6 +166,9 @@ export function resolveChoice(state, playerId, payload) {
         state.zones.dusk.splice(state.zones.dusk.indexOf(id), 1);
         state.players[playerId].hand.push(id);
         events.push({ type: 'CARD_FROM_TRASH_TO_HAND', cardId: id, player: playerId });
+        if (choice.thenGrant) {
+          events.push(...executeThenGrant(state, choice.thenGrant, playerId, playerId, id));
+        }
       }
       break;
     }
@@ -262,17 +274,18 @@ export function resolveChoice(state, playerId, payload) {
       duskCardFromHand(state, playerId, cardId);
       events.push({ type: 'CARD_FROM_HAND_TO_DUSK', cardId, player: playerId });
 
-      const matchFilter = { costEquals: cost };
-      if (state.zones.horizon.some(e => horizonEntryMatchesFilter(e, matchFilter))) {
+      // Step 2: any horizon card dusks unless its controller pays that cost.
+      if (state.zones.horizon.length > 0) {
         state.pendingTriggers.push({
-          type: 'duskFromHorizonChoice',
+          type: 'duskUnlessControllerPaysTarget',
           player: playerId,
-          filter: matchFilter,
-          optional: true,
+          filter: 'any',
+          ransom: { type: 'payEnergy', amount: cost },
+          caster: playerId,
         });
-        events.push({ type: 'CHOICE_REQUIRED', player: playerId, choiceType: 'duskFromHorizon', filter: matchFilter });
+        events.push({ type: 'CHOICE_REQUIRED', player: playerId, choiceType: 'duskUnlessControllerPaysTarget', filter: 'any' });
       } else {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHorizon', filter: matchFilter });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskUnlessControllerPays' });
       }
       break;
     }
@@ -454,6 +467,9 @@ export function resolveChoice(state, playerId, payload) {
       } else if (choice.putRest === 'deckBottom') {
         state.zones.deck.push(...revealed);
         events.push({ type: 'CARDS_TO_DECK_BOTTOM', cards: revealed });
+      } else if (choice.putRest === 'dusk') {     // Inspect (65)
+        for (const id of revealed) sendToDusk(state, id);
+        events.push({ type: 'CARDS_TO_DUSK', cards: revealed });
       }
       break;
     }
@@ -704,16 +720,42 @@ export function resolveRansomCost(state, ransom) {
   return 0;
 }
 
-function executeThenGrant(state, grant, grantTarget, originalController) {
+function executeThenGrant(state, grant, grantTarget, originalController, cardId = null) {
   const events = [];
   const player = grant.player === 'trashedCardController' ? grantTarget
     : grant.player === 'self' ? originalController
     : grantTarget;
 
+  // Burn Out (77) and Strobe Brightness (88) pay out the cost of the very card
+  // the choice just acted on, which is only known here.
+  const amount = grant.amount === 'thisCardCost'
+    ? (cardId ? getCard(cardId).energyCost : 0)
+    : grant.amount;
+
   switch (grant.type) {
     case 'gainEnergy':
-      state.players[player].energy += grant.amount;
-      events.push({ type: 'ENERGY_GAINED', player, amount: grant.amount });
+      if (grant.timing === 'endOfTurn') {
+        // Strobe Brightness (88) — lands after the end-of-turn energy wipe, so
+        // the player actually has it on their next turn.
+        state.pendingTriggers.push({ type: 'gainEnergy', player, amount });
+        events.push({ type: 'PENDING_ENERGY', player, amount });
+        break;
+      }
+      state.players[player].energy += amount;
+      events.push({ type: 'ENERGY_GAINED', player, amount });
+      break;
+    case 'cardFreeThisTurn':
+      // Past Passion (47) — that one card, not just the next one played.
+      state.turnFlags.freeCardThisTurn = { player, cardId };
+      events.push({ type: 'CARD_FREE_THIS_TURN', player, cardId });
+      break;
+    case 'drawIfMine':
+      // Unwind Intent (89) — only pays off if you bounced your own card.
+      if (grantTarget !== originalController) break;
+      events.push({
+        type: 'CARDS_DRAWN', player: originalController,
+        cards: drawCards(state, originalController, grant.count ?? 1),
+      });
       break;
     case 'mayPlayFromHand': {
       // Only offer the choice if the player holds a matching card.

@@ -311,7 +311,7 @@ export function endTurn(state) {
   // 5b. Capture deferred "start of next turn" triggers (Prepare 50 draw, Last
   //     Chance 76 trash, …) before the per-turn reset wipes pendingTriggers.
   const deferred = state.pendingTriggers.filter(
-    t => t.type === 'draw' || t.type === 'endOfTurnDusk'
+    t => t.type === 'draw' || t.type === 'endOfTurnDusk' || t.type === 'gainEnergy'
   );
 
   // 6. Reset per-turn state
@@ -393,8 +393,13 @@ function checkPlayTriggers(state, newEntry, playedBy) {
       if (on === 'anyPlayerPlaysCard') {
         events.push(...executeStaticTriggerEffect(state, effect, playedBy, entryController));
       }
-      if (on === 'nthCardPlayedThisTurn' && se.n === state.cardsPlayedThisTurn.length) {
-        // Trip (37) — trash itself
+      // Sow (27), Offer Perspective (22) — actions only.
+      if (on === 'anyPlayerPlaysAction' && getCard(newEntry.cardId).type === 'action') {
+        events.push(...executeStaticTriggerEffect(state, effect, playedBy, entryController));
+      }
+      // Avoid Conflict (32) counts only the opponent's actions, so it needs its
+      // own tally rather than the shared cardsPlayedThisTurn length.
+      if (on === 'nthCardPlayedThisTurn' && matchesNthTrigger(state, se, newEntry, playedBy, entryController)) {
         if (effect.type === 'duskSelf') {
           const idx = state.zones.horizon.indexOf(horizonEntry);
           if (idx !== -1) {
@@ -410,9 +415,39 @@ function checkPlayTriggers(state, newEntry, playedBy) {
   return events;
 }
 
+/**
+ * Does an nth-card-played trigger fire on this play? Plain form counts every
+ * card played this turn (nobody uses it today); with `filter` and `by` it
+ * counts only the matching plays, which is how Avoid Conflict (32) watches for
+ * its opponent's second action.
+ */
+function matchesNthTrigger(state, se, newEntry, playedBy, entryController) {
+  if (!se.filter && !se.by) return se.n === state.cardsPlayedThisTurn.length;
+  if (se.by === 'opponent' && playedBy === entryController) return false;
+  const tally = state.cardsPlayedThisTurn.filter(p => {
+    if (se.by === 'opponent' && p.playedBy === entryController) return false;
+    return !se.filter || getCard(p.cardId).type === se.filter;
+  }).length;
+  return tally === se.n;
+}
+
 function checkRiseTriggers(state, resolvedEntry) {
   const events = [];
   const resolvedController = controllerOf(resolvedEntry);
+
+  // Endure Hatred (19) — watches the opponent's actions rise from the horizon.
+  if (getCard(resolvedEntry.cardId).type === 'action') {
+    for (const horizonEntry of state.zones.horizon) {
+      if (horizonEntry === resolvedEntry) continue;
+      const watcherController = controllerOf(horizonEntry);
+      if (watcherController === resolvedController) continue;
+      for (const se of getCard(horizonEntry.cardId).staticEffects ?? []) {
+        if (se.type === 'trigger' && se.on === 'opponentActionRises') {
+          events.push(...executeStaticTriggerEffect(state, se.effect, watcherController));
+        }
+      }
+    }
+  }
 
   // Share the Loot (75) — find if any active trigger matches "opponentCardTakesEffect"
   for (const trigger of state.pendingTriggers) {
@@ -430,6 +465,7 @@ function executeStaticTriggerEffect(state, effect, contextPlayer, thatPlayer) {
   const events = [];
   const target = effect.player === 'controller' ? contextPlayer
     : effect.player === 'thatPlayer' ? (thatPlayer ?? contextPlayer)
+    : effect.player === 'opponentOfPlayer' ? opponent(contextPlayer)
     : effect.player === 'both' ? 'both'
     : contextPlayer;
 
@@ -477,6 +513,10 @@ function flushDeferredTriggers(state, deferred) {
       // Prepare (50) etc. — draw on top of the refilled hand.
       const drawn = drawCards(state, trigger.player, trigger.count);
       events.push({ type: 'CARDS_DRAWN', player: trigger.player, cards: drawn, reason: 'endOfTurnTrigger' });
+    } else if (trigger.type === 'gainEnergy') {
+      // Strobe Brightness (88) — queued before the wipe, paid after it.
+      state.players[trigger.player].energy += trigger.amount;
+      events.push({ type: 'ENERGY_GAINED', player: trigger.player, amount: trigger.amount, reason: 'endOfTurnTrigger' });
     } else if (trigger.type === 'endOfTurnDusk') {
       // Last Chance (76) — the owner now chooses which cards to trash. Clamp to
       // what they actually hold; an empty hand trashes nothing.

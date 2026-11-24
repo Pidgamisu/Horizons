@@ -159,6 +159,7 @@ function executeEffect(state, effect, controller, entry, ctx) {
         player: controller,
         filter,
         thenGrant: effect.thenGrant ?? null,
+        originalController: controller,
       });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'duskFromHorizon', filter: effect.filter });
       break;
@@ -205,7 +206,9 @@ function executeEffect(state, effect, controller, entry, ctx) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'putFromDuskToHand' });
         break;
       }
-      state.pendingTriggers.push({ type: 'putFromDuskToHandChoice', player: controller, count: effective });
+      state.pendingTriggers.push({
+        type: 'putFromDuskToHandChoice', player: controller, count: effective, thenGrant: effect.thenGrant,
+      });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'putFromDuskToHand', count: effective });
       break;
     }
@@ -215,7 +218,10 @@ function executeEffect(state, effect, controller, entry, ctx) {
         events.push({ type: 'NO_VALID_TARGETS', effect: 'returnToControllerHand', filter: effect.filter });
         break;
       }
-      state.pendingTriggers.push({ type: 'returnHorizonCardToHandChoice', player: controller, filter: effect.filter });
+      state.pendingTriggers.push({
+        type: 'returnHorizonCardToHandChoice', player: controller, filter: effect.filter,
+        thenGrant: effect.thenGrant, originalController: controller,
+      });
       events.push({ type: 'CHOICE_REQUIRED', player: controller, choiceType: 'returnToControllerHand', filter: effect.filter });
       break;
     }
@@ -418,9 +424,26 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'allowSelfPointResponseToActions': {
-      state.players[controller].pointResponseToActions = true;
-      events.push({ type: 'POINT_RESPONSE_UNLOCKED', player: controller });
+    case 'lockResponsesToMyCards': {
+      // Blinding Flash (53) — for the rest of the turn nobody may respond to a
+      // card this player controls. Outlives the card itself (it is in the dusk
+      // by the time this runs), so it lives on the turn flags.
+      state.turnFlags.responsesLockedAgainst = controller;
+      events.push({ type: 'RESPONSES_LOCKED', player: controller });
+      break;
+    }
+
+    case 'duskHandThenDrawSameCount': {
+      // Treasure Anew (26) — each player trades their hand in for a fresh one
+      // of the same size. Counted before dusking, or the draw would be zero.
+      const targets = effect.player === 'both' ? ['p1', 'p2']
+        : [resolvePlayers(effect.player, controller, opp)];
+      for (const p of targets) {
+        const n = state.players[p].hand.length;
+        if (n > 0) duskHand(state, p);
+        const drawn = drawCards(state, p, n);
+        events.push({ type: 'HAND_RECYCLED', player: p, count: n, cards: drawn });
+      }
       break;
     }
 
@@ -620,22 +643,6 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'randomFromHandToDusk': {
-      // Cerebral Snuff (091) — random, so no choice is offered to anyone.
-      const target = effect.player === 'self' ? controller : opp;
-      const hand = state.players[target].hand;
-      const n = Math.min(effect.count ?? 1, hand.length);
-      const lost = [];
-      for (let i = 0; i < n; i++) {
-        const idx = Math.floor(Math.random() * hand.length);
-        const [id] = hand.splice(idx, 1);
-        sendToDusk(state, id);
-        lost.push(id);
-      }
-      events.push({ type: 'RANDOM_CARDS_TO_DUSK', player: target, cards: lost });
-      break;
-    }
-
     case 'conditionalDraw': {
       // Angst (020), Beget Advantage (034) — draw only if the condition holds.
       const met = evaluateCardCondition(state, effect.condition, controller);
@@ -683,12 +690,12 @@ function executeEffect(state, effect, controller, entry, ctx) {
       break;
     }
 
-    case 'duskFromHandThenMatchCostOnHorizon': {
-      // Enlightenment (075) — dusk a card, then optionally dusk a horizon card
-      // that shares its cost. The second step is queued once the first resolves,
-      // because the matching cost isn't known until then.
+    case 'duskFromHandThenRansomOnHorizon': {
+      // Enlightenment (66) — dusk a card from hand, then a horizon card dusks
+      // unless its controller pays that card's cost. The ransom isn't known
+      // until the first step resolves, so step two is queued from there.
       if (state.players[controller].hand.length === 0) {
-        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHandThenMatchCostOnHorizon' });
+        events.push({ type: 'NO_VALID_TARGETS', effect: 'duskFromHandThenRansomOnHorizon' });
         break;
       }
       state.pendingTriggers.push({ type: 'duskFromHandThenMatchCostChoice', player: controller });

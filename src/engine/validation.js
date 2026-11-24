@@ -1,7 +1,6 @@
 import { getCard } from '../data/cardDb.js';
 import {
-  computeActualCost, isHorizonLocked, canPlayFromDusk,
-  opponentPointResponseAllowed, controllerOf,
+  computeActualCost, isHorizonLocked, canPlayFromDusk, controllerOf,
 } from './state.js';
 
 /**
@@ -26,7 +25,9 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   // ── Global lock (Unstoppable 00, Erase Reason 11) ────────────────────────
-  if (isHorizonLocked(state, playerId)) return 'Cards cannot be played while this card is on the horizon.';
+  if (isHorizonLocked(state, playerId, card.type)) {
+    return 'Cards cannot be played while this card is on the horizon.';
+  }
   if (player.lockedFromPlaying) return 'You cannot play any more cards this turn.';
 
   // ── Opponent lock (Stifle Speech 52) ─────────────────────────────────────
@@ -37,22 +38,12 @@ export function validatePlay(state, playerId, cardId, context = {}) {
 
   // ── Turn / horizon timing rules ─────────────────────────────────────────────
   if (card.type === 'point') {
-    // Check if card has responseOnly restriction first — if so, skip the proactive horizon-empty check
-    const isResponseOnly = card.playRestrictions?.some(r => r.type === 'responseOnly');
-
-    if (!isResponseOnly) {
-      // Point cards need empty horizon to play proactively on own turn
-      if (isOwnTurn && !horizonEmpty) {
-        const canRespond = checkPointResponsePermission(state, playerId, context);
-        if (!canRespond) return 'Point cards can only be played when the horizon is empty.';
-      }
-      // Opponent playing a point card — only allowed via With the Sky / Blinding Flash
-      if (!isOwnTurn) {
-        const canRespond = checkPointResponsePermission(state, playerId, context);
-        if (!canRespond) return 'You cannot play a point card in response on your opponent\'s turn.';
-      }
-    }
-    // responseOnly cards are handled purely by the playRestrictions loop below
+    // Rulebook p3: "You can only play points during your turn while the horizon
+    // is empty." Nothing in the v4 set grants an exception — every card that
+    // used to (Strafe, Forever Borrow, Birth the Sky, the old Blinding Flash)
+    // is gone, so this is now unconditional.
+    if (!isOwnTurn) return 'You can only play points on your own turn.';
+    if (!horizonEmpty) return 'Point cards can only be played when the horizon is empty.';
   }
 
   if (card.type === 'action') {
@@ -70,32 +61,23 @@ export function validatePlay(state, playerId, cardId, context = {}) {
     if (!horizonEmpty && controllerOf(state.zones.horizon[0]) === playerId) {
       return 'You cannot respond to your own card; let it resolve first.';
     }
-    // Injustice (67) — can't play an action in response to a protected action.
+    // Avert Injustice (68) — can't respond to a protected action.
     const top = state.zones.horizon[0];
     if (top?.responsesLocked && controllerOf(top) !== playerId) {
-      return 'That action card is protected from action responses.';
+      return 'That action card is protected from responses.';
+    }
+    // Blinding Flash (53) — for the rest of the turn nobody may respond to any
+    // card its caster controls. Unlike Avert Injustice this is not pinned to one
+    // entry, so it is read off the turn flags rather than the horizon.
+    const shielded = state.turnFlags.responsesLockedAgainst;
+    if (top && shielded && controllerOf(top) === shielded && playerId !== shielded) {
+      return 'You cannot respond to your opponent\'s cards this turn.';
     }
   }
 
   // ── Per-card play restrictions ────────────────────────────────────────────
   for (const restriction of card.playRestrictions ?? []) {
     switch (restriction.type) {
-      case 'responseOnly': {
-        // Must be played in response to the specified type
-        if (horizonEmpty) return `${card.name} can only be played in response.`;
-        if (restriction.filter !== 'any') {
-          const topCard = getCard(state.zones.horizon[0].cardId);
-          if (topCard.type !== restriction.filter) {
-            return `${card.name} can only be played in response to ${restriction.filter} cards.`;
-          }
-        }
-        break;
-      }
-      case 'notOnYourTurn':
-        // Strafe (006) — a point that may only be played on the opponent's turn.
-        if (isOwnTurn) return `${card.name} cannot be played during your turn.`;
-        break;
-
       case 'mustBeFirstCardThisTurn':
         if (state.cardsPlayedThisTurn.length > 0) {
           return `${card.name} must be the first card you play this turn.`;
@@ -139,21 +121,4 @@ export function validatePlay(state, playerId, cardId, context = {}) {
   }
 
   return null; // legal
-}
-
-function checkPointResponsePermission(state, playerId, context) {
-  // With the Sky (28) on horizon — opponent may play point cards
-  if (opponentPointResponseAllowed(state)) return true;
-
-  // Blinding Flash (51) active for this player — may play point vs actions
-  if (state.players[playerId].pointResponseToActions) {
-    // Check the top of horizon is an action card
-    if (state.zones.horizon.length > 0) {
-      const topCard = getCard(state.zones.horizon[0].cardId);
-      if (topCard.type === 'action') return true;
-    }
-  }
-
-  // Forever Borrow (36) — only in response to point cards (handled by responseOnly restriction)
-  return false;
 }

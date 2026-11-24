@@ -12,13 +12,13 @@
  * advance.
  */
 
-const POINT = '042' // Splendor      , point, cost 5: each player gains 4 energy
-const STOP  = '053' // Delusion      , action, cost 2: put a point on the horizon into the dusk
-const DENY  = '079' // Deny Hostility, action, cost 1: dusk an action played in response to a point
-const FILL1 = '055' // Dig For Ideas , voided for energy
-const FILL2 = '063' // Sort          , voided for energy
+const POINT = '37' // Splendor      , point, cost 5: each player gains 4 energy
+const STOP  = '48' // Delusion      , action, cost 2: put a point on the horizon into the dusk
+const DENY  = '70' // Deny Hostility, action, cost 1: dusk an action played in response to a point
+const FILL1 = '65' // Inspect       , voided for energy
+const FILL2 = '55' // Sort          , voided for energy
 // A fresh draw shown when the hand refills at end of turn (any real card ids).
-const REFILL = ['004', '020', '060', '083', '097']
+const REFILL = ['04', '18', '52', '73', '84']
 
 // Build a full per-player projection with sensible tutorial defaults; callers
 // override just the fields that change between beats. The horizon is ordered

@@ -29,7 +29,7 @@ src/
   effects/
     executor.js         ← Effect execution engine (executeEffects, executeOnPlayEffects)
   data/
-    cards.json          ← All 105 cards (ids "000"–"104") with structured effects
+    cards.json          ← All 90 cards (ids "00"–"89") with structured effects
     cardDb.js           ← Card lookup by id
 
   main.jsx              ← Client entry point (React root)
@@ -44,7 +44,8 @@ src/
                           GameOver, Lobby, Toast)
 
 tests/                  ← Engine + server tests (node:test style: describe/test globals)
-public/cards/           ← Card art 00.png–89.png (also referenced via horizons-client/public in README)
+public/cards/           ← Card art 00.png–89.png, plus back.png
+public/rules/           ← The six rulebook pages shown by src/ui/Rules.jsx
 index.html              ← Vite HTML entry
 vite.config.js          ← Vite + React plugin, dev server on port 5173
 .env                    ← VITE_SERVER_URL (client → server websocket URL)
@@ -71,10 +72,10 @@ npm run build
 # Game server (WebSocket) → ws://localhost:8080
 node src/index.js          # override port with: PORT=9000 node src/index.js
 
-# Tests (Node's built-in runner) — 125 tests, all passing
+# Tests (Node's built-in runner) — 135 tests, all passing
 npm test
 
-# Every card executes through the engine — expect 105/105, 0 issues
+# Every card executes through the engine — expect 90/90, 0 issues
 node cards-sweep.mjs
 
 # Random full games to Sunset — expect 0 hardlocked, 0 crashed
@@ -120,13 +121,13 @@ game in one and join via the shared room URL in the other.
 
 ## Conventions
 
-- Card ids are zero-padded strings `"000"`–`"104"` matching `public/cards/NNN.png`.
-  `000`–`049` are points, `050`–`104` are actions.
-- **Card text beats the rules.** Where a card contradicts the rulebook it wins — Strafe (006)
-  and Forever Borrow (036) are points playable in response, and Pay No Mind (047) leaves the
-  horizon without ever rising. Encode the card, not the general rule. (Answer Fate, the old
-  047, was the one card that granted a 2-player reshuffle; it was replaced on 2026-08-31, so
-  no card grants one any more.)
+- Card ids are zero-padded strings `"00"`–`"89"` matching `public/cards/NN.png`.
+  `00`–`44` are the 45 points, `45`–`89` are the 45 actions. The v4 set renumbered
+  everything; `docs/cards-v4.md` is the printed card list and carries the old-id mapping.
+- **Card text beats the rules.** Where a card contradicts the rulebook it wins — Pay No Mind
+  (42) and Purity (39) leave the horizon without ever rising, and Agoraphobia (35) overrides
+  where a removed card goes. Encode the card, not the general rule. No card grants a
+  2-player reshuffle, and since v4 no card lets a point be played in response.
 - Engine functions take `state` first and **return event arrays** describing what happened;
   the server broadcasts derived per-player projections. Don't mutate state outside the engine.
 - When adding a card mechanic, prefer extending the structured effect schema in `cards.json`

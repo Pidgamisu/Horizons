@@ -18,11 +18,11 @@ import { ALL_CARD_IDS, getCard } from '../src/data/cardDb.js';
 
 // Card ids are ordered: 000–049 are points, 050–104 are actions. These are
 // deliberately plain cards — no static effects that would change play legality.
-const POINT = '002';    // Momentum       — gain 4 energy
-const POINT_B = '004';  // Inquire        — draw a card
-const ACTION = '050';   // Bounce Back    — return a point on the horizon
-const ACTION_B = '051'; // Regret         — put a card on top of the deck
-const LOCK_POINT = '000'; // Pretty Privilege — opponents cannot play cards
+const POINT = '02';    // Momentum       — gain 4 energy
+const POINT_B = '04';  // Inquire        — draw a card
+const ACTION = '45';   // Bounce Back    — return a point on the horizon
+const ACTION_B = '46'; // Regret         — put a card on top of the deck
+const LOCK_POINT = '00'; // Pretty Privilege — opponents cannot play cards
 
 function freshGame() {
   const state = createGameState();
@@ -91,19 +91,19 @@ describe('Client prompt coverage', () => {
 // ─── The card set ─────────────────────────────────────────────────────────────
 
 describe('The deck', () => {
-  test('holds 105 cards: 55 actions and 50 points', () => {
-    expect(ALL_CARD_IDS).toHaveLength(105);
+  test('holds 90 cards: 45 actions and 45 points', () => {
+    expect(ALL_CARD_IDS).toHaveLength(90);
     const points = ALL_CARD_IDS.filter(id => getCard(id).type === 'point');
     const actions = ALL_CARD_IDS.filter(id => getCard(id).type === 'action');
-    expect(points).toHaveLength(50);
-    expect(actions).toHaveLength(55);
+    expect(points).toHaveLength(45);
+    expect(actions).toHaveLength(45);
   });
 
-  test('ids 000-049 are points and 050-104 are actions', () => {
-    expect(getCard('000').type).toBe('point');
-    expect(getCard('049').type).toBe('point');
-    expect(getCard('050').type).toBe('action');
-    expect(getCard('104').type).toBe('action');
+  test('ids 00-44 are points and 45-89 are actions', () => {
+    expect(getCard('00').type).toBe('point');
+    expect(getCard('44').type).toBe('point');
+    expect(getCard('45').type).toBe('action');
+    expect(getCard('89').type).toBe('action');
   });
 
   test('every card has a name, a cost and rules text', () => {
@@ -119,12 +119,12 @@ describe('The deck', () => {
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
 describe('Game initialisation', () => {
-  test('deals five cards each and leaves 95 in the deck', () => {
+  test('deals five cards each and leaves 80 in the deck', () => {
     const { state } = freshGame();
     expect(state.players.p1.hand).toHaveLength(5);
     expect(state.players.p2.hand).toHaveLength(5);
-    expect(state.zones.deck).toHaveLength(95);
-    expect(countAllCards(state)).toBe(105);
+    expect(state.zones.deck).toHaveLength(80);
+    expect(countAllCards(state)).toBe(90);
   });
 
   test('starts with empty zeniths and an empty dusk', () => {
@@ -180,7 +180,7 @@ describe('Voiding to fund an owed payment', () => {
   function ransomPending({ pokeCaster }) {
     const { state } = freshGame();
     giveCard(state, 'p1', ACTION);        // p1 puts an action on the horizon
-    giveCard(state, pokeCaster, '097');
+    giveCard(state, pokeCaster, '84');
     setEnergy(state, 'p1', 9);
     setEnergy(state, 'p2', 9);
     playCard(state, 'p1', ACTION);
@@ -192,7 +192,7 @@ describe('Voiding to fund an owed payment', () => {
       playCard(state, 'p2', ACTION_B);
       target = ACTION_B;
     }
-    playCard(state, pokeCaster, '097');
+    playCard(state, pokeCaster, '84');
 
     // The caster's opponent passes, which is all it takes: Poke rises and its
     // text runs. The caster never passes their own card.
@@ -276,7 +276,7 @@ describe('Voiding to fund an owed payment', () => {
   test("Auction/Bid's pay-any-amount also opens the hand", () => {
     const { state } = freshGame();
     state.pendingChoice = {
-      type: 'additionalCost', player: 'p2', cost: { type: 'payAnyAmount' }, cardId: '045',
+      type: 'additionalCost', player: 'p2', cost: { type: 'payAnyAmount' }, cardId: '40',
     };
     expect(pendingEnergyPayment(state, 'p2')).toBe(true);
     state.pendingChoice.cost = { type: 'duskFromHand', count: 1 };
@@ -307,7 +307,7 @@ describe('Play timing', () => {
     const { state } = freshGame();
     giveCard(state, 'p2', POINT);
     setEnergy(state, 'p2', 10);
-    expect(validatePlay(state, 'p2', POINT)).toMatch(/cannot play a point card in response/);
+    expect(validatePlay(state, 'p2', POINT)).toMatch(/only play points on your own turn/);
   });
 
   test('an action can be played in response to an opponent\'s card', () => {
@@ -564,7 +564,7 @@ describe('Reshuffles', () => {
   test('with a reshuffle available, an empty deck is refilled from the dusk', () => {
     const { state } = freshGame();
     state.zones.deck = [];
-    state.zones.dusk = ['000', '001', '002'];
+    state.zones.dusk = ['00', '01', '02'];
     state.reshufflesRemaining = 1;
 
     const drawn = drawCards(state, 'p1', 2);
@@ -578,7 +578,7 @@ describe('Reshuffles', () => {
   test('with no reshuffles left, drawing from an empty deck simply stops', () => {
     const { state } = freshGame();
     state.zones.deck = [];
-    state.zones.dusk = ['000', '001'];
+    state.zones.dusk = ['00', '01'];
     state.reshufflesRemaining = 0;
 
     const drawn = drawCards(state, 'p1', 2);
@@ -590,13 +590,13 @@ describe('Reshuffles', () => {
   test('a zenith is never reshuffled back into the deck', () => {
     const { state } = freshGame();
     state.zones.deck = [];
-    state.zones.dusk = ['000'];
-    state.players.p1.zenith = ['001', '002'];
+    state.zones.dusk = ['00'];
+    state.players.p1.zenith = ['01', '02'];
     state.reshufflesRemaining = 1;
 
     drawCards(state, 'p1', 1);
 
-    expect(state.players.p1.zenith).toEqual(['001', '002']);
+    expect(state.players.p1.zenith).toEqual(['01', '02']);
   });
 });
 
@@ -620,8 +620,8 @@ describe('Sunset', () => {
   test('the player with more points in their zenith wins', () => {
     const { state } = freshGame();
     spentDeck(state);
-    state.players.p1.zenith = ['000', '001', '002'];
-    state.players.p2.zenith = ['003'];
+    state.players.p1.zenith = ['00', '01', '02'];
+    state.players.p2.zenith = ['03'];
     checkSunset(state);
     expect(state.winner).toBe('p1');
   });
@@ -629,8 +629,8 @@ describe('Sunset', () => {
   test('an equal number of points is a draw', () => {
     const { state } = freshGame();
     spentDeck(state);
-    state.players.p1.zenith = ['000'];
-    state.players.p2.zenith = ['001'];
+    state.players.p1.zenith = ['00'];
+    state.players.p2.zenith = ['01'];
     checkSunset(state);
     expect(state.winner).toBe('draw');
   });
@@ -663,7 +663,7 @@ describe('Sunset', () => {
 
   test('the end-of-turn refill is what usually triggers Sunset', () => {
     const { state } = freshGame();
-    state.zones.deck = ['000'];
+    state.zones.deck = ['00'];
     state.reshufflesRemaining = 0;
     state.players.p1.hand = [];
 
@@ -714,7 +714,7 @@ describe('Whole-game integrity', () => {
     expect(state.phase).toBe('ended');
     expect(state.zones.deck).toHaveLength(0);
     expect(state.zones.horizon).toHaveLength(0);
-    expect(countAllCards(state)).toBe(105);
+    expect(countAllCards(state)).toBe(90);
     expect(['p1', 'p2', 'draw']).toContain(state.winner);
   });
 
@@ -758,30 +758,30 @@ describe('Card effects', () => {
 
   test('Abstract Embrace (001) banks a point out of the dusk into your zenith', () => {
     const { state } = freshGame();
-    state.zones.dusk = ['002', '050'];
-    rise(state, '001');
+    state.zones.dusk = ['02', '45'];
+    rise(state, '01');
     expect(state.pendingChoice.type).toBe('putPointFromDuskIntoZenith');
-    resolveChoice(state, 'p1', { cardId: '002' });
-    expect(state.players.p1.zenith).toContain('002');
-    expect(state.zones.dusk).not.toContain('002');
+    resolveChoice(state, 'p1', { cardId: '02' });
+    expect(state.players.p1.zenith).toContain('02');
+    expect(state.zones.dusk).not.toContain('02');
   });
 
   test('Abstract Embrace (001) is skipped when the dusk holds no point', () => {
     const { state } = freshGame();
-    state.zones.dusk = ['050', '051'];
-    const events = rise(state, '001');
+    state.zones.dusk = ['45', '46'];
+    const events = rise(state, '01');
     expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
     expect(state.pendingChoice).toBeNull();
   });
 
   test('Change of Luck (068) banks a point from the horizon without it rising', () => {
     const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    rise(state, '068');
+    state.zones.horizon.unshift(createHorizonEntry('02', 'p2'));
+    rise(state, '60');
     expect(state.pendingChoice.type).toBe('putPointFromHorizonIntoZenith');
     resolveChoice(state, 'p1', { horizonIndex: 0 });
-    expect(state.players.p1.zenith).toContain('002');
-    expect(state.players.p2.zenith).not.toContain('002');
+    expect(state.players.p1.zenith).toContain('02');
+    expect(state.players.p2.zenith).not.toContain('02');
     expect(state.zones.horizon).toHaveLength(0);
   });
 
@@ -789,7 +789,7 @@ describe('Card effects', () => {
     const { state } = freshGame();
     state.players.p1.energy = 2;
     state.players.p2.energy = 7;
-    const entry = createHorizonEntry('027', 'p1');
+    const entry = createHorizonEntry('25', 'p1');
     state.zones.horizon.unshift(entry);
     executeOnPlayEffects(state, entry);
     expect(state.players.p2.energy).toBe(0);
@@ -798,53 +798,22 @@ describe('Card effects', () => {
 
   test('Anxiety (073) dusks the top of the horizon with no choice', () => {
     const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    rise(state, '073');
-    expect(state.zones.dusk).toContain('002');
+    state.zones.horizon.unshift(createHorizonEntry('02', 'p2'));
+    rise(state, '64');
+    expect(state.zones.dusk).toContain('02');
     expect(state.pendingChoice).toBeNull();
-  });
-
-  test('Settle (100) puts the whole horizon on the bottom of the deck', () => {
-    const { state } = freshGame();
-    const deckBefore = state.zones.deck.length;
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('004', 'p1'));
-    rise(state, '100');
-    expect(state.zones.horizon).toHaveLength(0);
-    expect(state.zones.deck).toHaveLength(deckBefore + 2);
-  });
-
-  test('Unrecognized Influence (070) dusks one horizon card, then bounces another', () => {
-    const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry(POINT, 'p2'));   // to be dusked
-    state.zones.horizon.unshift(createHorizonEntry(ACTION_B, 'p2')); // to be bounced
-    rise(state, '070');
-
-    expect(state.pendingChoice.type).toBe('duskFromHorizon');
-    let idx = state.zones.horizon.findIndex(e => e.cardId === POINT);
-    resolveChoice(state, 'p1', { horizonIndex: idx });
-    expect(state.zones.dusk).toContain(POINT);
-
-    // Step two targets the horizon as it stands, so the dusked card is gone and
-    // "another card" needs no extra guard.
-    advancePendingChoices(state);
-    expect(state.pendingChoice.type).toBe('returnToControllerHand');
-    idx = state.zones.horizon.findIndex(e => e.cardId === ACTION_B);
-    resolveChoice(state, 'p1', { horizonIndex: idx });
-    expect(state.players.p2.hand).toContain(ACTION_B);
-    expect(state.zones.horizon.some(e => e.cardId === ACTION_B)).toBe(false);
   });
 
   test('Beseech For Gains (085) empties you out, then the opponent refills you', () => {
     const { state } = freshGame();
     state.players.p1.energy = 7;
-    state.players.p1.hand = ['002', '004', '050'];
-    state.zones.dusk = ['051', '052'];   // so the dusk can actually cover five
-    rise(state, '085');
+    state.players.p1.hand = ['02', '04', '45'];
+    state.zones.dusk = ['46', '47'];   // so the dusk can actually cover five
+    rise(state, '74');
 
     expect(state.players.p1.energy).toBe(0);
     expect(state.players.p1.hand).toHaveLength(0);
-    for (const id of ['002', '004', '050']) expect(state.zones.dusk).toContain(id);
+    for (const id of ['02', '04', '45']) expect(state.zones.dusk).toContain(id);
 
     // The opponent picks, the caster receives. Dusking your own hand is what
     // makes five cards available in the first place.
@@ -859,69 +828,59 @@ describe('Card effects', () => {
 
   test('Beseech For Gains (085) settles for a short dusk rather than stalling', () => {
     const { state } = freshGame();
-    state.players.p1.hand = ['002'];
+    state.players.p1.hand = ['02'];
     state.zones.dusk = [];
-    rise(state, '085');
+    rise(state, '74');
     // 085 itself plus the one dusked hand card is all there is to give back.
     expect(state.pendingChoice.count).toBe(2);
     resolveChoice(state, 'p2', { cardIds: [...state.zones.dusk].slice(0, 2) });
     expect(state.players.p1.hand).toHaveLength(2);
   });
 
-  test('Cerebral Snuff (091) dusks a random card from the opponent hand', () => {
+  test('Cerebral Snuff (87) reveals the opponent hand and lets you pick', () => {
     const { state } = freshGame();
     const before = state.players.p2.hand.length;
-    rise(state, '091');
+    rise(state, '87');
+    // v4 made this a choice rather than a random discard.
+    advancePendingChoices(state);
+    expect(state.pendingChoice.type).toBe('chooseCardToDuskFromRevealedHand');
+    expect(state.pendingChoice.player).toBe('p1');
+
+    const taken = state.players.p2.hand[0];
+    resolveChoice(state, 'p1', { cardId: taken });
     expect(state.players.p2.hand).toHaveLength(before - 1);
-    // The risen action lands in the dusk too, so that is two cards.
-    expect(state.zones.dusk).toHaveLength(2);
-    expect(state.zones.dusk).toContain('091');
+    expect(state.zones.dusk).toContain(taken);
   });
 
   test('Delve (003) costs 2 less once you have voided a point and an action', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['002', '050'];
-    expect(computeActualCost(state, '003', me)).toBe(6);
-    voidCard(state, me, '002');
-    expect(computeActualCost(state, '003', me)).toBe(6);
-    voidCard(state, me, '050');
-    expect(computeActualCost(state, '003', me)).toBe(4);
+    state.players[me].hand = ['02', '45'];
+    expect(computeActualCost(state, '03', me)).toBe(6);
+    voidCard(state, me, '02');
+    expect(computeActualCost(state, '03', me)).toBe(6);
+    voidCard(state, me, '45');
+    expect(computeActualCost(state, '03', me)).toBe(4);
   });
 
-  test('Light Guidance (065) costs 1 less per point in either zenith', () => {
+  test("Light's Guidance (57) costs 1 less per point in YOUR zenith only", () => {
     const { state } = freshGame();
-    expect(computeActualCost(state, '065', 'p1')).toBe(5);
-    state.players.p1.zenith = ['002', '004'];
-    state.players.p2.zenith = ['006'];
-    expect(computeActualCost(state, '065', 'p1')).toBe(2);
-  });
-
-  test('Strafe (006) cannot be played on your own turn even with a legal target', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p1', '006');
-    setEnergy(state, 'p1', 20);
-    // An opponent action on top would normally satisfy its response-only clause.
-    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p2'));
-    expect(validatePlay(state, 'p1', '006')).toMatch(/cannot be played during your turn/);
-  });
-
-  test('Strafe (006) can be played in response on the opponent turn', () => {
-    const { state } = freshGame();
-    giveCard(state, 'p2', '006');
-    setEnergy(state, 'p2', 20);
-    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p1'));
-    expect(validatePlay(state, 'p2', '006')).toBeNull();
+    expect(computeActualCost(state, '57', 'p1')).toBe(5);
+    // The opponent's zenith used to count too; the v4 text narrowed it.
+    state.players.p2.zenith = ['01', '02', '04'];
+    expect(computeActualCost(state, '57', 'p1')).toBe(5);
+    state.players.p1.zenith = ['02', '04'];
+    expect(computeActualCost(state, '57', 'p1')).toBe(3);
   });
 
   test('Paranoia (023) locks its own controller, not the opponent', () => {
     const { state } = freshGame();
-    giveCard(state, 'p1', '023');
+    giveCard(state, 'p1', '21');
     giveCard(state, 'p1', ACTION);
     giveCard(state, 'p2', ACTION_B);
     setEnergy(state, 'p1', 20);
     setEnergy(state, 'p2', 20);
-    playCard(state, 'p1', '023');
+    playCard(state, 'p1', '21');
     expect(validatePlay(state, 'p1', ACTION)).toMatch(/Cards cannot be played/);
     expect(validatePlay(state, 'p2', ACTION_B)).toBeNull();
   });
@@ -933,8 +892,8 @@ describe('Card effects', () => {
     for (const id of ALL_CARD_IDS) {
       const { state } = freshGame();
       state.players.p1.energy = 20;
-      state.zones.dusk.push('002', '050');
-      state.zones.horizon.push(createHorizonEntry('005', 'p2', { respondedToCardType: 'point' }));
+      state.zones.dusk.push('02', '45');
+      state.zones.horizon.push(createHorizonEntry('05', 'p2', { respondedToCardType: 'point' }));
       const entry = createHorizonEntry(id, 'p1', { respondedToCardIndex: 0, respondedToCardType: 'point' });
       state.zones.horizon.unshift(entry);
       let events = [];
@@ -955,94 +914,33 @@ describe('Card effects', () => {
 // ─── Multi-step cards ─────────────────────────────────────────────────────────
 
 describe('Multi-step cards', () => {
-  test('Forever Borrow (036) takes the action it responded to, which then returns to its owner', () => {
+  test('Enlightenment (66) ransoms a horizon card for the dusked cost', () => {
     const { state } = freshGame();
-    // p2 has an action on the horizon; p1 responds with Forever Borrow.
-    state.zones.horizon.unshift(createHorizonEntry(ACTION, 'p2'));
-    const borrow = createHorizonEntry('036', 'p1', { respondedToCardIndex: 0, respondedToCardType: 'action' });
-    state.zones.horizon.unshift(borrow);
-
-    executeOnPlayEffects(state, borrow);
-
-    const stolen = state.zones.horizon[1];
-    expect(stolen.controlledBy).toBe('p1');       // control changed hands
-    expect(stolen.playedBy).toBe('p2');           // ownership did not
-
-    riseTopOfHorizon(state);                      // Forever Borrow itself rises
-    riseTopOfHorizon(state);                      // now the borrowed action rises
-
-    // It goes back to its original owner's hand instead of the dusk.
-    expect(state.players.p2.hand).toContain(ACTION);
-    expect(state.zones.dusk).not.toContain(ACTION);
-  });
-
-  test('Paradox (101) returns two cards controlled by different players', () => {
-    const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('004', 'p1'));
-    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
-
-    riseTopOfHorizon(state);
-    advancePendingChoices(state);
-    expect(state.pendingChoice.type).toBe('returnTwoDifferentControllers');
-
-    const { error } = resolveChoice(state, 'p1', { horizonIndexes: [0, 1] });
-    expect(error).toBeNull();
-    expect(state.players.p1.hand).toContain('004');
-    expect(state.players.p2.hand).toContain('002');
-    expect(state.zones.horizon).toHaveLength(0);
-  });
-
-  test('Paradox (101) refuses two cards controlled by the same player', () => {
-    const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('006', 'p1'));   // makes two controllers present
-    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
-
-    riseTopOfHorizon(state);
-    advancePendingChoices(state);
-    // Indexes 1 and 2 are both p2-controlled.
-    const { error } = resolveChoice(state, 'p1', { horizonIndexes: [1, 2] });
-    expect(error).toMatch(/different players/);
-  });
-
-  test('Paradox (101) does nothing when one player controls the whole horizon', () => {
-    const { state } = freshGame();
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));
-    state.zones.horizon.unshift(createHorizonEntry('101', 'p1'));
-
-    const events = riseTopOfHorizon(state);
-    advancePendingChoices(state);
-
-    expect(eventTypes(events)).toContain('NO_VALID_TARGETS');
-    expect(state.pendingChoice).toBeNull();
-    expect(state.zones.horizon).toHaveLength(2);   // nothing was returned
-  });
-
-  test('Enlightenment (075) only offers horizon cards matching the dusked cost', () => {
-    const { state } = freshGame();
-    state.players.p1.hand = ['002'];                                  // Momentum, cost 6
-    state.zones.horizon.unshift(createHorizonEntry('004', 'p2'));     // Inquire, cost 6 — matches
-    state.zones.horizon.unshift(createHorizonEntry('075', 'p1'));
+    state.players.p1.hand = ['02'];                                 // Momentum, cost 6
+    state.zones.horizon.unshift(createHorizonEntry('04', 'p2'));    // the ransom target
+    state.zones.horizon.unshift(createHorizonEntry('66', 'p1'));
 
     riseTopOfHorizon(state);
     advancePendingChoices(state);
     expect(state.pendingChoice.type).toBe('duskFromHandThenMatchCost');
 
-    resolveChoice(state, 'p1', { cardId: '002' });
+    resolveChoice(state, 'p1', { cardId: '02' });
     advancePendingChoices(state);
+    expect(state.zones.dusk).toContain('02');
 
-    expect(state.zones.dusk).toContain('002');
-    expect(state.pendingChoice.type).toBe('duskFromHorizon');
-    expect(state.pendingChoice.filter.costEquals).toBe(6);
+    // Step 2: the caster targets, then that card's controller pays or loses it.
+    expect(state.pendingChoice.type).toBe('duskUnlessControllerPaysTarget');
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '04');
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+    expect(state.pendingChoice.type).toBe('duskUnlessControllerPays');
+    expect(state.pendingChoice.player).toBe('p2');
+    expect(state.pendingChoice.ransomCost).toBe(6);   // Momentum's cost
   });
 
   test('Reach Out to the Dark (057) lets the opponent choose which cards you get', () => {
     const { state } = freshGame();
-    state.zones.dusk = ['002', '004', '050'];
-    state.zones.horizon.unshift(createHorizonEntry('057', 'p1'));
+    state.zones.dusk = ['02', '04', '45'];
+    state.zones.horizon.unshift(createHorizonEntry('50', 'p1'));
 
     riseTopOfHorizon(state);
     advancePendingChoices(state);
@@ -1051,10 +949,10 @@ describe('Multi-step cards', () => {
     expect(state.pendingChoice.player).toBe('p2');
     expect(state.pendingChoice.type).toBe('opponentChoosesFromDusk');
 
-    resolveChoice(state, 'p2', { cardIds: ['002', '050'] });
-    expect(state.players.p1.hand).toContain('002');
-    expect(state.players.p1.hand).toContain('050');
-    expect(state.players.p2.hand).not.toContain('002');
+    resolveChoice(state, 'p2', { cardIds: ['02', '45'] });
+    expect(state.players.p1.hand).toContain('02');
+    expect(state.players.p1.hand).toContain('45');
+    expect(state.players.p2.hand).not.toContain('02');
   });
 });
 
@@ -1070,9 +968,9 @@ describe('Choice prompts', () => {
   test('an action-only effect does not offer points', () => {
     const { state } = freshGame();
     state.zones.horizon = [
-      createHorizonEntry('002', 'p2'),   // point
-      createHorizonEntry('050', 'p2'),   // action
-      createHorizonEntry('004', 'p2'),   // point
+      createHorizonEntry('02', 'p2'),   // point
+      createHorizonEntry('45', 'p2'),   // action
+      createHorizonEntry('04', 'p2'),   // point
     ];
     const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'action' });
     expect(prompt.legalHorizonIndexes).toEqual([1]);
@@ -1081,8 +979,8 @@ describe('Choice prompts', () => {
   test('a point-only effect does not offer actions', () => {
     const { state } = freshGame();
     state.zones.horizon = [
-      createHorizonEntry('050', 'p2'),   // action
-      createHorizonEntry('002', 'p2'),   // point
+      createHorizonEntry('45', 'p2'),   // action
+      createHorizonEntry('02', 'p2'),   // point
     ];
     const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'point' });
     expect(prompt.legalHorizonIndexes).toEqual([1]);
@@ -1090,14 +988,14 @@ describe('Choice prompts', () => {
 
   test('an "any" effect offers every card on the horizon', () => {
     const { state } = freshGame();
-    state.zones.horizon = [createHorizonEntry('050', 'p2'), createHorizonEntry('002', 'p2')];
+    state.zones.horizon = [createHorizonEntry('45', 'p2'), createHorizonEntry('02', 'p2')];
     const prompt = promptFor(state, { type: 'duskFromHorizon', filter: 'any' });
     expect(prompt.legalHorizonIndexes).toEqual([0, 1]);
   });
 
   test('Change of Luck (068) only offers points', () => {
     const { state } = freshGame();
-    state.zones.horizon = [createHorizonEntry('050', 'p2'), createHorizonEntry('002', 'p2')];
+    state.zones.horizon = [createHorizonEntry('45', 'p2'), createHorizonEntry('02', 'p2')];
     const prompt = promptFor(state, { type: 'putPointFromHorizonIntoZenith', filter: 'point' });
     expect(prompt.legalHorizonIndexes).toEqual([1]);
   });
@@ -1105,9 +1003,9 @@ describe('Choice prompts', () => {
   test('Deny Hostility (079) only offers actions played in response to a point', () => {
     const { state } = freshGame();
     state.zones.horizon = [
-      createHorizonEntry('050', 'p2', { respondedToCardType: 'action' }),  // wrong response
-      createHorizonEntry('051', 'p2', { respondedToCardType: 'point' }),   // this one
-      createHorizonEntry('002', 'p2'),                                     // a point
+      createHorizonEntry('45', 'p2', { respondedToCardType: 'action' }),  // wrong response
+      createHorizonEntry('46', 'p2', { respondedToCardType: 'point' }),   // this one
+      createHorizonEntry('02', 'p2'),                                     // a point
     ];
     const prompt = promptFor(state, {
       type: 'duskFromHorizon', filter: 'actionPlayedInResponseToPoint',
@@ -1119,9 +1017,9 @@ describe('Choice prompts', () => {
     const { state } = freshGame();
     // 002 Momentum costs 6, 004 Inquire costs 6, 050 Bounce Back costs 1.
     state.zones.horizon = [
-      createHorizonEntry('050', 'p2'),
-      createHorizonEntry('002', 'p2'),
-      createHorizonEntry('004', 'p2'),
+      createHorizonEntry('45', 'p2'),
+      createHorizonEntry('02', 'p2'),
+      createHorizonEntry('04', 'p2'),
     ];
     const prompt = promptFor(state, { type: 'duskFromHorizon', filter: { costEquals: 6 } });
     expect(prompt.legalHorizonIndexes).toEqual([1, 2]);
@@ -1129,14 +1027,14 @@ describe('Choice prompts', () => {
 
   test('a non-horizon choice is passed through untouched', () => {
     const { state } = freshGame();
-    state.zones.horizon = [createHorizonEntry('002', 'p2')];
+    state.zones.horizon = [createHorizonEntry('02', 'p2')];
     const prompt = promptFor(state, { type: 'duskFromHand', count: 1 });
     expect(prompt.legalHorizonIndexes).toBe(undefined);
   });
 
   test('the opponent only learns that a choice is pending, not its contents', () => {
     const { state } = freshGame();
-    state.zones.horizon = [createHorizonEntry('002', 'p2')];
+    state.zones.horizon = [createHorizonEntry('02', 'p2')];
     const prompt = buildChoicePrompt(state, { player: 'p1', type: 'duskFromHorizon', filter: 'any' }, 'p2');
     expect(prompt.waitingFor).toBe('opponent');
     expect(prompt.legalHorizonIndexes).toBe(undefined);
@@ -1195,49 +1093,49 @@ describe('Cards that watch the dusk', () => {
     // Voiding is the commonest way anything reaches the dusk, and the main way a
     // POINT gets there at all. It bypassed sendToDusk, so nothing was recorded.
     const { state } = freshGame();
-    state.players.p1.hand = ['002', '050'];   // a point and an action
-    voidCard(state, 'p1', '002');
-    voidCard(state, 'p1', '050');
-    expect(state.cardsToDuskThisTurn).toEqual(['002', '050']);
+    state.players.p1.hand = ['02', '45'];   // a point and an action
+    voidCard(state, 'p1', '02');
+    voidCard(state, 'p1', '45');
+    expect(state.cardsToDuskThisTurn).toEqual(['02', '45']);
   });
 
   test('Delve (003) costs 2 less once a point and an action have been voided', () => {
     const { state } = freshGame();
-    state.players.p1.hand = ['002', '050'];
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
-    voidCard(state, 'p1', '002');
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);   // one type only
-    voidCard(state, 'p1', '050');
-    expect(computeActualCost(state, '003', 'p1')).toBe(4);
+    state.players.p1.hand = ['02', '45'];
+    expect(computeActualCost(state, '03', 'p1')).toBe(6);
+    voidCard(state, 'p1', '02');
+    expect(computeActualCost(state, '03', 'p1')).toBe(6);   // one type only
+    voidCard(state, 'p1', '45');
+    expect(computeActualCost(state, '03', 'p1')).toBe(4);
   });
 
   test('Delve (003) is not discounted by two cards of the same type', () => {
     const { state } = freshGame();
-    state.players.p1.hand = ['002', '004'];   // two points
-    voidCard(state, 'p1', '002');
-    voidCard(state, 'p1', '004');
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    state.players.p1.hand = ['02', '04'];   // two points
+    voidCard(state, 'p1', '02');
+    voidCard(state, 'p1', '04');
+    expect(computeActualCost(state, '03', 'p1')).toBe(6);
   });
 
   test('a risen action does NOT count — only what you voided does', () => {
     const { state } = freshGame();
-    state.players.p1.hand = ['002'];
-    voidCard(state, 'p1', '002');
-    state.zones.horizon.unshift(createHorizonEntry('050', 'p1'));
+    state.players.p1.hand = ['02'];
+    voidCard(state, 'p1', '02');
+    state.zones.horizon.unshift(createHorizonEntry('45', 'p1'));
     riseTopOfHorizon(state);
     // The action reached the dusk by rising, not by being voided.
-    expect(state.zones.dusk).toContain('050');
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    expect(state.zones.dusk).toContain('45');
+    expect(computeActualCost(state, '03', 'p1')).toBe(6);
   });
 
   test('the record resets at end of turn', () => {
     const { state } = freshGame();
-    state.players.p1.hand = ['002', '050'];
-    voidCard(state, 'p1', '002');
-    voidCard(state, 'p1', '050');
+    state.players.p1.hand = ['02', '45'];
+    voidCard(state, 'p1', '02');
+    voidCard(state, 'p1', '45');
     endTurn(state);
     expect(state.cardsToDuskThisTurn).toHaveLength(0);
-    expect(computeActualCost(state, '003', 'p1')).toBe(6);
+    expect(computeActualCost(state, '03', 'p1')).toBe(6);
   });
 });
 
@@ -1285,20 +1183,14 @@ describe('Cards that watch a departure', () => {
   }
 
   test('Plead (010) makes the opponent draw when it leaves the horizon', () => {
-    const state = armed('010');
+    const state = armed('08');
     const before = state.players.p2.hand.length;
     riseTopOfHorizon(state);
     expect(state.players.p2.hand.length).toBe(before + 1);
   });
 
-  test('Fuzzy Memory (082) queues its draw for the next turn', () => {
-    const state = armed('082');
-    riseTopOfHorizon(state);
-    expect(state.pendingTriggers.some(t => t.type === 'draw')).toBe(true);
-  });
-
   test('Contentment (041) fires only when it does NOT rise', () => {
-    const removed = armed('041');
+    const removed = armed('36');
     const p1 = removed.players.p1.hand.length;
     const p2 = removed.players.p2.hand.length;
     duskFromHorizon(removed, 0);
@@ -1306,27 +1198,27 @@ describe('Cards that watch a departure', () => {
     expect(removed.players.p1.hand.length).toBe(p1 + 1);
     expect(removed.players.p2.hand.length).toBe(p2 + 1);
 
-    const rose = armed('041');
+    const rose = armed('36');
     const before = rose.players.p1.hand.length;
     riseTopOfHorizon(rose);
     expect(rose.players.p1.hand.length).toBe(before);
   });
 
   test('Agoraphobia (040) goes to the bottom of the deck instead of the dusk', () => {
-    const state = armed('040');
+    const state = armed('35');
     duskFromHorizon(state, 0);
     flush(state);
-    expect(state.zones.dusk).not.toContain('040');
-    expect(state.zones.deck[state.zones.deck.length - 1]).toBe('040');
+    expect(state.zones.dusk).not.toContain('35');
+    expect(state.zones.deck[state.zones.deck.length - 1]).toBe('35');
   });
 
   test('Pride (046) draws if it rose, and dusks a card from hand if it did not', () => {
-    const rose = armed('046');
+    const rose = armed('41');
     const before = rose.players.p1.hand.length;
     riseTopOfHorizon(rose);
     expect(rose.players.p1.hand.length).toBe(before + 1);
 
-    const removed = armed('046');
+    const removed = armed('41');
     duskFromHorizon(removed, 0);
     flush(removed);
     expect(removed.pendingTriggers.some(t => t.type === 'duskFromHandChoice')).toBe(true);
@@ -1334,32 +1226,32 @@ describe('Cards that watch a departure', () => {
 
 
   test('Purity (044) goes to the dusk when an OPPONENT responds to it', () => {
-    const state = armed('044', 'p1');
+    const state = armed('39', 'p1');
     state.players.p2.hand.push(ACTION);
     state.activePlayer = 'p2';
     playCard(state, 'p2', ACTION);
-    expect(state.zones.horizon.some(e => e.cardId === '044')).toBe(false);
-    expect(state.zones.dusk).toContain('044');
+    expect(state.zones.horizon.some(e => e.cardId === '39')).toBe(false);
+    expect(state.zones.dusk).toContain('39');
   });
 
   test('Purity (044) is unaffected by its own controller playing another card', () => {
-    const state = armed('044', 'p1');
+    const state = armed('39', 'p1');
     state.players.p1.hand.push(ACTION);
     state.activePlayer = 'p1';
     playCard(state, 'p1', ACTION);
-    expect(state.zones.horizon.some(e => e.cardId === '044')).toBe(true);
+    expect(state.zones.horizon.some(e => e.cardId === '39')).toBe(true);
   });
 
   test('Pay No Mind (047) dusks itself AND draws three when answered', () => {
-    const state = armed('047', 'p1');
+    const state = armed('42', 'p1');
     state.players.p2.hand.push(ACTION);
     state.activePlayer = 'p2';
     const before = state.players.p1.hand.length;
 
     playCard(state, 'p2', ACTION);
 
-    expect(state.zones.horizon.some(e => e.cardId === '047')).toBe(false);
-    expect(state.zones.dusk).toContain('047');
+    expect(state.zones.horizon.some(e => e.cardId === '42')).toBe(false);
+    expect(state.zones.dusk).toContain('42');
     // The draw is the half Purity (044) does not have: it needs the trigger to
     // run a list of effects rather than a single one.
     expect(state.players.p1.hand.length).toBe(before + 3);
@@ -1368,7 +1260,7 @@ describe('Cards that watch a departure', () => {
   test('Pay No Mind (047) only fires when it is the card being answered', () => {
     // "Responds to this" means the card directly beneath the one just played.
     // Buried a layer down, 047 is not what the opponent answered, so it sits.
-    const state = armed('047', 'p1');
+    const state = armed('42', 'p1');
     state.zones.horizon.unshift(createHorizonEntry(ACTION_B, 'p1'));
     state.players.p2.hand.push(ACTION);
     state.activePlayer = 'p2';
@@ -1376,15 +1268,15 @@ describe('Cards that watch a departure', () => {
 
     playCard(state, 'p2', ACTION);
 
-    expect(state.zones.horizon.some(e => e.cardId === '047')).toBe(true);
+    expect(state.zones.horizon.some(e => e.cardId === '42')).toBe(true);
     expect(state.players.p1.hand.length).toBe(before);
   });
 
   test('Understand Despair (064) draws two whenever your card leaves without rising', () => {
-    const state = armed('064');
+    const state = armed('56');
     riseTopOfHorizon(state);            // registers the turn-long trigger
     const before = state.players.p1.hand.length;
-    state.zones.horizon.unshift(createHorizonEntry('002', 'p1'));
+    state.zones.horizon.unshift(createHorizonEntry('02', 'p1'));
     duskFromHorizon(state, 0);
     flush(state);
     expect(state.players.p1.hand.length).toBe(before + 2);
@@ -1408,7 +1300,7 @@ describe('thenGrant riders fire', () => {
     ];
     state.players.p1.energy = 10;
     state.players.p2.energy = 0;
-    state.players.p2.hand = ['004', '012'];
+    state.players.p2.hand = ['04', '10'];
     riseTopOfHorizon(state);
     flushHorizonTriggers(state);
     expect(advancePendingChoices(state)).toBe(true);
@@ -1418,21 +1310,21 @@ describe('thenGrant riders fire', () => {
   }
 
   test('Unwanted Gift (089) gives the target controller 3 energy', () => {
-    expect(duskWithRider('089', '050').players.p2.energy).toBe(3);
+    expect(duskWithRider('78', '45').players.p2.energy).toBe(3);
   });
 
   test('Relapse (095) makes the target controller draw two', () => {
-    expect(duskWithRider('095', '050').players.p2.hand.length).toBe(4);
+    expect(duskWithRider('82', '45').players.p2.hand.length).toBe(4);
   });
 
   test('Drain Motive (092) locks the target controller out of the turn', () => {
-    expect(duskWithRider('092', '004').turnFlags.lockedPlayer).toBe('p2');
+    expect(duskWithRider('80', '04').turnFlags.lockedPlayer).toBe('p2');
   });
 
   test('Metamorphosis (071) makes the target controller next card free', () => {
-    const state = duskWithRider('071', '050');
+    const state = duskWithRider('62', '45');
     expect(state.turnFlags.nextCardFreeFor).toBe('p2');
-    expect(computeActualCost(state, '012', 'p2')).toBe(0);
+    expect(computeActualCost(state, '10', 'p2')).toBe(0);
   });
 
   test('the free-card grant is spent by the card it pays for', () => {
@@ -1440,16 +1332,16 @@ describe('thenGrant riders fire', () => {
     // fight the priority pass that playing a card triggers.
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['004', '012'];
+    state.players[me].hand = ['04', '10'];
     state.players[me].energy = 10;
     state.turnFlags.nextCardFreeFor = me;
 
-    expect(computeActualCost(state, '004', me)).toBe(0);
-    playCard(state, me, '004');
+    expect(computeActualCost(state, '04', me)).toBe(0);
+    playCard(state, me, '04');
     expect(state.players[me].energy).toBe(10);
     expect(state.turnFlags.nextCardFreeFor).toBe(null);
     // Full price once the grant is gone.
-    expect(computeActualCost(state, '012', me)).toBe(getCard('012').energyCost);
+    expect(computeActualCost(state, '10', me)).toBe(getCard('10').energyCost);
   });
 });
 
@@ -1459,28 +1351,28 @@ describe('the reworked cards do what their new text says', () => {
     const state = createGameState();
     initDeck(state);
     startGame(state);
-    state.players.p1.hand = ['004', '012', '050'];
-    state.players.p2.hand = ['002', '051'];
-    state.zones.horizon = [createHorizonEntry('009', 'p1')];
+    state.players.p1.hand = ['04', '10', '45'];
+    state.players.p2.hand = ['02', '46'];
+    state.zones.horizon = [createHorizonEntry('07', 'p1')];
 
     riseTopOfHorizon(state);
     flushHorizonTriggers(state);
 
     expect(state.players.p1.hand).toHaveLength(0);
     expect(state.players.p2.hand).toHaveLength(2);
-    expect(state.players.p1.zenith.includes('009')).toBe(true);
+    expect(state.players.p1.zenith.includes('07')).toBe(true);
   });
 
   test('Delve (003) discounts only once YOU have voided both types', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['003', '004', '050'];
+    state.players[me].hand = ['03', '04', '45'];
 
-    expect(computeActualCost(state, '003', me)).toBe(6);
-    voidCard(state, me, '004');                 // a point
-    expect(computeActualCost(state, '003', me)).toBe(6);
-    voidCard(state, me, '050');                 // an action
-    expect(computeActualCost(state, '003', me)).toBe(4);
+    expect(computeActualCost(state, '03', me)).toBe(6);
+    voidCard(state, me, '04');                 // a point
+    expect(computeActualCost(state, '03', me)).toBe(6);
+    voidCard(state, me, '45');                 // an action
+    expect(computeActualCost(state, '03', me)).toBe(4);
   });
 
   test('Delve ignores cards that reach the dusk without being voided', () => {
@@ -1490,26 +1382,26 @@ describe('the reworked cards do what their new text says', () => {
     const me = state.activePlayer;
     // Unused Ambition dumps the hand as it rises — both types reach the dusk
     // without either being voided.
-    state.zones.horizon = [createHorizonEntry('009', me)];
-    state.players[me].hand = ['004', '050'];
+    state.zones.horizon = [createHorizonEntry('07', me)];
+    state.players[me].hand = ['04', '45'];
 
     riseTopOfHorizon(state);
     flushHorizonTriggers(state);
 
-    expect(state.zones.dusk.includes('004')).toBe(true);
-    expect(state.zones.dusk.includes('050')).toBe(true);
-    expect(computeActualCost(state, '003', me)).toBe(6);
+    expect(state.zones.dusk.includes('04')).toBe(true);
+    expect(state.zones.dusk.includes('45')).toBe(true);
+    expect(computeActualCost(state, '03', me)).toBe(6);
   });
 
   test('Angst (020) draws two after you void both types', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['004', '050'];
-    voidCard(state, me, '004');
-    voidCard(state, me, '050');
+    state.players[me].hand = ['04', '45'];
+    voidCard(state, me, '04');
+    voidCard(state, me, '45');
     const before = state.players[me].hand.length;
 
-    state.zones.horizon = [createHorizonEntry('020', me)];
+    state.zones.horizon = [createHorizonEntry('18', me)];
     riseTopOfHorizon(state);
     flushHorizonTriggers(state);
 
@@ -1520,11 +1412,11 @@ describe('the reworked cards do what their new text says', () => {
     const state = createGameState();
     initDeck(state);
     startGame(state);
-    state.zones.dusk = ['050', '051', '052'];
+    state.zones.dusk = ['45', '46', '47'];
     state.zones.horizon = [
-      createHorizonEntry('098', 'p1'),
-      createHorizonEntry('053', 'p2'),   // cost 2
-      createHorizonEntry('068', 'p2'),   // cost 7
+      createHorizonEntry('85', 'p1'),
+      createHorizonEntry('48', 'p2'),   // cost 2
+      createHorizonEntry('60', 'p2'),   // cost 7
     ];
 
     riseTopOfHorizon(state);
@@ -1534,7 +1426,7 @@ describe('the reworked cards do what their new text says', () => {
     const prompt = buildChoicePrompt(state, state.pendingChoice, state.pendingChoice.player);
     // 098 is itself in the dusk by the time its text runs, so the threshold is 4.
     expect(prompt.filter.costLessThan).toBe(4);
-    expect(prompt.legalHorizonIndexes.map(i => state.zones.horizon[i].cardId)).toEqual(['053']);
+    expect(prompt.legalHorizonIndexes.map(i => state.zones.horizon[i].cardId)).toEqual(['48']);
   });
 });
 
@@ -1544,33 +1436,255 @@ describe('Dawn (049) pays for its discount by revealing', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
     // Dawn is itself a point and is still in hand while its cost is worked out.
-    state.players[me].hand = ['049', '002', '004'];
-    expect(computeActualCost(state, '049', me)).toBe(6);
-    state.players[me].hand = ['049', '002', '004', '006'];
-    expect(computeActualCost(state, '049', me)).toBe(0);
+    state.players[me].hand = ['44', '02', '04'];
+    expect(computeActualCost(state, '44', me)).toBe(6);
+    state.players[me].hand = ['44', '02', '04', '01'];
+    expect(computeActualCost(state, '44', me)).toBe(0);
   });
 
   test('playing it free actually reveals three points, and never itself', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['049', '002', '004', '006', '050'];
+    state.players[me].hand = ['44', '02', '04', '01', '45'];
     state.players[me].energy = 0;
 
-    const events = playCard(state, me, '049');
+    const events = playCard(state, me, '44');
     const reveal = events.find(e => e.type === 'POINTS_REVEALED');
     expect(reveal).toBeTruthy();
     expect(reveal.player).toBe(me);
     expect(reveal.cards).toHaveLength(3);
-    expect(reveal.cards.includes('049')).toBe(false);
+    expect(reveal.cards.includes('44')).toBe(false);
     expect(reveal.cards.every(id => getCard(id).type === 'point')).toBe(true);
   });
 
   test('paying full price reveals nothing', () => {
     const { state } = freshGame();
     const me = state.activePlayer;
-    state.players[me].hand = ['049', '050'];
+    state.players[me].hand = ['44', '45'];
     state.players[me].energy = 10;
-    const events = playCard(state, me, '049');
+    const events = playCard(state, me, '44');
     expect(events.some(e => e.type === 'POINTS_REVEALED')).toBe(false);
+  });
+});
+
+// ─── v4 card set ──────────────────────────────────────────────────────────────
+// The cards the overhaul either added outright or rebuilt around a mechanic the
+// engine did not have before.
+
+describe('the v4 cards', () => {
+  function onHorizon(state, cardId, player) {
+    const entry = createHorizonEntry(cardId, player);
+    state.zones.horizon.unshift(entry);
+    return entry;
+  }
+  function rise(state, cardId, player = 'p1') {
+    onHorizon(state, cardId, player);
+    const events = riseTopOfHorizon(state);
+    advancePendingChoices(state);
+    return events;
+  }
+
+  test('Offer Perspective (22) draws for the opponent of whoever played the action', () => {
+    const { state } = freshGame();
+    onHorizon(state, '22', 'p1');            // the watcher, controlled by p1
+    giveCard(state, 'p2', '45');
+    setEnergy(state, 'p2', 20);
+    state.activePlayer = 'p2';               // p2 holds priority to respond
+    const before = state.players.p1.hand.length;
+
+    playCard(state, 'p2', '45');             // p2 plays an action
+
+    expect(state.players.p1.hand).toHaveLength(before + 1);
+  });
+
+  test('Avoid Conflict (32) dusks itself on the opponent second action, not the first', () => {
+    const { state } = freshGame();
+    onHorizon(state, '32', 'p1');
+    giveCard(state, 'p2', '86');   // Delay the Inevitable — harmless on rise
+    giveCard(state, 'p2', '52');   // Prepare — likewise
+    setEnergy(state, 'p2', 20);
+
+    state.activePlayer = 'p2';
+    playCard(state, 'p2', '86');
+    expect(state.zones.horizon.some(e => e.cardId === '32')).toBe(true);
+
+    // Let it rise so Avoid Conflict is back on top and p2 may respond again.
+    passPriority(state, 'p1');
+    playCard(state, 'p2', '52');
+    expect(state.zones.horizon.some(e => e.cardId === '32')).toBe(false);
+    expect(state.zones.dusk).toContain('32');
+  });
+
+  test('Avoid Conflict (32) does not count the actions of its own controller', () => {
+    const { state } = freshGame();
+    onHorizon(state, '32', 'p1');
+    giveCard(state, 'p1', '45');
+    giveCard(state, 'p1', '46');
+    setEnergy(state, 'p1', 20);
+
+    playCard(state, 'p1', '45');
+    playCard(state, 'p1', '46');
+
+    expect(state.zones.horizon.some(e => e.cardId === '32')).toBe(true);
+  });
+
+  test('Past Passion (47) makes the card it fetched free, and only that card', () => {
+    const { state } = freshGame();
+    state.zones.dusk = ['02', '60'];          // Momentum 6, Change of Luck 7
+    rise(state, '47');
+
+    expect(state.pendingChoice.type).toBe('putFromDuskToHand');
+    resolveChoice(state, 'p1', { cardIds: ['60'] });
+
+    expect(state.players.p1.hand).toContain('60');
+    expect(computeActualCost(state, '60', 'p1')).toBe(0);
+    expect(computeActualCost(state, '02', 'p1')).toBe(6);
+  });
+
+  test('Unwind Intent (89) draws only when the bounced card was yours', () => {
+    const { state } = freshGame();
+    onHorizon(state, '02', 'p1');             // p1 own point
+    const before = state.players.p1.hand.length;
+    rise(state, '89', 'p1');
+
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '02');
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+
+    expect(state.players.p1.hand).toContain('02');
+    expect(state.players.p1.hand.length).toBe(before + 2);  // the bounce + the draw
+  });
+
+  test('Unwind Intent (89) skips the draw on an opponent card', () => {
+    const { state } = freshGame();
+    onHorizon(state, '02', 'p2');
+    const before = state.players.p1.hand.length;
+    rise(state, '89', 'p1');
+
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '02');
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+
+    expect(state.players.p2.hand).toContain('02');
+    expect(state.players.p1.hand).toHaveLength(before);
+  });
+
+  test('Blinding Flash (53) stops the opponent responding to your cards all turn', () => {
+    const { state } = freshGame();
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    giveCard(state, 'p2', '46');
+
+    rise(state, '53', 'p1');                  // the lock outlives the card
+    onHorizon(state, '02', 'p1');             // now a p1 card is on top
+
+    expect(validatePlay(state, 'p2', '46')).toMatch(/cannot respond/);
+  });
+
+  test('Blinding Flash (53) does not shield the cards of the other player', () => {
+    const { state } = freshGame();
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+    giveCard(state, 'p1', '46');
+
+    rise(state, '53', 'p1');
+    onHorizon(state, '02', 'p2');             // a p2 card on top
+
+    expect(validatePlay(state, 'p1', '46')).toBeNull();
+  });
+
+  test('Efficiency (13) discounts the opponent actions but not their points', () => {
+    const { state } = freshGame();
+    onHorizon(state, '13', 'p1');
+    expect(computeActualCost(state, '46', 'p2')).toBe(1);   // Regret 3 → 1
+    expect(computeActualCost(state, '02', 'p2')).toBe(6);   // Momentum unchanged
+  });
+
+  test('Paranoia (21) locks its controller out of actions only', () => {
+    const { state } = freshGame();
+    onHorizon(state, '21', 'p1');
+    giveCard(state, 'p1', '46');
+    giveCard(state, 'p2', '45');
+    setEnergy(state, 'p1', 20);
+    setEnergy(state, 'p2', 20);
+
+    expect(validatePlay(state, 'p1', '46')).toMatch(/cannot be played/);
+    expect(validatePlay(state, 'p2', '45')).toBeNull();
+  });
+
+  test('Overwhelm (15) discounts per card played this turn, not per card on the horizon', () => {
+    const { state } = freshGame();
+    const me = state.activePlayer;
+    setEnergy(state, me, 20);
+    expect(computeActualCost(state, '15', me)).toBe(7);
+
+    giveCard(state, me, '46');
+    playCard(state, me, '46');
+    expect(computeActualCost(state, '15', me)).toBe(6);
+  });
+
+  test('Endure Hatred (19) draws when the opponent action rises, not when it is played', () => {
+    const { state } = freshGame();
+    onHorizon(state, '19', 'p1');
+    giveCard(state, 'p2', '46');
+    setEnergy(state, 'p2', 20);
+    state.activePlayer = 'p2';
+
+    playCard(state, 'p2', '46');
+    const afterPlay = state.players.p1.hand.length;
+
+    riseTopOfHorizon(state);                  // the opponent action rises
+    expect(state.players.p1.hand).toHaveLength(afterPlay + 1);
+  });
+
+  test('Treasure Anew (26) swaps each hand for the same number of fresh cards', () => {
+    const { state } = freshGame();
+    state.players.p1.hand = ['04', '10'];
+    state.players.p2.hand = ['02', '46', '45'];
+
+    rise(state, '26', 'p1');
+
+    expect(state.players.p1.hand).toHaveLength(2);
+    expect(state.players.p2.hand).toHaveLength(3);
+    for (const id of ['04', '10', '02', '46', '45']) expect(state.zones.dusk).toContain(id);
+  });
+
+  test('Burn Out (77) pays out the cost of the point it dusked', () => {
+    const { state } = freshGame();
+    onHorizon(state, '02', 'p2');             // Momentum, cost 6
+    setEnergy(state, 'p1', 0);
+    rise(state, '77', 'p1');
+
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '02');
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+
+    expect(state.zones.dusk).toContain('02');
+    expect(state.players.p1.energy).toBe(6);
+  });
+
+  test('Strobe Brightness (88) holds its energy until the next turn', () => {
+    const { state } = freshGame();
+    onHorizon(state, '02', 'p2');             // Momentum, cost 6
+    setEnergy(state, 'p1', 0);
+    rise(state, '88', 'p1');
+
+    const idx = state.zones.horizon.findIndex(e => e.cardId === '02');
+    resolveChoice(state, 'p1', { horizonIndex: idx });
+
+    // Nothing yet — the end-of-turn wipe would only take it away again.
+    expect(state.players.p1.energy).toBe(0);
+    endTurn(state);
+    expect(state.players.p1.energy).toBe(6);
+  });
+
+  test('Inspect (65) puts the cards it passed over into the dusk', () => {
+    const { state } = freshGame();
+    rise(state, '65', 'p1');
+
+    expect(state.pendingChoice.type).toBe('revealUntilType');
+    const deckBefore = state.zones.deck.length;
+    resolveChoice(state, 'p1', { cardType: 'point' });
+
+    const consumed = deckBefore - state.zones.deck.length;
+    // One revealed card went to hand, the rest to the dusk, plus Inspect itself.
+    expect(state.zones.dusk).toHaveLength(consumed - 1 + 1);
   });
 });
