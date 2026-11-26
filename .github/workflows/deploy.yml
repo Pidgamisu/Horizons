@@ -9,10 +9,21 @@
 #   RENDER_DEPLOY_HOOK_URL   — Render: service → Settings → Deploy Hook
 #   NETLIFY_BUILD_HOOK_URL   — Netlify: Site config → Build & deploy → Build hooks
 #
-# Because this workflow drives the deploys, turn OFF the hosts' own auto-deploy
-# so you don't get double builds:
-#   - render.yaml already sets autoDeploy: false
-#   - Netlify: Site config → Build & deploy → "Stop auto publishing"
+# Because this workflow drives the deploys, turn OFF Render's own auto-deploy so
+# you don't get double builds — render.yaml already sets autoDeploy: false.
+#
+# Do NOT do the same on Netlify with "stop auto publishing". That is Netlify's
+# "locked deploys": it still builds, it just never publishes, so it prevents no
+# work and guarantees the live site never changes. This file used to tell you to
+# turn it on, and on 2026-11-24 both deploy steps below reported success while
+# the client sat on the previous bundle for two days.
+#
+# Netlify needs auto publishing ON and builds ACTIVE for the hook to reach the
+# live site; stopping builds disables build hooks too. There is no documented way
+# to build on a hook but not on a push, so a Git-linked site will build twice.
+# See DEPLOY.md — "Verifying a deploy actually shipped" — before trusting a green
+# check here: these steps go green on a 200 from the hook, which only means the
+# host accepted the request.
 
 name: deploy
 

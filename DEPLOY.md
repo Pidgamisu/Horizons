@@ -64,12 +64,69 @@ would ship even when tests are red.
 3. **GitHub** → repo **Settings → Secrets and variables → Actions** → add:
    - `RENDER_DEPLOY_HOOK_URL`
    - `NETLIFY_BUILD_HOOK_URL`
-4. Turn off the hosts' own push-based auto-deploy so you don't get double builds:
-   - `render.yaml` already sets `autoDeploy: false`.
-   - **Netlify** → **Site config → Build & deploy** → **Stop auto publishing**.
+4. Turn off Render's own push-based auto-deploy so you don't get double builds —
+   `render.yaml` already sets `autoDeploy: false`.
+
+   **Do not do the same on Netlify by stopping auto publishing.** Netlify calls that
+   *locked deploys*, and its own docs are explicit about what it means: "New deploys won't be
+   published to the main site, although Netlify will still build them and they will be ready
+   for whenever you want to publish them." It does not prevent a build, so it buys you nothing
+   against double builds — it just stops anything ever reaching the live site. See the
+   2026-11-24 entry below for what that looks like in practice.
+
+   For this workflow to be able to ship at all, Netlify needs **both**:
+   - **auto publishing on** (deploys unlocked — the toggle is in the Deploys list,
+     "Unlock to start auto publishing"), and
+   - **builds active** (Project configuration → Developer settings → Continuous deployment →
+     Build settings → Build status). Stopping builds also kills the hook: "If requests are
+     sent to build hook URLs, Netlify will not build your site."
+
+   There is no documented way to have Netlify build on a hook but not on a git push, so if the
+   site is Git-linked, expect it to build twice. That is the cost of the test gate; leave it.
+
+   Note that Netlify honours skip tags in commit messages the same way GitHub Actions does, so
+   a commit marked to skip CI ships nowhere at all — which is what this repo's routine commits
+   are for.
 
 If a secret is missing, that host's deploy step is skipped (the build/tests still run), so you
 can wire up one host at a time.
+
+## Verifying a deploy actually shipped
+
+**A green check proves nothing.** Two separate ways this repo has shipped nothing while
+reporting success:
+
+- Runs #1–#34 were green and skipped both deploy steps, because the hook secrets were unset
+  and the steps are guarded by `if: env.X != ''` — a missing secret skips rather than fails.
+  So check the *steps*, not the run:
+
+  ```bash
+  gh api repos/<owner>/<repo>/actions/runs/<id>/jobs \
+    --jq '.jobs[].steps[] | "\(.conclusion)\t\(.name)"'
+  ```
+
+  The two "Trigger … deploy" lines must say `success`, not `skipped`.
+
+- On 2026-11-24 both steps said `success`, Render shipped, and Netlify did not: the site was
+  still serving the previous bundle two days later. The hook POST returning 200 only means
+  Netlify accepted it.
+
+So verify the hosts themselves, not the hook:
+
+```bash
+# Client: an asset that only exists in the new build must come back as a real image.
+# Netlify's SPA fallback answers 200 with ~1KB of HTML for anything missing, so the
+# status code is meaningless on its own — check the content type and size.
+curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}\n' \
+  https://horizonscardgame.com/cards/89.png
+
+# Or compare the hashed bundle name against a local build of the same commit:
+curl -s https://horizonscardgame.com/ | grep -oE 'src="/assets/[^"]+"'
+grep -oE 'src="/assets/[^"]+"' dist/index.html
+
+# Server: /healthz answers 200 on any version, so it cannot tell you which one is live.
+# Connect two sockets to one room and read the dealt hand — v4 ids are two digits.
+```
 
 ## Local development (unchanged)
 
